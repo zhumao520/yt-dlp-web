@@ -101,7 +101,7 @@ def api_error_handler(func: Callable) -> Callable:
             logger.error(f"详细信息: {traceback.format_exc()}")
             
             # 在调试模式下返回详细错误信息
-            from ..core.config import get_config
+            from core.config import get_config
             if get_config('app.debug', False):
                 return jsonify({
                     "error": str(e),
@@ -141,7 +141,7 @@ def download_recovery_strategy(error: Exception, context: str) -> Optional[Any]:
     try:
         if "yt-dlp" in str(error).lower():
             logger.info("🔧 尝试重新安装yt-dlp...")
-            from ..scripts.ytdlp_installer import YtdlpInstaller
+            from scripts.ytdlp_installer import YtdlpInstaller
             installer = YtdlpInstaller()
             if installer.ensure_ytdlp(force_update=True):
                 return "recovered"

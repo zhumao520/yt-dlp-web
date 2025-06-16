@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  yt-dlp-web:
+    image: ghcr.io/zhumao520/yt-dlp-web:main
+    container_name: yt-dlp-web
+    restart: unless-stopped
+    ports:
+      - "8090:8080"
+    volumes:
+      # 数据持久化存储
+      - ./data/downloads:/app/downloads
+      - ./data/database:/app/data
+      - ./data/logs:/app/logs
+      - ./data/temp:/app/temp
+      - ./data/cookies:/app/data/cookies
+      
+      # 配置文件持久化 (可选)
+      - ./config:/app/config
+      
+    environment:
+      # 基础应用配置
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production-environment}
+      
+      # 应用服务配置
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8080
+      - APP_DEBUG=false
+      
+      # 管理员账号配置
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      
+      # 数据库配置
+      - DATABASE_URL=sqlite:///data/app.db
+      
+      # 下载配置
+      - DOWNLOAD_DIR=/app/downloads
+      - MAX_CONCURRENT=${MAX_CONCURRENT:-3}
+      
+      # Telegram配置 (可选)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID:-}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH:-}
+      
+      # 时区设置
+      - TZ=${TZ:-Asia/Shanghai}
+      
+      # 容器标识
+      - DOCKER_CONTAINER=1
+      
+    networks:
+      - yt-dlp-network
+      
+    labels:
+      # Portainer管理标签
+      - "io.portainer.accesscontrol.teams=administrators"
+      - "io.portainer.accesscontrol.users=admin"
+      
+      # 应用信息标签
+      - "app.name=yt-dlp-web"
+      - "app.description=YouTube视频下载器Web界面"
+      - "app.version=2.0.0"
+      - "app.category=media"
+      - "app.url=http://localhost:8090"
+      
+      # 健康检查标签
+      - "health.check.url=http://localhost:8090/api/health"
+      - "health.check.interval=30s"
+      
+      # 备份标签
+      - "backup.enable=true"
+      - "backup.volumes=data"
+      
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+      
+    # 资源限制 (可选)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  yt-dlp-network:
+    driver: bridge
+    labels:
+      - "app.network=yt-dlp"
+
+# 可选：添加数据卷定义
+volumes:
+  yt-dlp-downloads:
+    driver: local
+    labels:
+      - "app.volume=downloads"
+  yt-dlp-data:
+    driver: local
+    labels:
+      - "app.volume=data"

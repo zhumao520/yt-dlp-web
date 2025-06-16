@@ -73,7 +73,7 @@ def _ensure_ytdlp_available():
     try:
         logger.info("🔧 检查yt-dlp可用性...")
 
-        from ..scripts.ytdlp_installer import YtdlpInstaller
+        from scripts.ytdlp_installer import YtdlpInstaller
         installer = YtdlpInstaller()
 
         # 检查是否已经可用
@@ -154,7 +154,7 @@ def _initialize_core_components(app: Flask):
 
             # 初始化Telegram模块（注册事件监听器）
             try:
-                from ..modules import telegram
+                import modules.telegram as telegram
                 logger.info("✅ Telegram事件监听器注册完成")
             except ImportError as e:
                 logger.warning(f"⚠️ Telegram模块导入失败: {e}")
@@ -170,43 +170,35 @@ def _register_blueprints(app: Flask):
     """注册蓝图"""
     try:
         # 主页蓝图
-        from ..web.routes import main_bp
+        from web.routes import main_bp
         app.register_blueprint(main_bp)
-        
-        # API蓝图
-        from ..api.routes import api_bp
 
+        # API蓝图
+        from api.routes import api_bp
         app.register_blueprint(api_bp, url_prefix="/api")
 
         # 认证蓝图
-        from ..modules.auth.routes import auth_bp
-
+        from modules.auth.routes import auth_bp
         app.register_blueprint(auth_bp, url_prefix="/auth")
 
         # 下载模块蓝图
-        from ..modules.downloader.routes import downloader_bp
-
+        from modules.downloader.routes import downloader_bp
         app.register_blueprint(downloader_bp, url_prefix="/download")
 
         # Telegram模块蓝图
-        from ..modules.telegram.routes import telegram_bp
-
+        from modules.telegram.routes import telegram_bp
         app.register_blueprint(telegram_bp, url_prefix="/telegram")
 
         # Cookies管理蓝图
-        from ..modules.cookies.routes import cookies_bp
-
+        from modules.cookies.routes import cookies_bp
         app.register_blueprint(cookies_bp, url_prefix="/cookies")
 
         # 文件管理蓝图
-        from ..modules.files.routes import files_bp
-
+        from modules.files.routes import files_bp
         app.register_blueprint(files_bp, url_prefix="/files")
 
-
-
         logger.info("✅ 蓝图注册完成")
-        
+
     except Exception as e:
         logger.error(f"❌ 蓝图注册失败: {e}")
         raise

@@ -37,7 +37,7 @@ class UnifiedTelegramNotifier:
         try:
             # 首先尝试从数据库读取配置
             try:
-                from ...core.database import get_database
+                from core.database import get_database
                 db = get_database()
                 db_config = db.get_telegram_config()
 
@@ -61,7 +61,7 @@ class UnifiedTelegramNotifier:
                 logger.warning(f"⚠️ 从数据库加载配置失败: {db_error}")
 
                 # 回退到环境变量/配置文件
-                from ...core.config import get_config
+                from core.config import get_config
 
                 self.config = {
                     'enabled': get_config('telegram.enabled', False),
@@ -211,7 +211,7 @@ class UnifiedTelegramNotifier:
     def cancel_download_by_telegram(self, download_id: str) -> bool:
         """通过 Telegram 取消下载"""
         try:
-            from ...modules.downloader.manager import get_download_manager
+            from modules.downloader.manager import get_download_manager
             download_manager = get_download_manager()
             
             success = download_manager.cancel_download(download_id)
@@ -371,7 +371,7 @@ get_modern_telegram_notifier = get_telegram_notifier
 
 # ==================== 现代化事件监听器 ====================
 
-from ...core.events import on, Events
+from core.events import on, Events
 
 @on(Events.DOWNLOAD_STARTED)
 def handle_download_started(data):
@@ -390,7 +390,7 @@ def handle_download_started(data):
             return
 
         # 获取下载信息
-        from ...modules.downloader.manager import get_download_manager
+        from modules.downloader.manager import get_download_manager
         download_manager = get_download_manager()
         download_info = download_manager.get_download(download_id)
 

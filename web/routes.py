@@ -5,7 +5,7 @@ Web路由 - 页面路由
 
 import logging
 from flask import Blueprint, render_template, redirect, url_for, request
-from ..core.auth import auth_required, optional_auth
+from core.auth import auth_required, optional_auth
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +92,8 @@ def settings():
 def _needs_initialization():
     """检查是否需要初始化"""
     try:
-        from ..core.database import get_database
-        from ..core.config import get_config
+        from core.database import get_database
+        from core.config import get_config
         
         # 检查数据库是否有用户
         db = get_database()
@@ -130,7 +130,7 @@ def _get_system_status():
         
         # 检查数据库
         try:
-            from ..core.database import get_database
+            from core.database import get_database
             db = get_database()
             db.execute_query('SELECT 1')
             status['database'] = True
@@ -145,13 +145,13 @@ def _get_system_status():
             pass
         
         # 检查配置
-        from ..core.config import get_config
+        from core.config import get_config
         if get_config('app.secret_key') != 'change-this-secret-key-in-production':
             status['config'] = True
         
         # 检查管理员用户
         try:
-            from ..core.database import get_database
+            from core.database import get_database
             db = get_database()
             users = db.execute_query('SELECT COUNT(*) as count FROM users WHERE is_admin = 1')
             if users and users[0]['count'] > 0:

@@ -23,7 +23,7 @@ class CookiesManager:
     def _load_config(self):
         """加载配置"""
         try:
-            from ...core.config import get_config
+            from core.config import get_config
             self.cookies_dir = Path(get_config('app.data_dir', '/app/data')) / 'cookies'
             self.cookies_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"✅ Cookies目录: {self.cookies_dir}")

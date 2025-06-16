@@ -5,7 +5,7 @@ Cookies管理路由
 
 import logging
 from flask import Blueprint, request, jsonify, send_file
-from ...core.auth import auth_required
+from core.auth import auth_required
 from .manager import get_cookies_manager
 
 logger = logging.getLogger(__name__)

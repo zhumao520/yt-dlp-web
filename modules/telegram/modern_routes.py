@@ -293,7 +293,7 @@ class ModernTelegramRouter:
     def _start_download_with_quality(self, url: str, quality: Dict[str, Any], user_info: Dict[str, str]) -> Dict[str, Any]:
         """开始指定质量的下载"""
         try:
-            from ....modules.downloader.manager import get_download_manager
+            from modules.downloader.manager import get_download_manager
             
             download_manager = get_download_manager()
             
@@ -328,7 +328,7 @@ class ModernTelegramRouter:
     def _start_download_direct(self, url: str, user_info: Dict[str, str]) -> Dict[str, Any]:
         """直接开始下载（不选择质量）"""
         try:
-            from ....modules.downloader.manager import get_download_manager
+            from modules.downloader.manager import get_download_manager
             
             download_manager = get_download_manager()
             

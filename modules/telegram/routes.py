@@ -6,7 +6,7 @@ Telegram路由 - 机器人webhook和API接口
 import logging
 import re
 from flask import Blueprint, request, jsonify
-from ...core.auth import auth_required
+from core.auth import auth_required
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ def telegram_webhook():
         logger.info(f"请求来源: {request.remote_addr}")
 
         # 获取配置
-        from ...core.database import get_database
+        from core.database import get_database
         db = get_database()
         config = db.get_telegram_config()
         
@@ -181,7 +181,7 @@ def _handle_command(command, config):
             
         elif command.startswith('/status'):
             # 获取真实系统状态
-            from ...core.config import get_config
+            from core.config import get_config
             from pathlib import Path
             import os
             import time
@@ -189,7 +189,7 @@ def _handle_command(command, config):
             # 先获取基础信息（不依赖psutil）
             try:
                 # 获取下载任务状态
-                from ...modules.downloader.manager import get_download_manager
+                from modules.downloader.manager import get_download_manager
                 download_manager = get_download_manager()
                 downloads = download_manager.get_all_downloads()
                 active_count = len([d for d in downloads if d['status'] in ['pending', 'downloading']])
@@ -290,7 +290,7 @@ def _handle_command(command, config):
             
         elif command.startswith('/downloads'):
             # 获取最近下载 - 增强版本
-            from ...modules.downloader.manager import get_download_manager
+            from modules.downloader.manager import get_download_manager
             download_manager = get_download_manager()
             downloads = download_manager.get_all_downloads()
 
@@ -338,7 +338,7 @@ def _handle_command(command, config):
 
         elif command.startswith('/files'):
             # 获取文件列表 - 增强版本
-            from ...core.config import get_config
+            from core.config import get_config
             from pathlib import Path
 
             download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
@@ -487,7 +487,7 @@ scheme = `{request.scheme}`"""
             download_id_short = parts[1]
 
             # 查找完整的下载ID
-            from ...modules.downloader.manager import get_download_manager
+            from modules.downloader.manager import get_download_manager
             download_manager = get_download_manager()
             downloads = download_manager.get_all_downloads()
 
@@ -530,7 +530,7 @@ scheme = `{request.scheme}`"""
             identifier = parts[1].strip()
 
             # 查找文件
-            from ...core.config import get_config
+            from core.config import get_config
             from pathlib import Path
             download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
 
@@ -581,7 +581,7 @@ scheme = `{request.scheme}`"""
             # 检查文件大小并提供预警
             if file_size_mb > 50:
                 # 检查是否有PyrogramMod支持
-                from ...modules.telegram.notifier import get_telegram_notifier
+                from modules.telegram.notifier import get_telegram_notifier
                 notifier_instance = get_telegram_notifier()
                 uploader = getattr(notifier_instance, 'uploader', None)
 
@@ -612,7 +612,7 @@ scheme = `{request.scheme}`"""
             identifier = parts[1].strip()
 
             # 查找文件
-            from ...core.config import get_config
+            from core.config import get_config
             from pathlib import Path
             download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
 
@@ -669,7 +669,7 @@ scheme = `{request.scheme}`"""
 
         elif command.startswith('/cleanup'):
             # 清理旧文件命令
-            from ...core.config import get_config
+            from core.config import get_config
             from pathlib import Path
             import time
 
@@ -754,7 +754,7 @@ def _handle_url_with_quality_selection(url, config):
 def _get_video_info(url):
     """获取视频信息 - 使用统一API"""
     try:
-        from ...modules.downloader.api import get_unified_download_api
+        from modules.downloader.api import get_unified_download_api
         api = get_unified_download_api()
 
         # 使用统一API的智能回退机制
@@ -967,7 +967,7 @@ def _handle_quality_selection(selection, config, chat_id):
 def _start_download_with_quality(url, quality_option, config, video_info):
     """根据选择的质量开始下载"""
     try:
-        from ...modules.downloader.api import get_unified_download_api
+        from modules.downloader.api import get_unified_download_api
         api = get_unified_download_api()
 
         # 构建下载选项
@@ -1032,7 +1032,7 @@ def _start_download_with_quality(url, quality_option, config, video_info):
 def _handle_download_request(url, config):
     """处理下载请求"""
     try:
-        from ...modules.downloader.manager import get_download_manager
+        from modules.downloader.manager import get_download_manager
         download_manager = get_download_manager()
 
         # 构建下载选项
@@ -1174,7 +1174,7 @@ def _is_valid_url(text):
 def setup_webhook():
     """设置Telegram Webhook"""
     try:
-        from ...core.database import get_database
+        from core.database import get_database
         db = get_database()
         config = db.get_telegram_config()
 
@@ -1263,7 +1263,7 @@ def setup_webhook():
 def delete_webhook():
     """删除Telegram Webhook"""
     try:
-        from ...core.database import get_database
+        from core.database import get_database
         db = get_database()
         config = db.get_telegram_config()
 
@@ -1307,7 +1307,7 @@ def delete_webhook():
 def get_webhook_info():
     """获取Telegram Webhook信息"""
     try:
-        from ...core.database import get_database
+        from core.database import get_database
         db = get_database()
         config = db.get_telegram_config()
 

@@ -7,7 +7,7 @@ import os
 import logging
 from pathlib import Path
 from flask import Blueprint, send_file, jsonify, abort
-from ...core.auth import auth_required
+from core.auth import auth_required
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ files_bp = Blueprint('files', __name__)
 def download_file(filename):
     """下载文件"""
     try:
-        from ...core.config import get_config
+        from core.config import get_config
         from flask import request
 
         # 获取下载目录
@@ -58,7 +58,7 @@ def download_file(filename):
 def stream_file(filename):
     """流媒体播放文件（支持Range请求）"""
     try:
-        from ...core.config import get_config
+        from core.config import get_config
         from flask import request, Response
         import os
 
@@ -141,7 +141,7 @@ def stream_file_options(filename):
 def list_files():
     """获取文件列表"""
     try:
-        from ...core.config import get_config
+        from core.config import get_config
         
         download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
         
@@ -174,7 +174,7 @@ def list_files():
 def delete_file(filename):
     """删除文件"""
     try:
-        from ...core.config import get_config
+        from core.config import get_config
         
         download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
         file_path = download_dir / filename
@@ -353,7 +353,7 @@ def _generate_file_chunks(file_path, chunk_size=None):
 def debug_file(filename):
     """调试文件信息"""
     try:
-        from ...core.config import get_config
+        from core.config import get_config
         import mimetypes
 
         download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))

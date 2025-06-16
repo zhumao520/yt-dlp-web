@@ -5,7 +5,7 @@
 
 import logging
 from flask import Blueprint, request, jsonify
-from ...core.auth import auth_required
+from core.auth import auth_required
 
 logger = logging.getLogger(__name__)
 

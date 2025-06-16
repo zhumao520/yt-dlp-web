@@ -28,7 +28,7 @@ class DownloadCleanup:
             return
             
         try:
-            from ...core.config import get_config
+            from core.config import get_config
             
             auto_cleanup = get_config('downloader.auto_cleanup', True)
             if not auto_cleanup:
@@ -68,18 +68,31 @@ class DownloadCleanup:
         """清理循环"""
         while not self.stop_event.is_set():
             try:
-                from ...core.config import get_config
-                
+                from core.config import get_config
+
                 # 获取清理间隔（小时）
-                cleanup_interval = get_config('downloader.cleanup_interval', 1)
-                interval_seconds = cleanup_interval * 3600  # 转换为秒
-                
+                cleanup_interval_hours = get_config('downloader.cleanup_interval', 1)
+
+                # 确保间隔值在合理范围内（最小0.1小时，最大24小时）
+                min_interval_hours = 0.1  # 6分钟
+                max_interval_hours = 24   # 24小时
+
+                if cleanup_interval_hours < min_interval_hours:
+                    cleanup_interval_hours = min_interval_hours
+                    logger.warning(f"⚠️ 清理间隔过小，调整为最小值: {min_interval_hours}小时")
+                elif cleanup_interval_hours > max_interval_hours:
+                    cleanup_interval_hours = max_interval_hours
+                    logger.warning(f"⚠️ 清理间隔过大，调整为最大值: {max_interval_hours}小时")
+
+                # 转换为秒
+                cleanup_interval_seconds = int(cleanup_interval_hours * 3600)
+
                 # 执行清理
                 self._perform_cleanup()
-                
+
                 # 等待下次清理
-                self.stop_event.wait(interval_seconds)
-                
+                self.stop_event.wait(cleanup_interval_seconds)
+
             except Exception as e:
                 logger.error(f"❌ 清理循环出错: {e}")
                 # 出错时等待5分钟再重试
@@ -88,7 +101,7 @@ class DownloadCleanup:
     def _perform_cleanup(self):
         """执行清理操作"""
         try:
-            from ...core.config import get_config
+            from core.config import get_config
             
             output_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
             if not output_dir.exists():

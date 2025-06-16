@@ -6,7 +6,7 @@ API路由 - 统一API接口
 import logging
 import time
 from flask import Blueprint, request, jsonify
-from ..core.auth import auth_required, optional_auth
+from core.auth import auth_required, optional_auth
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ def api_login():
         if not username or not password:
             return jsonify({"error": "用户名和密码不能为空"}), 400
         
-        from ..core.auth import get_auth_manager
+        from core.auth import get_auth_manager
         auth_manager = get_auth_manager()
         
         token = auth_manager.login(username, password)
@@ -108,7 +108,7 @@ def api_start_download():
         }
 
         # 使用统一的下载API
-        from ..modules.downloader.api import get_unified_download_api
+        from modules.downloader.api import get_unified_download_api
         api = get_unified_download_api()
         result = api.create_download(url, options)
 
@@ -133,7 +133,7 @@ def api_start_download():
 def api_download_status(download_id):
     """获取下载状态"""
     try:
-        from ..modules.downloader.manager import get_download_manager
+        from modules.downloader.manager import get_download_manager
         download_manager = get_download_manager()
         
         download_info = download_manager.get_download(download_id)
@@ -170,7 +170,7 @@ def api_download_status(download_id):
 def api_download_list():
     """获取下载列表"""
     try:
-        from ..modules.downloader.manager import get_download_manager
+        from modules.downloader.manager import get_download_manager
         download_manager = get_download_manager()
         
         downloads = download_manager.get_all_downloads()
@@ -250,7 +250,7 @@ def api_telegram_config():
     """获取Telegram配置"""
     try:
         logger.info("🔄 收到Telegram配置获取请求")
-        from ..core.database import get_database
+        from core.database import get_database
         db = get_database()
         config = db.get_telegram_config()
         logger.info(f"📥 从数据库获取的配置: {config}")
@@ -338,7 +338,7 @@ def api_save_telegram_config():
                 return jsonify({"error": "启用Telegram功能时，Chat ID不能为空"}), 400
 
         logger.info("🔧 开始保存配置到数据库")
-        from ..core.database import get_database
+        from core.database import get_database
         db = get_database()
         success = db.save_telegram_config(config)
         logger.info(f"💾 数据库保存结果: {'成功' if success else '失败'}")
@@ -346,7 +346,7 @@ def api_save_telegram_config():
         if success:
             # 重新加载配置
             logger.info("🔄 重新加载Telegram通知器配置")
-            from ..modules.telegram.notifier import get_telegram_notifier
+            from modules.telegram.notifier import get_telegram_notifier
             notifier = get_telegram_notifier()
             notifier._load_config()
 
@@ -366,7 +366,7 @@ def api_save_telegram_config():
 def api_test_telegram():
     """测试Telegram连接"""
     try:
-        from ..modules.telegram.notifier import get_telegram_notifier
+        from modules.telegram.notifier import get_telegram_notifier
         notifier = get_telegram_notifier()
 
         result = notifier.test_connection()
@@ -399,8 +399,8 @@ def api_change_password():
             return jsonify({"error": "新密码长度不能少于6个字符"}), 400
 
         # 获取当前用户信息 - 简化版本
-        from ..core.auth import get_token_from_request, get_auth_manager
-        from ..core.database import get_database
+        from core.auth import get_token_from_request, get_auth_manager
+        from core.database import get_database
 
         token = get_token_from_request()
         if not token:
@@ -456,8 +456,8 @@ def api_change_username():
             return jsonify({"error": "用户名长度不能少于3个字符"}), 400
 
         # 获取当前用户信息 - 简化版本
-        from ..core.auth import get_token_from_request, get_auth_manager
-        from ..core.database import get_database
+        from core.auth import get_token_from_request, get_auth_manager
+        from core.database import get_database
 
         token = get_token_from_request()
         if not token:
@@ -505,7 +505,7 @@ def api_change_username():
 def api_health_check():
     """健康检查端点（无需认证）"""
     try:
-        from ..core.health import get_health_checker
+        from core.health import get_health_checker
         health_checker = get_health_checker()
         health_data = health_checker.get_system_health()
 
@@ -531,8 +531,8 @@ def api_health_check():
 def api_system_status():
     """获取系统状态"""
     try:
-        from ..core.config import get_config
-        from ..core.health import get_health_checker
+        from core.config import get_config
+        from core.health import get_health_checker
 
         # 获取健康检查数据
         health_checker = get_health_checker()
@@ -542,7 +542,7 @@ def api_system_status():
         ytdlp_available = False
         ytdlp_version = "Unknown"
         try:
-            from ..scripts.ytdlp_installer import YtdlpInstaller
+            from scripts.ytdlp_installer import YtdlpInstaller
             installer = YtdlpInstaller()
 
             if installer._check_ytdlp_available():
@@ -553,7 +553,7 @@ def api_system_status():
             pass
 
         # 获取下载统计
-        from ..modules.downloader.manager import get_download_manager
+        from modules.downloader.manager import get_download_manager
         download_manager = get_download_manager()
         downloads = download_manager.get_all_downloads()
 
@@ -584,7 +584,7 @@ def api_system_status():
 def api_system_optimize():
     """运行系统优化"""
     try:
-        from ..scripts.system_optimizer import SystemOptimizer
+        from scripts.system_optimizer import SystemOptimizer
 
         optimizer = SystemOptimizer()
         result = optimizer.run_optimization()
@@ -606,7 +606,7 @@ def api_system_optimize():
 def api_debug_users():
     """调试用户信息（无需认证，仅用于调试）"""
     try:
-        from ..core.database import get_database
+        from core.database import get_database
         import os
 
         db = get_database()
@@ -630,7 +630,7 @@ def api_debug_users():
 def api_reset_admin_password():
     """重置管理员密码（无需认证，紧急使用）"""
     try:
-        from ..core.database import get_database
+        from core.database import get_database
         import hashlib
         import os
 
@@ -670,7 +670,7 @@ def api_reset_admin_password():
 def api_update_ytdlp():
     """更新yt-dlp"""
     try:
-        from ..scripts.ytdlp_installer import YtdlpInstaller
+        from scripts.ytdlp_installer import YtdlpInstaller
 
         installer = YtdlpInstaller()
 
@@ -719,7 +719,7 @@ def api_update_ytdlp():
 def api_ytdlp_info():
     """获取yt-dlp详细信息"""
     try:
-        from ..scripts.ytdlp_installer import YtdlpInstaller
+        from scripts.ytdlp_installer import YtdlpInstaller
 
         installer = YtdlpInstaller()
         info = installer.get_ytdlp_info()
@@ -748,7 +748,7 @@ def api_ytdlp_info():
 def api_install_ytdlp():
     """强制安装yt-dlp"""
     try:
-        from ..scripts.ytdlp_installer import YtdlpInstaller
+        from scripts.ytdlp_installer import YtdlpInstaller
 
         installer = YtdlpInstaller()
 
@@ -782,7 +782,7 @@ def api_install_ytdlp():
 def api_pytubefix_info():
     """获取PyTubeFix详细信息"""
     try:
-        from ..scripts.pytubefix_installer import PyTubeFixInstaller
+        from scripts.pytubefix_installer import PyTubeFixInstaller
 
         installer = PyTubeFixInstaller()
         info = installer.get_pytubefix_info()
@@ -808,7 +808,7 @@ def api_pytubefix_info():
 def api_update_pytubefix():
     """更新PyTubeFix"""
     try:
-        from ..scripts.pytubefix_installer import PyTubeFixInstaller
+        from scripts.pytubefix_installer import PyTubeFixInstaller
 
         installer = PyTubeFixInstaller()
 
@@ -844,7 +844,7 @@ def api_update_pytubefix():
 def api_install_pytubefix():
     """强制安装PyTubeFix"""
     try:
-        from ..scripts.pytubefix_installer import PyTubeFixInstaller
+        from scripts.pytubefix_installer import PyTubeFixInstaller
 
         installer = PyTubeFixInstaller()
 
@@ -882,7 +882,7 @@ def api_install_pytubefix():
 def api_engines_status():
     """获取所有引擎状态"""
     try:
-        from ..scripts.engine_manager import EngineManager
+        from scripts.engine_manager import EngineManager
 
         manager = EngineManager()
         status = manager.get_all_engines_status()
@@ -902,7 +902,7 @@ def api_engines_status():
 def api_update_all_engines():
     """一键更新所有引擎"""
     try:
-        from ..scripts.engine_manager import EngineManager
+        from scripts.engine_manager import EngineManager
 
         manager = EngineManager()
 
@@ -938,7 +938,7 @@ def api_update_all_engines():
 def api_get_general_settings():
     """获取基础设置"""
     try:
-        from ..core.config import get_config
+        from core.config import get_config
 
         settings = {
             "app_name": get_config("app.name", "YT-DLP Web"),
@@ -961,7 +961,7 @@ def api_get_general_settings():
 def api_get_proxy_settings():
     """获取代理设置"""
     try:
-        from ..core.database import get_database
+        from core.database import get_database
 
         db = get_database()
         proxy_config = db.get_proxy_config()
@@ -996,7 +996,7 @@ def api_save_proxy_settings():
         if not data:
             return jsonify({"error": "无效的请求数据"}), 400
 
-        from ..core.database import get_database
+        from core.database import get_database
 
         # 验证数据
         proxy_config = {
@@ -1029,7 +1029,7 @@ def api_save_proxy_settings():
 
         if success:
             # 更新运行时配置
-            from ..core.config import set_config
+            from core.config import set_config
             if proxy_config["enabled"] and proxy_config["host"]:
                 proxy_url = f"{proxy_config['proxy_type']}://"
                 if proxy_config["username"]:
@@ -1183,10 +1183,10 @@ def api_save_general_settings():
 def api_get_download_settings():
     """获取下载设置"""
     try:
-        from ..core.config import get_config
+        from core.config import get_config
 
         # 从数据库获取设置，如果没有则使用默认值
-        from ..core.database import get_database
+        from core.database import get_database
         db = get_database()
 
         # 质量映射（后端到前端）
@@ -1206,7 +1206,7 @@ def api_get_download_settings():
             "default_quality": current_quality,
             "auto_cleanup": get_config("downloader.auto_cleanup", True),
             "file_retention_hours": get_config("downloader.file_retention_hours", 24),
-            "cleanup_interval": get_config("downloader.cleanup_interval", 1),
+            "cleanup_interval": get_config("downloader.cleanup_interval", 1),  # 小时
             "max_storage_mb": get_config("downloader.max_storage_mb", 2048),
             "keep_recent_files": get_config("downloader.keep_recent_files", 20)
         }
@@ -1230,7 +1230,7 @@ def api_save_download_settings():
         logger.info(f"📝 保存下载设置: {data}")
 
         # 保存到数据库
-        from ..core.database import get_database
+        from core.database import get_database
         db = get_database()
 
         # 映射前端字段到后端配置
@@ -1247,7 +1247,7 @@ def api_save_download_settings():
             ("downloader.timeout", str(data.get("timeout", 300))),
             ("downloader.auto_cleanup", str(data.get("auto_cleanup", True))),
             ("downloader.file_retention_hours", str(data.get("file_retention_hours", 24))),
-            ("downloader.cleanup_interval", str(data.get("cleanup_interval", 1))),
+            ("downloader.cleanup_interval", str(data.get("cleanup_interval", 1))),  # 存储为小时
             ("downloader.max_storage_mb", str(data.get("max_storage_mb", 2048))),
             ("downloader.keep_recent_files", str(data.get("keep_recent_files", 20))),
             ("ytdlp.format", quality_mapping.get(data.get("default_quality", "medium"), "best[height<=720]"))
@@ -1258,7 +1258,7 @@ def api_save_download_settings():
 
         # 重新初始化下载管理器以应用新设置
         try:
-            from ..modules.downloader.manager import get_download_manager
+            from modules.downloader.manager import get_download_manager
             download_manager = get_download_manager()
             # 这里可以添加重新加载配置的逻辑
             logger.info("✅ 下载管理器配置已更新")
@@ -1277,7 +1277,7 @@ def api_save_download_settings():
 def api_get_api_key():
     """获取API密钥设置"""
     try:
-        from ..core.database import get_database
+        from core.database import get_database
         db = get_database()
 
         api_key = db.get_setting("api_key", "")
@@ -1304,7 +1304,7 @@ def api_save_api_key():
 
         api_key = data.get("api_key", "").strip()
 
-        from ..core.database import get_database
+        from core.database import get_database
         db = get_database()
 
         if api_key:
@@ -1336,7 +1336,7 @@ def api_generate_api_key():
         alphabet = string.ascii_letters + string.digits
         api_key = ''.join(secrets.choice(alphabet) for _ in range(32))
 
-        from ..core.database import get_database
+        from core.database import get_database
         db = get_database()
         db.set_setting("api_key", api_key)
 
@@ -1358,8 +1358,8 @@ def api_system_info():
     try:
         import os
         from pathlib import Path
-        from ..core.config import get_config
-        from ..core.database import get_database
+        from core.config import get_config
+        from core.database import get_database
 
         # 获取存储信息
         download_dir = Path(get_config("downloader.output_dir", "./downloads"))
@@ -1424,7 +1424,7 @@ def api_system_info():
 def api_manual_cleanup():
     """手动执行文件清理"""
     try:
-        from ..modules.downloader.cleanup import get_cleanup_manager
+        from modules.downloader.cleanup import get_cleanup_manager
 
         cleanup_manager = get_cleanup_manager()
         result = cleanup_manager.manual_cleanup()
@@ -1512,7 +1512,7 @@ def api_install_pytubefix_alias():
 def api_system_paths():
     """获取系统路径信息"""
     try:
-        from ..core.config import get_config
+        from core.config import get_config
         import os
         from pathlib import Path
 
@@ -1622,7 +1622,7 @@ def api_shortcuts_download():
             if not username or not password:
                 return jsonify({"error": "需要提供用户名和密码或API密钥"}), 401
 
-            from ..core.auth import get_auth_manager
+            from core.auth import get_auth_manager
             auth_manager = get_auth_manager()
             auth_token = auth_manager.login(username, password)
 
@@ -1646,7 +1646,7 @@ def api_shortcuts_download():
         }
 
         # 使用统一的下载API
-        from ..modules.downloader.api import get_unified_download_api
+        from modules.downloader.api import get_unified_download_api
         api = get_unified_download_api()
         result = api.create_download(url, options)
 
@@ -1678,7 +1678,7 @@ def api_shortcuts_download():
 def api_shortcuts_status(download_id):
     """iOS快捷指令状态查询 - 无需认证"""
     try:
-        from ..modules.downloader.manager import get_download_manager
+        from modules.downloader.manager import get_download_manager
         download_manager = get_download_manager()
 
         download_info = download_manager.get_download(download_id)
@@ -1716,7 +1716,7 @@ def api_shortcuts_status(download_id):
 def api_shortcuts_file(filename):
     """iOS快捷指令文件下载 - 无需认证"""
     try:
-        from ..core.config import get_config
+        from core.config import get_config
         from flask import send_file
         from pathlib import Path
 
@@ -1744,7 +1744,7 @@ def api_shortcuts_file(filename):
 def api_shortcuts_info():
     """iOS快捷指令服务信息 - 无需认证"""
     try:
-        from ..core.config import get_config
+        from core.config import get_config
 
         return jsonify({
             "service": "YT-DLP Web",
@@ -1768,7 +1768,7 @@ def api_shortcuts_info():
 def _verify_api_key(api_key: str) -> bool:
     """验证API密钥"""
     try:
-        from ..core.database import get_database
+        from core.database import get_database
         db = get_database()
 
         # 从设置中获取API密钥
@@ -1789,7 +1789,7 @@ def _extract_video_info(url: str):
     """提取视频信息 - 使用统一的下载管理器和智能回退"""
     try:
         # 使用统一的下载管理器，它包含智能回退机制
-        from ..modules.downloader.manager import get_download_manager
+        from modules.downloader.manager import get_download_manager
         download_manager = get_download_manager()
 
         # 使用下载管理器的智能回退机制

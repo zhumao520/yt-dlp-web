@@ -70,7 +70,7 @@ class ModernTelegramCommandService:
             status = notifier.get_status()
             
             # 获取下载管理器状态
-            from ....modules.downloader.manager import get_download_manager
+            from modules.downloader.manager import get_download_manager
             download_manager = get_download_manager()
 
             # 兼容性处理 - 适配不同的 API
@@ -140,7 +140,7 @@ class ModernTelegramCommandService:
     def handle_downloads_command(self) -> str:
         """处理/downloads命令 - 显示下载列表"""
         try:
-            from ....modules.downloader.manager import get_download_manager
+            from modules.downloader.manager import get_download_manager
             download_manager = get_download_manager()
             
             # 获取活跃下载（兼容性处理）
@@ -345,7 +345,7 @@ class ModernTelegramCommandService:
             download_id = args.strip()
             
             # 取消下载
-            from ....modules.downloader.manager import get_download_manager
+            from modules.downloader.manager import get_download_manager
             download_manager = get_download_manager()
             
             success = download_manager.cancel_download(download_id)
