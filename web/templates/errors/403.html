@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}禁止访问 - YT-DLP Web V2{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full text-center">
+        <!-- 403图标 -->
+        <div class="mb-8">
+            <div class="mx-auto w-24 h-24 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+                <i data-feather="shield-off" class="w-12 h-12 text-red-500 dark:text-red-400"></i>
+            </div>
+        </div>
+        
+        <!-- 错误信息 -->
+        <div class="mb-8">
+            <h1 class="text-6xl font-bold text-gray-900 dark:text-white mb-4">403</h1>
+            <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-4">禁止访问</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+                抱歉，您没有权限访问此资源。请联系管理员获取相应权限。
+            </p>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="space-y-4">
+            <a href="{{ url_for('main.index') }}" 
+               class="btn-primary inline-flex items-center justify-center w-full">
+                <i data-feather="home" class="w-4 h-4 mr-2"></i>
+                返回首页
+            </a>
+            
+            <button onclick="history.back()" 
+                    class="btn-secondary inline-flex items-center justify-center w-full">
+                <i data-feather="arrow-left" class="w-4 h-4 mr-2"></i>
+                返回上页
+            </button>
+        </div>
+        
+        <!-- 帮助信息 -->
+        <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                可能的原因：
+            </p>
+            
+            <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2 text-left">
+                <li class="flex items-center">
+                    <i data-feather="user-x" class="w-4 h-4 mr-2 text-red-500"></i>
+                    用户权限不足
+                </li>
+                <li class="flex items-center">
+                    <i data-feather="lock" class="w-4 h-4 mr-2 text-red-500"></i>
+                    资源访问受限
+                </li>
+                <li class="flex items-center">
+                    <i data-feather="shield" class="w-4 h-4 mr-2 text-red-500"></i>
+                    安全策略限制
+                </li>
+                <li class="flex items-center">
+                    <i data-feather="settings" class="w-4 h-4 mr-2 text-red-500"></i>
+                    系统配置限制
+                </li>
+            </ul>
+        </div>
+        
+        <!-- 联系信息 -->
+        <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p class="text-sm text-blue-800 dark:text-blue-400">
+                <i data-feather="info" class="w-4 h-4 inline mr-1"></i>
+                如需访问权限，请联系系统管理员
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 自动聚焦返回按钮
+    const backButton = document.querySelector('button[onclick="history.back()"]');
+    if (backButton) {
+        backButton.focus();
+    }
+    
+    // 键盘快捷键
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'h' || e.key === 'H') {
+            window.location.href = "{{ url_for('main.index') }}";
+        } else if (e.key === 'Escape') {
+            history.back();
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}未授权访问 - YT-DLP Web V2{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full text-center">
+        <!-- 401图标 -->
+        <div class="mb-8">
+            <div class="mx-auto w-24 h-24 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center">
+                <i data-feather="lock" class="w-12 h-12 text-yellow-500 dark:text-yellow-400"></i>
+            </div>
+        </div>
+        
+        <!-- 错误信息 -->
+        <div class="mb-8">
+            <h1 class="text-6xl font-bold text-gray-900 dark:text-white mb-4">401</h1>
+            <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-4">未授权访问</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+                您需要登录才能访问此页面。请先登录您的账户。
+            </p>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="space-y-4">
+            <a href="{{ url_for('auth.login') }}" 
+               class="btn-primary inline-flex items-center justify-center w-full">
+                <i data-feather="log-in" class="w-4 h-4 mr-2"></i>
+                立即登录
+            </a>
+            
+            <a href="{{ url_for('main.index') }}" 
+               class="btn-secondary inline-flex items-center justify-center w-full">
+                <i data-feather="home" class="w-4 h-4 mr-2"></i>
+                返回首页
+            </a>
+        </div>
+        
+        <!-- 帮助信息 -->
+        <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                如果您已经登录但仍看到此页面，可能是：
+            </p>
+            
+            <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2 text-left">
+                <li class="flex items-center">
+                    <i data-feather="clock" class="w-4 h-4 mr-2 text-blue-500"></i>
+                    登录会话已过期
+                </li>
+                <li class="flex items-center">
+                    <i data-feather="shield" class="w-4 h-4 mr-2 text-blue-500"></i>
+                    权限不足
+                </li>
+                <li class="flex items-center">
+                    <i data-feather="refresh-cw" class="w-4 h-4 mr-2 text-blue-500"></i>
+                    需要重新登录
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 自动聚焦登录按钮
+    const loginButton = document.querySelector('a[href*="login"]');
+    if (loginButton) {
+        loginButton.focus();
+    }
+    
+    // 键盘快捷键
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'l' || e.key === 'L') {
+            window.location.href = "{{ url_for('auth.login') }}";
+        } else if (e.key === 'h' || e.key === 'H') {
+            window.location.href = "{{ url_for('main.index') }}";
+        }
+    });
+    
+    // 检查是否有保存的登录信息
+    const savedToken = localStorage.getItem('auth_token');
+    if (savedToken) {
+        // 如果有token但仍然401，说明token可能过期了
+        localStorage.removeItem('auth_token');
+        showNotification('登录已过期，请重新登录', 'warning');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}服务器错误 - YT-DLP Web V2{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full text-center">
+        <!-- 500图标 -->
+        <div class="mb-8">
+            <div class="mx-auto w-24 h-24 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+                <i data-feather="alert-triangle" class="w-12 h-12 text-red-500 dark:text-red-400"></i>
+            </div>
+        </div>
+        
+        <!-- 错误信息 -->
+        <div class="mb-8">
+            <h1 class="text-6xl font-bold text-gray-900 dark:text-white mb-4">500</h1>
+            <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-300 mb-4">服务器内部错误</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">
+                抱歉，服务器遇到了一个错误，无法完成您的请求。我们正在努力修复这个问题。
+            </p>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="space-y-4">
+            <button onclick="location.reload()" 
+                    class="btn-primary inline-flex items-center justify-center w-full">
+                <i data-feather="refresh-cw" class="w-4 h-4 mr-2"></i>
+                重新加载
+            </button>
+            
+            <a href="{{ url_for('main.index') }}" 
+               class="btn-secondary inline-flex items-center justify-center w-full">
+                <i data-feather="home" class="w-4 h-4 mr-2"></i>
+                返回首页
+            </a>
+        </div>
+        
+        <!-- 错误详情（仅开发模式） -->
+        {% if config.DEBUG %}
+        <div class="mt-8 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-left">
+            <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-2">错误详情（开发模式）</h3>
+            <pre class="text-xs text-gray-600 dark:text-gray-400 overflow-auto">{{ error_details or '无详细信息' }}</pre>
+        </div>
+        {% endif %}
+        
+        <!-- 帮助信息 -->
+        <div class="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                如果问题持续存在，请尝试以下操作：
+            </p>
+            
+            <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2 text-left">
+                <li class="flex items-center">
+                    <i data-feather="check" class="w-4 h-4 mr-2 text-green-500"></i>
+                    检查网络连接
+                </li>
+                <li class="flex items-center">
+                    <i data-feather="check" class="w-4 h-4 mr-2 text-green-500"></i>
+                    清除浏览器缓存
+                </li>
+                <li class="flex items-center">
+                    <i data-feather="check" class="w-4 h-4 mr-2 text-green-500"></i>
+                    稍后重试
+                </li>
+                <li class="flex items-center">
+                    <i data-feather="check" class="w-4 h-4 mr-2 text-green-500"></i>
+                    联系系统管理员
+                </li>
+            </ul>
+        </div>
+        
+        <!-- 快速链接 -->
+        <div class="mt-6">
+            <div class="flex justify-center space-x-6 text-sm">
+                <a href="{{ url_for('main.download') }}" 
+                   class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                    下载页面
+                </a>
+                <a href="{{ url_for('main.files') }}" 
+                   class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                    文件管理
+                </a>
+                <a href="{{ url_for('main.settings') }}" 
+                   class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                    系统设置
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 自动聚焦重新加载按钮
+    const reloadButton = document.querySelector('button[onclick="location.reload()"]');
+    if (reloadButton) {
+        reloadButton.focus();
+    }
+    
+    // 键盘快捷键
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'r' || e.key === 'R') {
+            location.reload();
+        } else if (e.key === 'h' || e.key === 'H') {
+            window.location.href = "{{ url_for('main.index') }}";
+        }
+    });
+    
+    // 自动重试机制（可选）
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    function autoRetry() {
+        if (retryCount < maxRetries) {
+            retryCount++;
+            setTimeout(() => {
+                console.log(`自动重试 ${retryCount}/${maxRetries}`);
+                location.reload();
+            }, 5000 * retryCount); // 递增延迟
+        }
+    }
+    
+    // 如果不是用户主动刷新，可以启用自动重试
+    if (!performance.navigation || performance.navigation.type !== 1) {
+        // autoRetry(); // 取消注释以启用自动重试
+    }
+});
+</script>
+{% endblock %}

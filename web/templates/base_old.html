@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN" x-data="themeManager()"
+      :class="{ 'dark': isDark }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1f2937" media="(prefers-color-scheme: dark)">
+    <meta name="color-scheme" content="light dark">
+    <title>{% block title %}YT-DLP Web V2{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 自定义样式 -->
+    <!-- 防止主题闪烁的内联脚本 -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme') || 'system';
+            let isDark = false;
+
+            if (theme === 'dark') {
+                isDark = true;
+            } else if (theme === 'light') {
+                isDark = false;
+            } else {
+                isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            }
+
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .progress-bar {
+            transition: width 0.3s ease-in-out;
+        }
+        
+        .btn-primary {
+            @apply bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+        }
+        
+        .btn-secondary {
+            @apply bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+        }
+        
+        .input-field {
+            @apply w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200;
+        }
+
+        /* 修复下拉框选项的颜色 */
+        select.input-field {
+            @apply bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600;
+            color-scheme: light dark;
+        }
+
+        select.input-field option {
+            @apply bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100;
+        }
+
+        /* 暗色主题下的select样式 */
+        .dark select.input-field {
+            @apply bg-gray-800 text-gray-100 border-gray-600;
+        }
+
+        .dark select.input-field option {
+            @apply bg-gray-800 text-gray-100;
+        }
+        
+        .card {
+            @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700;
+        }
+
+        /* 移动端菜单样式 */
+        .nav-link-mobile {
+            @apply text-gray-700 dark:text-gray-300;
+        }
+
+        .nav-link-mobile:hover {
+            @apply text-gray-900 dark:text-white;
+        }
+
+        /* 确保移动端菜单在小屏幕上正确显示 */
+        @media (max-width: 768px) {
+            .nav-link-mobile {
+                font-size: 1rem;
+                padding: 0.75rem;
+            }
+        }
+
+        /* 强化下拉菜单主题样式 - 使用更高优先级 */
+        .dropdown-menu {
+            transition: all 0.2s ease-in-out !important;
+        }
+
+        /* 覆盖所有可能的 Tailwind 类 */
+        .dropdown-menu.theme-light,
+        .dropdown-menu.theme-light.bg-white,
+        .dropdown-menu.theme-light.bg-gray-800,
+        .dropdown-menu.theme-light.bg-gray-900 {
+            background-color: white !important;
+            border-color: #e5e7eb !important;
+            color: #374151 !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+        }
+
+        .dropdown-menu.theme-dark,
+        .dropdown-menu.theme-dark.bg-white,
+        .dropdown-menu.theme-dark.bg-gray-800,
+        .dropdown-menu.theme-dark.bg-gray-900 {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+            color: #d1d5db !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
+        }
+
+        /* 下拉菜单项样式 - 覆盖所有可能的状态 */
+        .dropdown-menu.theme-light .dropdown-item,
+        .dropdown-menu.theme-light .dropdown-item.text-gray-700,
+        .dropdown-menu.theme-light .dropdown-item.text-gray-300 {
+            color: #374151 !important;
+        }
+
+        .dropdown-menu.theme-light .dropdown-item:hover,
+        .dropdown-menu.theme-light .dropdown-item:hover.hover\:bg-gray-100,
+        .dropdown-menu.theme-light .dropdown-item:hover.hover\:bg-gray-700 {
+            background-color: #f3f4f6 !important;
+            color: #111827 !important;
+        }
+
+        .dropdown-menu.theme-dark .dropdown-item,
+        .dropdown-menu.theme-dark .dropdown-item.text-gray-700,
+        .dropdown-menu.theme-dark .dropdown-item.text-gray-300 {
+            color: #d1d5db !important;
+        }
+
+        .dropdown-menu.theme-dark .dropdown-item:hover,
+        .dropdown-menu.theme-dark .dropdown-item:hover.hover\:bg-gray-100,
+        .dropdown-menu.theme-dark .dropdown-item:hover.hover\:bg-gray-700 {
+            background-color: #374151 !important;
+            color: #f9fafb !important;
+        }
+
+        /* 强制覆盖 Tailwind 的 dark: 前缀类 */
+        .dark .dropdown-menu.theme-dark,
+        .dark .dropdown-menu.theme-dark.bg-white,
+        .dark .dropdown-menu.theme-dark.bg-gray-800 {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+            color: #d1d5db !important;
+        }
+
+        /* 调试样式 - 临时添加边框来确认样式是否生效 */
+        .dropdown-menu.theme-light {
+            border: 2px solid #3b82f6 !important; /* 蓝色边框用于调试 */
+        }
+
+        .dropdown-menu.theme-dark {
+            border: 2px solid #ef4444 !important; /* 红色边框用于调试 */
+        }
+    </style>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-200">
+    
+    <!-- 导航栏 -->
+    {% if not hide_nav %}
+    <nav class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <!-- 左侧 Logo 和导航 -->
+                <div class="flex items-center space-x-8">
+                    <!-- Logo -->
+                    <div class="flex-shrink-0 flex items-center">
+                        <h1 class="text-xl font-bold text-primary-600 dark:text-primary-400">
+                            YT-DLP Web V2
+                        </h1>
+                    </div>
+                    
+                    <!-- 主导航 -->
+                    <div class="hidden md:flex space-x-6">
+                        <a href="{{ url_for('main.download') }}" 
+                           class="nav-link flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                            <i data-feather="download" class="w-4 h-4"></i>
+                            <span>下载</span>
+                        </a>
+                        
+                        <a href="{{ url_for('main.files') }}" 
+                           class="nav-link flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                            <i data-feather="folder" class="w-4 h-4"></i>
+                            <span>文件</span>
+                        </a>
+                        
+                        <a href="{{ url_for('main.history') }}" 
+                           class="nav-link flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                            <i data-feather="clock" class="w-4 h-4"></i>
+                            <span>历史</span>
+                        </a>
+                        
+                        <a href="{{ url_for('main.telegram') }}" 
+                           class="nav-link flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                            <i data-feather="send" class="w-4 h-4"></i>
+                            <span>Telegram</span>
+                        </a>
+                        
+                        <a href="{{ url_for('main.cookies') }}" 
+                           class="nav-link flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                            <i data-feather="key" class="w-4 h-4"></i>
+                            <span>Cookies</span>
+                        </a>
+                        
+                        <a href="{{ url_for('main.settings') }}" 
+                           class="nav-link flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                            <i data-feather="settings" class="w-4 h-4"></i>
+                            <span>设置</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- 右侧用户菜单和主题切换 -->
+                <div class="flex items-center space-x-4">
+                    <!-- 主题切换 -->
+                    <div class="relative" x-data="{ showTooltip: false }">
+                        <button @click="toggleTheme()"
+                                @mouseenter="showTooltip = true"
+                                @mouseleave="showTooltip = false"
+                                class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                            <!-- 亮色主题图标 -->
+                            <svg x-show="theme === 'light'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                            <!-- 暗色主题图标 -->
+                            <svg x-show="theme === 'dark'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                            </svg>
+                            <!-- 系统主题图标 -->
+                            <svg x-show="theme === 'system'" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                            </svg>
+                        </button>
+
+                        <!-- 工具提示 -->
+                        <div x-show="showTooltip" x-cloak
+                             class="absolute bottom-full right-0 mb-2 px-2 py-1 text-xs bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded whitespace-nowrap z-50">
+                            <span x-text="theme === 'light' ? '亮色主题' : theme === 'dark' ? '暗色主题' : '跟随系统'"></span>
+                            <div class="absolute top-full right-2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 用户菜单 -->
+                    <div class="relative" x-data="{
+                        open: false,
+                        init() {
+                            // 监听主题更新事件
+                            this.$el.addEventListener('theme-updated', () => {
+                                // 如果下拉菜单当前打开，强制重新渲染
+                                if (this.open) {
+                                    this.open = false;
+                                    this.$nextTick(() => {
+                                        this.open = true;
+                                    });
+                                }
+                            });
+                        }
+                    }"
+                        <button @click="open = !open"
+                                class="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                            <i data-feather="user" class="w-5 h-5"></i>
+                            <span class="hidden md:block text-sm">用户</span>
+                            <i data-feather="chevron-down" class="w-4 h-4"></i>
+                        </button>
+
+                        <div x-show="open" @click.away="open = false" x-cloak
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="transform opacity-0 scale-95"
+                             x-transition:enter-end="transform opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="transform opacity-100 scale-100"
+                             x-transition:leave-end="transform opacity-0 scale-95"
+                             :class="'dropdown-menu absolute right-0 mt-2 w-48 rounded-md border z-50 ' + (isDark ? 'theme-dark' : 'theme-light')"
+                             x-data="{ debugInfo: '' }"
+                             x-init="debugInfo = 'Theme: ' + (isDark ? 'dark' : 'light') + ', Classes: ' + $el.className"
+                             :title="debugInfo">
+                            <a href="{{ url_for('auth.logout') }}"
+                               class="dropdown-item block px-4 py-2 text-sm transition-colors duration-200">
+                                <i data-feather="log-out" class="w-4 h-4 inline mr-2"></i>
+                                退出登录
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- 移动端菜单按钮 -->
+                    <button class="md:hidden p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
+                            @click="mobileMenuOpen = !mobileMenuOpen">
+                        <i x-show="!mobileMenuOpen" data-feather="menu" class="w-5 h-5"></i>
+                        <i x-show="mobileMenuOpen" data-feather="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 移动端菜单 -->
+        <div x-show="mobileMenuOpen" x-cloak
+             @click.away="mobileMenuOpen = false"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 transform -translate-y-2"
+             x-transition:enter-end="opacity-100 transform translate-y-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 transform translate-y-0"
+             x-transition:leave-end="opacity-0 transform -translate-y-2"
+             :class="'dropdown-menu md:hidden border-t ' + (isDark ? 'theme-dark' : 'theme-light')">
+            <div class="px-4 py-2 space-y-1">
+                <a href="{{ url_for('main.download') }}"
+                   class="dropdown-item nav-link-mobile flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                   @click="mobileMenuOpen = false">
+                    <i data-feather="download" class="w-5 h-5"></i>
+                    <span>下载</span>
+                </a>
+
+                <a href="{{ url_for('main.files') }}"
+                   class="dropdown-item nav-link-mobile flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                   @click="mobileMenuOpen = false">
+                    <i data-feather="folder" class="w-5 h-5"></i>
+                    <span>文件</span>
+                </a>
+
+                <a href="{{ url_for('main.history') }}"
+                   class="dropdown-item nav-link-mobile flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                   @click="mobileMenuOpen = false">
+                    <i data-feather="clock" class="w-5 h-5"></i>
+                    <span>历史</span>
+                </a>
+
+                <a href="{{ url_for('main.telegram') }}"
+                   class="dropdown-item nav-link-mobile flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                   @click="mobileMenuOpen = false">
+                    <i data-feather="send" class="w-5 h-5"></i>
+                    <span>Telegram</span>
+                </a>
+
+                <a href="{{ url_for('main.cookies') }}"
+                   class="dropdown-item nav-link-mobile flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                   @click="mobileMenuOpen = false">
+                    <i data-feather="key" class="w-5 h-5"></i>
+                    <span>Cookies</span>
+                </a>
+
+                <a href="{{ url_for('main.settings') }}"
+                   class="dropdown-item nav-link-mobile flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium transition-colors duration-200"
+                   @click="mobileMenuOpen = false">
+                    <i data-feather="settings" class="w-5 h-5"></i>
+                    <span>设置</span>
+                </a>
+
+                <!-- 移动端分隔线 -->
+                <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+
+                <!-- 移动端用户菜单 -->
+                <a href="{{ url_for('auth.logout') }}"
+                   class="dropdown-item flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 text-red-600 dark:text-red-400"
+                   @click="mobileMenuOpen = false">
+                    <i data-feather="log-out" class="w-5 h-5"></i>
+                    <span>退出登录</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <!-- 主内容区域 -->
+    <main class="{% if not hide_nav %}pt-4{% endif %}">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- 全局通知 -->
+    <div id="notifications" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    
+    <!-- 全局脚本 -->
+    <script>
+        // 成熟的主题管理器
+        function themeManager() {
+            return {
+                isDark: false,
+                mobileMenuOpen: false,
+                theme: 'system',
+
+                init() {
+                    // 初始化主题
+                    this.initTheme();
+
+                    // 监听系统主题变化
+                    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                        if (this.theme === 'system') {
+                            this.updateTheme();
+                        }
+                    });
+
+                    // 使用Alpine.js官方推荐的$watch来监听主题变化
+                    this.$watch('isDark', (value) => {
+                        // 使用$nextTick确保DOM更新完成后再触发重新渲染
+                        this.$nextTick(() => {
+                            // 触发自定义事件，通知下拉菜单更新
+                            this.$dispatch('theme-updated', { isDark: value, theme: this.theme });
+                        });
+                    });
+                },
+
+                initTheme() {
+                    // 从localStorage获取保存的主题设置
+                    const savedTheme = localStorage.getItem('theme');
+
+                    if (savedTheme) {
+                        this.theme = savedTheme;
+                    } else {
+                        // 如果没有保存的设置，使用系统偏好
+                        this.theme = 'system';
+                    }
+
+                    this.updateTheme();
+                },
+
+                updateTheme() {
+                    let shouldBeDark = false;
+
+                    if (this.theme === 'dark') {
+                        shouldBeDark = true;
+                    } else if (this.theme === 'light') {
+                        shouldBeDark = false;
+                    } else {
+                        // system
+                        shouldBeDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    }
+
+                    this.isDark = shouldBeDark;
+
+                    // 更新HTML类
+                    if (shouldBeDark) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+
+                    // 更新meta标签颜色
+                    this.updateMetaThemeColor();
+                },
+
+                toggleTheme() {
+                    // 循环切换：light -> dark -> system -> light
+                    if (this.theme === 'light') {
+                        this.setTheme('dark');
+                    } else if (this.theme === 'dark') {
+                        this.setTheme('system');
+                    } else {
+                        this.setTheme('light');
+                    }
+                },
+
+                setTheme(newTheme) {
+                    this.theme = newTheme;
+                    localStorage.setItem('theme', newTheme);
+                    this.updateTheme();
+                },
+
+                updateMetaThemeColor() {
+                    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+                    if (metaThemeColor) {
+                        metaThemeColor.setAttribute('content', this.isDark ? '#1f2937' : '#ffffff');
+                    }
+                },
+
+                getThemeIcon() {
+                    if (this.theme === 'light') return '☀️';
+                    if (this.theme === 'dark') return '🌙';
+                    return '🖥️'; // system
+                }
+            }
+        }
+
+        // 调试函数
+        window.debugDropdownTheme = function() {
+            const dropdowns = document.querySelectorAll('.dropdown-menu');
+            dropdowns.forEach((dropdown, index) => {
+                console.log(`Dropdown ${index}:`, {
+                    classes: dropdown.className,
+                    computedStyle: window.getComputedStyle(dropdown).backgroundColor,
+                    isDark: document.documentElement.classList.contains('dark'),
+                    hasThemeLight: dropdown.classList.contains('theme-light'),
+                    hasThemeDark: dropdown.classList.contains('theme-dark')
+                });
+            });
+        };
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化 Feather Icons
+            try {
+                feather.replace();
+
+                // 监听Alpine.js的变化，重新渲染图标
+                document.addEventListener('alpine:init', () => {
+                    setTimeout(() => feather.replace(), 100);
+                    // 添加调试信息
+                    setTimeout(() => {
+                        console.log('Alpine.js initialized, debugging dropdown themes...');
+                        window.debugDropdownTheme();
+                    }, 500);
+                });
+            } catch (e) {
+                console.warn('Feather icons initialization failed:', e);
+            }
+
+            // 设置当前导航项为活跃状态
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-link, .nav-link-mobile');
+
+            navLinks.forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('bg-primary-100', 'dark:bg-primary-900', 'text-primary-700', 'dark:text-primary-300');
+                }
+            });
+        });
+        
+        // 全局通知函数
+        window.showNotification = function(message, type = 'info', duration = 3000) {
+            const notification = document.createElement('div');
+
+            // 检查当前主题
+            const isDark = document.documentElement.classList.contains('dark');
+
+            let bgClass, textClass;
+            switch (type) {
+                case 'success':
+                    bgClass = 'bg-green-500';
+                    textClass = 'text-white';
+                    break;
+                case 'error':
+                    bgClass = 'bg-red-500';
+                    textClass = 'text-white';
+                    break;
+                case 'warning':
+                    bgClass = 'bg-yellow-500';
+                    textClass = 'text-white';
+                    break;
+                default:
+                    bgClass = isDark ? 'bg-gray-800' : 'bg-white';
+                    textClass = isDark ? 'text-gray-100' : 'text-gray-900';
+                    break;
+            }
+
+            notification.className = `notification fade-in px-4 py-3 rounded-lg shadow-lg max-w-sm border ${bgClass} ${textClass} ${
+                isDark ? 'border-gray-700' : 'border-gray-200'
+            }`;
+            notification.textContent = message;
+
+            document.getElementById('notifications').appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, duration);
+        };
+        
+        // 全局API请求函数
+        window.apiRequest = async function(url, options = {}) {
+            const token = localStorage.getItem('auth_token');
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` })
+                }
+            };
+            
+            const response = await fetch(url, { ...defaultOptions, ...options });
+            
+            if (response.status === 401) {
+                localStorage.removeItem('auth_token');
+                window.location.href = '/auth/login';
+                return;
+            }
+            
+            return response;
+        };
+
+    </script>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% set hide_nav = true %}
+
+{% block title %}登录 - YT-DLP Web V2{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                
+                <!-- 头部 -->
+                <div class="text-center mb-4">
+                    <h1 class="h2 text-primary mb-2">YT-DLP Web V2</h1>
+                    <p class="text-muted">请登录您的账户</p>
+                </div>
+                
+                <!-- 登录表单 -->
+                <div class="card">
+                    <div class="card-body p-4">
+                        <form id="loginForm">
+                            
+                            <!-- 错误提示 -->
+                            <div id="errorAlert" class="alert alert-danger d-none">
+                                <i class="bi bi-exclamation-circle me-2"></i>
+                                <span id="errorMessage"></span>
+                            </div>
+                            
+                            <!-- 用户名 -->
+                            <div class="mb-3">
+                                <label for="username" class="form-label">用户名</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-person"></i>
+                                    </span>
+                                    <input type="text"
+                                           class="form-control"
+                                           id="username"
+                                           name="username"
+                                           placeholder="请输入用户名"
+                                           autocomplete="username"
+                                           required>
+                                </div>
+                            </div>
+                            
+                            <!-- 密码 -->
+                            <div class="mb-3">
+                                <label for="password" class="form-label">密码</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-lock"></i>
+                                    </span>
+                                    <input type="password"
+                                           class="form-control"
+                                           id="password"
+                                           name="password"
+                                           placeholder="请输入密码"
+                                           autocomplete="current-password"
+                                           required>
+                                    <button type="button"
+                                            class="btn btn-outline-secondary"
+                                            id="togglePassword"
+                                            title="显示/隐藏密码"
+                                            aria-label="切换密码可见性">
+                                        <i class="bi bi-eye" id="passwordIcon"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 记住我 -->
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           id="remember"
+                                           name="remember">
+                                    <label class="form-check-label" for="remember">
+                                        记住我
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- 登录按钮 -->
+                            <button type="submit" 
+                                    class="btn btn-primary w-100"
+                                    id="loginBtn">
+                                <i class="bi bi-box-arrow-in-right me-2"></i>
+                                登录
+                            </button>
+                            
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- 底部信息 -->
+                <div class="text-center mt-4">
+                    <small class="text-muted">
+                        <p>YT-DLP Web V2 - 轻量化可扩展架构</p>
+                        <p class="mt-1">
+                            <a href="https://github.com/yt-dlp/yt-dlp" 
+                               target="_blank" 
+                               class="text-decoration-none">
+                                基于 yt-dlp 构建
+                            </a>
+                        </p>
+                    </small>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+class LoginApp {
+    constructor() {
+        this.form = {
+            username: '',
+            password: '',
+            remember: false
+        };
+        this.loading = false;
+        this.showPassword = false;
+        
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        // 先清理可能存在的过期token，然后检查认证状态
+        this.cleanupExpiredTokens();
+        this.checkExistingAuth();
+    }
+
+    cleanupExpiredTokens() {
+        // 检查URL参数，如果有logout或token_expired参数，清理所有token
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('logout') || urlParams.get('token_expired')) {
+            this.clearAllTokens();
+            // 不清理URL参数，避免页面刷新
+        }
+    }
+    
+    bindEvents() {
+        // 表单提交
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.login();
+        });
+        
+        // 密码显示/隐藏
+        document.getElementById('togglePassword').addEventListener('click', () => {
+            this.togglePasswordVisibility();
+        });
+        
+        // 表单字段变化
+        document.getElementById('username').addEventListener('input', (e) => {
+            this.form.username = e.target.value;
+        });
+        
+        document.getElementById('password').addEventListener('input', (e) => {
+            this.form.password = e.target.value;
+        });
+        
+        document.getElementById('remember').addEventListener('change', (e) => {
+            this.form.remember = e.target.checked;
+        });
+    }
+    
+    togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const passwordIcon = document.getElementById('passwordIcon');
+        
+        this.showPassword = !this.showPassword;
+        
+        if (this.showPassword) {
+            passwordInput.type = 'text';
+            passwordIcon.className = 'bi bi-eye-slash';
+        } else {
+            passwordInput.type = 'password';
+            passwordIcon.className = 'bi bi-eye';
+        }
+    }
+    
+    showError(message) {
+        const errorAlert = document.getElementById('errorAlert');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        errorMessage.textContent = message;
+        errorAlert.classList.remove('d-none');
+    }
+    
+    hideError() {
+        const errorAlert = document.getElementById('errorAlert');
+        errorAlert.classList.add('d-none');
+    }
+    
+    setLoading(loading) {
+        this.loading = loading;
+        const btn = document.getElementById('loginBtn');
+        const username = document.getElementById('username');
+        const password = document.getElementById('password');
+        
+        if (loading) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>登录中...';
+            username.disabled = true;
+            password.disabled = true;
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>登录';
+            username.disabled = false;
+            password.disabled = false;
+        }
+    }
+    
+    async login() {
+        this.setLoading(true);
+        this.hideError();
+
+        try {
+            // 登录请求不需要token，直接使用fetch
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(this.form)
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                // 保存token到localStorage（用于前端API调用）
+                localStorage.setItem('auth_token', data.token);
+
+                showNotification('登录成功', 'success');
+
+                // 跳转到主页
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+
+            } else {
+                this.showError(data.error || '登录失败');
+            }
+
+        } catch (error) {
+            console.error('登录错误:', error);
+            this.showError('网络错误，请稍后重试');
+        } finally {
+            this.setLoading(false);
+        }
+    }
+
+    async checkExistingAuth() {
+        // 防止无限循环：如果URL中有特定参数，跳过自动检查
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('logout') || urlParams.get('token_expired')) {
+            return;
+        }
+
+        // 优先检查cookie中的token（后端设置的主要token）
+        // 如果cookie中没有token，再检查localStorage
+        const cookieToken = this.getCookieToken();
+        const localToken = localStorage.getItem('auth_token');
+        const token = cookieToken || localToken;
+
+        if (!token) {
+            // 如果都没有token，清理所有存储
+            this.clearAllTokens();
+            return;
+        }
+
+        try {
+            // 状态检查需要token，使用fetch并手动添加Authorization头
+            const response = await fetch('/api/auth/status', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.authenticated) {
+                    // 确保localStorage中也有token（用于API调用）
+                    if (!localToken && cookieToken) {
+                        localStorage.setItem('auth_token', cookieToken);
+                    }
+                    window.location.href = '/';
+                    return;
+                }
+            }
+
+            // token无效或过期，清除所有token
+            this.clearAllTokens();
+
+        } catch (error) {
+            console.error('检查认证状态失败:', error);
+            // 网络错误或其他问题，清除所有token
+            this.clearAllTokens();
+        }
+    }
+
+    getCookieToken() {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'auth_token') {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    clearAllTokens() {
+        // 清除localStorage中的token
+        localStorage.removeItem('auth_token');
+
+        // 清除cookie中的token
+        document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    }
+}
+
+// 初始化应用
+document.addEventListener('DOMContentLoaded', function() {
+    new LoginApp();
+});
+</script>
+{% endblock %}

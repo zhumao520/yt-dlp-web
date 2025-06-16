@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}下载 - YT-DLP Web V2{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6" x-data="downloadApp()">
+    
+    <!-- 页面标题 -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">视频下载</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-1">输入视频链接开始下载</p>
+    </div>
+    
+    <!-- 下载表单 -->
+    <div class="card p-6 mb-6">
+        <form @submit.prevent="startDownload()" class="space-y-4">
+            
+            <!-- URL输入 -->
+            <div>
+                <label class="block text-sm font-medium mb-2">视频链接</label>
+                <div class="flex space-x-2">
+                    <input type="url" 
+                           x-model="form.url" 
+                           class="input-field flex-1" 
+                           placeholder="https://www.youtube.com/watch?v=..."
+                           required
+                           :disabled="loading">
+                    <button type="button" 
+                            @click="getVideoInfo()"
+                            class="btn-secondary"
+                            :disabled="!form.url || loading">
+                        <i data-feather="info" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 视频信息预览 -->
+            <div x-show="videoInfo" x-cloak class="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                <div class="flex items-start space-x-4">
+                    <img x-show="videoInfo?.thumbnail" 
+                         :src="videoInfo?.thumbnail" 
+                         class="w-24 h-18 object-cover rounded"
+                         alt="视频缩略图">
+                    <div class="flex-1">
+                        <h3 class="font-medium text-gray-900 dark:text-white" x-text="videoInfo?.title"></h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1" x-text="videoInfo?.uploader"></p>
+                        <div class="flex items-center space-x-4 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            <span x-show="videoInfo?.duration" x-text="formatDuration(videoInfo?.duration)"></span>
+                            <span x-show="videoInfo?.view_count" x-text="formatNumber(videoInfo?.view_count) + ' 次观看'"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 下载选项 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">视频质量</label>
+                    <select x-model="form.quality" class="input-field">
+                        <option value="high">最高质量 (4K/1080p)</option>
+                        <option value="medium" selected>中等质量 (720p)</option>
+                        <option value="low">低质量 (360p)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">下载类型</label>
+                    <select x-model="form.download_type" class="input-field">
+                        <option value="video">视频+音频</option>
+                        <option value="audio">仅音频</option>
+                    </select>
+                </div>
+                
+                <div class="flex items-end">
+                    <button type="submit" 
+                            class="btn-primary w-full"
+                            :disabled="!form.url || loading">
+                        <template x-if="loading">
+                            <div class="flex items-center justify-center">
+                                <svg class="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                下载中...
+                            </div>
+                        </template>
+                        <template x-if="!loading">
+                            <div class="flex items-center justify-center">
+                                <i data-feather="download" class="w-4 h-4 mr-2"></i>
+                                开始下载
+                            </div>
+                        </template>
+                    </button>
+                </div>
+            </div>
+            
+        </form>
+    </div>
+    
+    <!-- 当前下载任务 -->
+    <div x-show="activeDownloads.length > 0" class="card p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4 flex items-center">
+            <i data-feather="activity" class="w-5 h-5 mr-2"></i>
+            当前下载 (<span x-text="activeDownloads.length"></span>)
+        </h2>
+        
+        <div class="space-y-4">
+            <template x-for="download in activeDownloads" :key="download.id">
+                <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-medium text-gray-900 dark:text-white" 
+                            x-text="download.title || '获取信息中...'"></h3>
+                        <span class="text-sm px-2 py-1 rounded"
+                              :class="getStatusClass(download.status)"
+                              x-text="getStatusText(download.status)"></span>
+                    </div>
+                    
+                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-2" 
+                         x-text="download.url"></div>
+                    
+                    <!-- 进度条 -->
+                    <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mb-2">
+                        <div class="bg-blue-500 h-2 rounded-full progress-bar" 
+                             :style="`width: ${download.progress}%`"></div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="text-gray-600 dark:text-gray-400" 
+                              x-text="`${download.progress}%`"></span>
+                        <button @click="cancelDownload(download.id)" 
+                                x-show="download.status === 'downloading'"
+                                class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                            取消
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+    
+    <!-- 最近下载 -->
+    <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold flex items-center">
+                <i data-feather="clock" class="w-5 h-5 mr-2"></i>
+                最近下载
+            </h2>
+            <a href="{{ url_for('main.history') }}" 
+               class="text-blue-600 dark:text-blue-400 hover:underline text-sm">
+                查看全部
+            </a>
+        </div>
+        
+        <div x-show="recentDownloads.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+            <i data-feather="inbox" class="w-12 h-12 mx-auto mb-2 opacity-50"></i>
+            <p>暂无下载记录</p>
+        </div>
+        
+        <div x-show="recentDownloads.length > 0" class="space-y-3">
+            <template x-for="download in recentDownloads.slice(0, 5)" :key="download.id">
+                <div class="flex items-center justify-between p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg">
+                    <div class="flex-1">
+                        <h3 class="font-medium text-gray-900 dark:text-white" 
+                            x-text="download.title || 'Unknown'"></h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400" 
+                           x-text="formatDate(download.created_at)"></p>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm px-2 py-1 rounded"
+                              :class="getStatusClass(download.status)"
+                              x-text="getStatusText(download.status)"></span>
+                        
+                        <button x-show="download.status === 'completed' && download.filename"
+                                @click="downloadFile(download.filename)"
+                                class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                            <i data-feather="download" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+    
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function downloadApp() {
+    return {
+        form: {
+            url: '',
+            quality: 'medium',
+            download_type: 'video'
+        },
+        loading: false,
+        videoInfo: null,
+        activeDownloads: [],
+        recentDownloads: [],
+        
+        async init() {
+            await this.loadRecentDownloads();
+            this.startPolling();
+        },
+        
+        async getVideoInfo() {
+            if (!this.form.url) return;
+            
+            try {
+                const response = await apiRequest('/api/video/info', {
+                    method: 'POST',
+                    body: JSON.stringify({ url: this.form.url })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.videoInfo = data.video_info;
+                    this.$nextTick(() => feather.replace());
+                } else {
+                    showNotification('获取视频信息失败', 'error');
+                }
+            } catch (error) {
+                showNotification('网络错误', 'error');
+            }
+        },
+        
+        async startDownload() {
+            this.loading = true;
+            
+            try {
+                const options = {
+                    quality: this.form.quality,
+                    audio_only: this.form.download_type === 'audio'
+                };
+                
+                const response = await apiRequest('/api/download/start', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        url: this.form.url,
+                        ...options
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showNotification('下载已开始', 'success');
+                    
+                    // 重置表单
+                    this.form.url = '';
+                    this.videoInfo = null;
+                    
+                    // 刷新下载列表
+                    await this.loadActiveDownloads();
+                } else {
+                    const data = await response.json();
+                    showNotification(data.error || '下载失败', 'error');
+                }
+            } catch (error) {
+                showNotification('网络错误', 'error');
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async loadActiveDownloads() {
+            try {
+                const response = await apiRequest('/api/download/list');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.activeDownloads = data.downloads.filter(d => 
+                        ['pending', 'downloading'].includes(d.status)
+                    );
+                }
+            } catch (error) {
+                console.error('加载活跃下载失败:', error);
+            }
+        },
+        
+        async loadRecentDownloads() {
+            try {
+                const response = await apiRequest('/api/download/list');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.recentDownloads = data.downloads;
+                }
+            } catch (error) {
+                console.error('加载最近下载失败:', error);
+            }
+        },
+        
+        startPolling() {
+            setInterval(async () => {
+                if (this.activeDownloads.length > 0) {
+                    await this.loadActiveDownloads();
+                    await this.loadRecentDownloads();
+                }
+            }, 2000);
+        },
+        
+        getStatusClass(status) {
+            const classes = {
+                'pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+                'downloading': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+                'completed': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+                'failed': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+                'cancelled': 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
+            };
+            return classes[status] || classes['pending'];
+        },
+        
+        getStatusText(status) {
+            const texts = {
+                'pending': '等待中',
+                'downloading': '下载中',
+                'completed': '已完成',
+                'failed': '失败',
+                'cancelled': '已取消'
+            };
+            return texts[status] || '未知';
+        },
+        
+        formatDuration(seconds) {
+            if (!seconds) return '';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        },
+        
+        formatNumber(num) {
+            if (!num) return '';
+            return num.toLocaleString();
+        },
+        
+        formatDate(dateString) {
+            if (!dateString) return '';
+            return new Date(dateString).toLocaleString('zh-CN');
+        },
+        
+        downloadFile(filename) {
+            window.open(`/files/download/${filename}`, '_blank');
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,91 @@
+2025-06-15 13:42:39 - root - INFO - 日志系统初始化完成 - 级别: INFO, 文件: app.log
+2025-06-15 13:42:56 - modules.downloader.manager - ERROR - ❌ 下载管理器初始化失败: attempted relative import beyond top-level package
+2025-06-16 18:36:21 - root - INFO - 日志系统初始化完成 - 级别: INFO, 文件: app.log
+2025-06-16 18:36:21 - app.core.app - INFO - 🔧 创建Flask应用...
+2025-06-16 18:36:21 - app.core.app - INFO - ✅ Flask应用配置完成
+2025-06-16 18:36:21 - app.core.database - INFO - 🔧 管理员用户名: admin (来源: 默认值)
+2025-06-16 18:36:21 - app.core.database - INFO - 🔑 管理员密码: *** (来源: 默认值)
+2025-06-16 18:36:21 - app.core.database - INFO - ℹ️ 管理员用户已存在且密码正确: admin
+2025-06-16 18:36:21 - app.core.database - INFO - 📊 当前管理员用户数量: 1
+2025-06-16 18:36:21 - app.core.app - INFO - ✅ 数据库初始化完成
+2025-06-16 18:36:21 - app.core.app - INFO - ✅ 认证管理器初始化完成
+2025-06-16 18:36:21 - app.core.app - INFO - ✅ 事件总线初始化完成
+2025-06-16 18:36:21 - app.modules.telegram.notifier - INFO - 🔧 现代化 Telegram 事件监听器已注册
+2025-06-16 18:36:21 - app.core.app - INFO - ✅ Telegram事件监听器注册完成
+2025-06-16 18:36:22 - app.core.app - INFO - ℹ️ InnerTube蓝图不存在，跳过注册
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ 蓝图注册完成
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ 错误处理器注册完成
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ 安全头部中间件注册完成
+2025-06-16 18:36:22 - app.core.app - INFO - 🔧 检查yt-dlp可用性...
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ yt-dlp已可用，版本: 2025.6.9
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ Flask应用创建完成
+2025-06-16 18:36:22 - __main__ - INFO - 🚀 启动 YT-DLP Web V2...
+2025-06-16 18:36:22 - __main__ - INFO - 🔍 验证系统配置...
+2025-06-16 18:36:22 - app.core.config_validator - INFO - 🔍 开始配置验证...
+2025-06-16 18:36:22 - app.core.config_validator - WARNING - ⚠️ 发现 1 个配置问题
+2025-06-16 18:36:22 - app.core.config_validator - WARNING -    - 配置文件和示例文件都不存在
+2025-06-16 18:36:22 - app.core.config_validator - INFO - 🔧 应用了 3 个修复
+2025-06-16 18:36:22 - app.core.config_validator - INFO -    + 创建目录: data/downloads
+2025-06-16 18:36:22 - app.core.config_validator - INFO -    + 创建目录: data/cookies
+2025-06-16 18:36:22 - app.core.config_validator - INFO -    + 生成新的安全密钥
+2025-06-16 18:36:22 - __main__ - WARNING - ⚠️ 发现配置问题，但将继续启动
+2025-06-16 18:36:22 - __main__ - INFO - 🔍 检测运行环境...
+2025-06-16 18:36:22 - app.scripts.environment_detector - INFO - ✅ 环境检测完成
+2025-06-16 18:36:22 - __main__ - INFO - 📋 环境信息: local
+2025-06-16 18:36:22 - __main__ - INFO - 🐳 容器环境: False
+2025-06-16 18:36:22 - __main__ - INFO - 🏗️ 构建环境: False
+2025-06-16 18:36:22 - __main__ - INFO - 🔽 检查并安装yt-dlp...
+2025-06-16 18:36:22 - app.scripts.ytdlp_installer - INFO - ✅ yt-dlp已可用
+2025-06-16 18:36:22 - __main__ - INFO - ✅ yt-dlp 准备就绪
+2025-06-16 18:36:22 - __main__ - INFO - 🔧 创建Flask应用...
+2025-06-16 18:36:22 - app.core.app - INFO - 🔧 创建Flask应用...
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ Flask应用配置完成
+2025-06-16 18:36:22 - app.core.database - INFO - 🔧 管理员用户名: admin (来源: 默认值)
+2025-06-16 18:36:22 - app.core.database - INFO - 🔑 管理员密码: *** (来源: 默认值)
+2025-06-16 18:36:22 - app.core.database - INFO - ℹ️ 管理员用户已存在且密码正确: admin
+2025-06-16 18:36:22 - app.core.database - INFO - 📊 当前管理员用户数量: 1
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ 数据库初始化完成
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ 认证管理器初始化完成
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ 事件总线初始化完成
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ Telegram事件监听器注册完成
+2025-06-16 18:36:22 - app.core.app - INFO - ℹ️ InnerTube蓝图不存在，跳过注册
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ 蓝图注册完成
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ 错误处理器注册完成
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ 安全头部中间件注册完成
+2025-06-16 18:36:22 - app.core.app - INFO - 🔧 检查yt-dlp可用性...
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ yt-dlp已可用，版本: 2025.6.9
+2025-06-16 18:36:22 - app.core.app - INFO - ✅ Flask应用创建完成
+2025-06-16 18:36:22 - __main__ - INFO - 🗄️ 初始化数据库...
+2025-06-16 18:36:22 - __main__ - INFO - ✅ 数据库初始化完成
+2025-06-16 18:36:22 - __main__ - INFO - 🌐 启动Web服务器: http://0.0.0.0:8080
+2025-06-16 18:37:05 - app.core.auth - WARNING - ❌ 登录失败: admin - 凭据无效
+2025-06-16 18:37:07 - app.core.auth - WARNING - ❌ 登录失败: admin - 凭据无效
+2025-06-16 18:37:11 - app.core.auth - INFO - ✅ 用户登录成功: admin
+2025-06-16 18:37:11 - app.api.routes - INFO - 🍪 设置cookie: auth_token=eyJhbGciOiJIUzI1NiIs..., max_age=2592000
+2025-06-16 18:37:13 - app.modules.downloader.ffmpeg_tools - INFO - ✅ 找到项目FFmpeg: D:\测试专用\yt-dlp-master\yt-dlp-web2\app\ffmpeg\bin\ffmpeg.exe
+2025-06-16 18:37:13 - app.modules.downloader.youtube_strategies - INFO - ✅ 初始化 4 个YouTube策略
+2025-06-16 18:37:13 - app.modules.downloader.video_extractor - INFO - ✅ PyTubeFix下载器可用
+2025-06-16 18:37:13 - app.modules.downloader.video_extractor - INFO - 📋 可用提取器: 2 个
+2025-06-16 18:37:13 - app.modules.downloader.manager - INFO - ✅ 模块化组件初始化完成
+2025-06-16 18:37:13 - core.config - INFO - ✅ 配置加载完成
+2025-06-16 18:37:13 - core.database - INFO - 📊 当前用户数量: 1
+2025-06-16 18:37:13 - core.database - INFO - ℹ️ 已存在 1 个用户，跳过默认用户创建
+2025-06-16 18:37:13 - core.database - INFO - ✅ 数据库初始化完成
+2025-06-16 18:37:13 - app.modules.downloader.cleanup - INFO - ✅ 下载文件自动清理已启动
+2025-06-16 18:37:13 - app.modules.downloader.cleanup - INFO - 🧹 开始执行下载文件清理...
+2025-06-16 18:37:13 - app.modules.downloader.manager - INFO - ✅ 下载管理器V2初始化完成 - 最大并发: 3
+2025-06-16 18:37:13 - app.modules.downloader.manager - INFO - 🔧 FFmpeg状态: 可用
+2025-06-16 18:37:13 - app.modules.downloader.manager - INFO - 📋 可用提取器: 2 个
+2025-06-16 18:37:13 - app.modules.downloader.cleanup - INFO - 🧹 清理完成: 删除 1 个文件，释放 28.9 MB 空间
+2025-06-16 18:37:13 - app.modules.downloader.manager - INFO - 🎯 YouTube策略: 4 个
+2025-06-16 18:37:13 - app.modules.downloader.cleanup - ERROR - ❌ 清理循环出错: timeout value is too large
+2025-06-16 18:37:19 - app.modules.cookies.manager - INFO - ✅ Cookies目录: \app\data\cookies
+2025-06-16 18:37:22 - app.api.routes - INFO - 🔄 收到Telegram配置获取请求
+2025-06-16 18:37:22 - app.api.routes - INFO - 📥 从数据库获取的配置: None
+2025-06-16 18:37:22 - app.api.routes - INFO - ℹ️ 数据库中没有配置，返回默认配置
+2025-06-16 18:37:36 - app.api.routes - INFO - 🔄 收到Telegram配置获取请求
+2025-06-16 18:37:36 - app.api.routes - INFO - 📥 从数据库获取的配置: None
+2025-06-16 18:37:36 - app.api.routes - INFO - ℹ️ 数据库中没有配置，返回默认配置
+2025-06-16 18:38:11 - app.modules.cookies.manager - INFO - 🔍 解析cookies格式: netscape_standard
+2025-06-16 18:38:13 - app.modules.cookies.manager - INFO - 🔍 解析cookies格式: netscape_standard
+2025-06-16 18:38:13 - app.modules.cookies.manager - INFO - ✅ Cookies保存成功: youtube (29个)

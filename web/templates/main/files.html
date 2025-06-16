@@ -1,0 +1,732 @@
+{% extends "base.html" %}
+
+{% block title %}文件管理 - YT-DLP Web V2{% endblock %}
+
+{% block content %}
+<div class="container-fluid" id="filesApp">
+    
+    <!-- 页面标题 -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-1">文件管理</h1>
+            <p class="text-muted">管理已下载的文件</p>
+        </div>
+    </div>
+    
+    <!-- 统计信息 -->
+    <div class="row mb-3">
+        <div class="col">
+            <div class="card">
+                <div class="card-body py-3">
+                    <div class="row text-center">
+                        <div class="col-6 col-md-3">
+                            <div class="d-flex flex-column">
+                                <span class="h5 mb-0" id="totalFiles">0</span>
+                                <small class="text-muted">总文件</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="d-flex flex-column">
+                                <span class="h5 mb-0" id="totalSize">0 B</span>
+                                <small class="text-muted">总大小</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="d-flex flex-column">
+                                <span class="h5 mb-0 text-warning" id="videoCount">0</span>
+                                <small class="text-muted">视频</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <div class="d-flex flex-column">
+                                <span class="h5 mb-0 text-info" id="audioCount">0</span>
+                                <small class="text-muted">音频</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 操作栏 -->
+    <div class="row mb-3">
+        <div class="col">
+            <div class="card">
+                <div class="card-body py-3">
+                    <div class="row g-2 align-items-center">
+                        <!-- 搜索 -->
+                        <div class="col-md-4">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="searchInput"
+                                       placeholder="搜索文件...">
+                            </div>
+                        </div>
+                        
+                        <!-- 过滤器 -->
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="filterType">
+                                <option value="all">所有文件</option>
+                                <option value="video">视频</option>
+                                <option value="audio">音频</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 排序 -->
+                        <div class="col-md-2">
+                            <select class="form-select form-select-sm" id="sortBy">
+                                <option value="modified">按时间</option>
+                                <option value="name">按名称</option>
+                                <option value="size">按大小</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div class="col-md-4">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary" id="refreshBtn">
+                                    <i class="bi bi-arrow-clockwise"></i> 刷新
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="selectAllBtn">
+                                    <i class="bi bi-check-all"></i> 全选
+                                </button>
+                                <button type="button" class="btn btn-outline-danger d-none" id="deleteSelectedBtn">
+                                    <i class="bi bi-trash"></i> 删除选中
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 文件列表 -->
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 40px;">
+                                        <input type="checkbox" class="form-check-input" id="selectAllCheckbox">
+                                    </th>
+                                    <th>文件名</th>
+                                    <th style="width: 100px;">大小</th>
+                                    <th style="width: 150px;">修改时间</th>
+                                    <th style="width: 120px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="filesTableBody">
+                                <!-- 文件列表将在这里动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 空状态 -->
+                    <div id="emptyState" class="text-center py-5 d-none">
+                        <i class="bi bi-folder2-open display-4 text-muted"></i>
+                        <h5 class="mt-3 text-muted">暂无文件</h5>
+                        <p class="text-muted" id="emptyMessage">还没有下载任何文件</p>
+                    </div>
+                    
+                    <!-- 加载状态 -->
+                    <div id="loadingState" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                        <p class="mt-2 text-muted">加载文件列表...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+</div>
+
+<!-- 简洁视频播放器模态框 -->
+<div class="modal fade" id="videoModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-white" id="videoTitle">视频播放</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <video id="videoPlayer"
+                       controls
+                       crossorigin
+                       playsinline
+                       style="width: 100%; height: 70vh; background: #000;">
+                    您的浏览器不支持视频播放
+                </video>
+            </div>
+            <div class="modal-footer border-0">
+                <div class="d-flex justify-content-between w-100 align-items-center">
+                    <div class="text-white">
+                        <small id="videoInfo"></small>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-outline-light btn-sm" id="downloadVideoBtn">
+                            <i class="bi bi-download"></i> 下载
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+/* 简洁视频播放器样式 */
+#videoModal .modal-content {
+    background: #000 !important;
+}
+
+#videoPlayer {
+    object-fit: cover; /* 默认填满容器，无黑边 */
+}
+
+/* 全屏时确保视频填满屏幕 */
+#videoPlayer:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: cover !important;
+    background: #000;
+}
+
+#videoPlayer:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: cover !important;
+    background: #000;
+}
+
+#videoPlayer:-moz-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: cover !important;
+    background: #000;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    #videoPlayer {
+        height: 50vh !important;
+    }
+
+    #videoModal .modal-dialog {
+        margin: 10px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+class FilesApp {
+    constructor() {
+        this.files = [];
+        this.filteredFiles = [];
+        this.selectedFiles = new Set();
+        this.searchQuery = '';
+        this.filterType = 'all';
+        this.sortBy = 'modified';
+        this.currentVideo = null;
+        
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        this.loadFiles();
+    }
+    
+    bindEvents() {
+        // 搜索
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            this.searchQuery = e.target.value;
+            this.filterFiles();
+        });
+        
+        // 过滤器
+        document.getElementById('filterType').addEventListener('change', (e) => {
+            this.filterType = e.target.value;
+            this.filterFiles();
+        });
+        
+        // 排序
+        document.getElementById('sortBy').addEventListener('change', (e) => {
+            this.sortBy = e.target.value;
+            this.sortFiles();
+        });
+        
+        // 刷新按钮
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            this.loadFiles();
+        });
+        
+        // 全选按钮
+        document.getElementById('selectAllBtn').addEventListener('click', () => {
+            this.toggleSelectAll();
+        });
+        
+        // 全选复选框
+        document.getElementById('selectAllCheckbox').addEventListener('change', (e) => {
+            this.selectAll(e.target.checked);
+        });
+        
+        // 删除选中按钮
+        document.getElementById('deleteSelectedBtn').addEventListener('click', () => {
+            this.deleteSelected();
+        });
+    }
+    
+    async loadFiles() {
+        this.showLoading(true);
+        
+        try {
+            const response = await apiRequest('/files/list');
+            if (response.ok) {
+                const data = await response.json();
+                this.files = data.files || [];
+                this.calculateStats();
+                this.filterFiles();
+            } else {
+                showNotification('加载文件列表失败', 'danger');
+            }
+        } catch (error) {
+            console.error('加载文件列表失败:', error);
+            showNotification('网络错误', 'danger');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    calculateStats() {
+        const stats = {
+            total: this.files.length,
+            totalSize: this.files.reduce((sum, file) => sum + (file.size || 0), 0),
+            videoCount: this.files.filter(file => this.isVideoFile(file.name)).length,
+            audioCount: this.files.filter(file => this.isAudioFile(file.name)).length
+        };
+        
+        document.getElementById('totalFiles').textContent = stats.total;
+        document.getElementById('totalSize').textContent = this.formatSize(stats.totalSize);
+        document.getElementById('videoCount').textContent = stats.videoCount;
+        document.getElementById('audioCount').textContent = stats.audioCount;
+    }
+    
+    filterFiles() {
+        let filtered = [...this.files];
+        
+        // 搜索过滤
+        if (this.searchQuery) {
+            const query = this.searchQuery.toLowerCase();
+            filtered = filtered.filter(file => 
+                file.name.toLowerCase().includes(query)
+            );
+        }
+        
+        // 类型过滤
+        if (this.filterType !== 'all') {
+            if (this.filterType === 'video') {
+                filtered = filtered.filter(file => this.isVideoFile(file.name));
+            } else if (this.filterType === 'audio') {
+                filtered = filtered.filter(file => this.isAudioFile(file.name));
+            }
+        }
+        
+        this.filteredFiles = filtered;
+        this.sortFiles();
+    }
+    
+    sortFiles() {
+        this.filteredFiles.sort((a, b) => {
+            switch (this.sortBy) {
+                case 'name':
+                    return a.name.localeCompare(b.name);
+                case 'size':
+                    return (b.size || 0) - (a.size || 0);
+                case 'modified':
+                default:
+                    return (b.modified || 0) - (a.modified || 0);
+            }
+        });
+        
+        this.renderFiles();
+    }
+    
+    renderFiles() {
+        const tbody = document.getElementById('filesTableBody');
+        const emptyState = document.getElementById('emptyState');
+        
+        if (this.filteredFiles.length === 0) {
+            tbody.innerHTML = '';
+            emptyState.classList.remove('d-none');
+            document.getElementById('emptyMessage').textContent = 
+                this.searchQuery ? '没有找到匹配的文件' : '还没有下载任何文件';
+            return;
+        }
+        
+        emptyState.classList.add('d-none');
+        
+        tbody.innerHTML = this.filteredFiles.map(file => `
+            <tr>
+                <td>
+                    <input type="checkbox" 
+                           class="form-check-input file-checkbox" 
+                           value="${file.name}"
+                           ${this.selectedFiles.has(file.name) ? 'checked' : ''}>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="me-2">
+                            ${this.getFileIcon(file.name)}
+                        </div>
+                        <div>
+                            <div class="fw-medium">${this.escapeHtml(file.name)}</div>
+                            <small class="text-muted">${this.getFileType(file.name)}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>${this.formatSize(file.size || 0)}</td>
+                <td>
+                    <small>${this.formatDate(file.modified)}</small>
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        ${this.isVideoFile(file.name) ? 
+                            `<button class="btn btn-outline-success" onclick="app.playVideo('${file.name}')" title="播放">
+                                <i class="bi bi-play-fill"></i>
+                            </button>` : ''
+                        }
+                        <button class="btn btn-outline-primary" onclick="app.downloadFile('${file.name}')" title="下载">
+                            <i class="bi bi-download"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="app.deleteFile('${file.name}')" title="删除">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+        
+        // 重新绑定复选框事件
+        this.bindCheckboxEvents();
+    }
+    
+    bindCheckboxEvents() {
+        document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.selectedFiles.add(e.target.value);
+                } else {
+                    this.selectedFiles.delete(e.target.value);
+                }
+                this.updateSelectionUI();
+            });
+        });
+    }
+    
+    updateSelectionUI() {
+        const deleteBtn = document.getElementById('deleteSelectedBtn');
+        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+        
+        if (this.selectedFiles.size > 0) {
+            deleteBtn.classList.remove('d-none');
+            deleteBtn.innerHTML = `<i class="bi bi-trash"></i> 删除选中 (${this.selectedFiles.size})`;
+        } else {
+            deleteBtn.classList.add('d-none');
+        }
+        
+        // 更新全选复选框状态
+        if (this.selectedFiles.size === 0) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = false;
+        } else if (this.selectedFiles.size === this.filteredFiles.length) {
+            selectAllCheckbox.indeterminate = false;
+            selectAllCheckbox.checked = true;
+        } else {
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+    
+    toggleSelectAll() {
+        const allSelected = this.selectedFiles.size === this.filteredFiles.length;
+        this.selectAll(!allSelected);
+    }
+    
+    selectAll(select) {
+        if (select) {
+            this.filteredFiles.forEach(file => this.selectedFiles.add(file.name));
+        } else {
+            this.selectedFiles.clear();
+        }
+        this.renderFiles();
+        this.updateSelectionUI();
+    }
+    
+    showLoading(show) {
+        const loadingState = document.getElementById('loadingState');
+        const emptyState = document.getElementById('emptyState');
+        const tbody = document.getElementById('filesTableBody');
+        
+        if (show) {
+            loadingState.classList.remove('d-none');
+            emptyState.classList.add('d-none');
+            tbody.innerHTML = '';
+        } else {
+            loadingState.classList.add('d-none');
+        }
+    }
+    
+    getFileIcon(filename) {
+        if (this.isVideoFile(filename)) {
+            return '<i class="bi bi-play-btn-fill text-success fs-4"></i>';
+        } else if (this.isAudioFile(filename)) {
+            return '<i class="bi bi-music-note-beamed text-info fs-4"></i>';
+        } else {
+            return '<i class="bi bi-file-earmark text-muted fs-4"></i>';
+        }
+    }
+    
+    isVideoFile(filename) {
+        const videoExts = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v'];
+        return videoExts.some(ext => filename.toLowerCase().endsWith(ext));
+    }
+    
+    isAudioFile(filename) {
+        const audioExts = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a'];
+        return audioExts.some(ext => filename.toLowerCase().endsWith(ext));
+    }
+    
+    getFileType(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        if (this.isVideoFile(filename)) return `视频 (${ext.toUpperCase()})`;
+        if (this.isAudioFile(filename)) return `音频 (${ext.toUpperCase()})`;
+        return `文件 (${ext.toUpperCase()})`;
+    }
+    
+    // 格式化函数
+    formatSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    formatDate(timestamp) {
+        if (!timestamp) return '';
+        return new Date(timestamp * 1000).toLocaleString('zh-CN');
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    playVideo(filename) {
+        this.currentVideo = this.files.find(f => f.name === filename);
+        if (!this.currentVideo) return;
+
+        const video = document.getElementById('videoPlayer');
+        const title = document.getElementById('videoTitle');
+        const info = document.getElementById('videoInfo');
+
+        // 检查是否为大视频
+        const isLargeVideo = this.currentVideo.size > 100 * 1024 * 1024; // 100MB+
+        const sizeInfo = this.formatSize(this.currentVideo.size);
+
+        // 设置视频信息
+        title.textContent = filename;
+        info.textContent = `${sizeInfo} • ${this.formatDate(this.currentVideo.modified)}${isLargeVideo ? ' • 大视频，加载中...' : ''}`;
+
+        // 大视频提示
+        if (isLargeVideo) {
+            showNotification(`正在加载大视频文件 (${sizeInfo})，请稍候...`, 'info', 5000);
+        }
+
+        // 先清理之前的视频资源
+        this.cleanupVideo();
+
+        // 重新获取video元素（因为cleanupVideo可能替换了元素）
+        const newVideo = document.getElementById('videoPlayer');
+
+        // 设置视频源
+        newVideo.src = `/files/stream/${encodeURIComponent(filename)}`;
+
+        // 添加一次性事件监听器（避免重复绑定）
+        const loadStartHandler = () => {
+            console.log('开始加载视频:', filename);
+        };
+
+        const canPlayHandler = () => {
+            console.log('视频可以播放:', filename);
+            if (isLargeVideo) {
+                showNotification('大视频加载完成，可以播放了！', 'success');
+            }
+        };
+
+        const errorHandler = (e) => {
+            console.error('视频加载失败:', e);
+            showNotification('视频加载失败，请检查网络连接或文件完整性', 'danger');
+        };
+
+        // 使用once选项确保事件只触发一次
+        newVideo.addEventListener('loadstart', loadStartHandler, { once: true });
+        newVideo.addEventListener('canplay', canPlayHandler, { once: true });
+        newVideo.addEventListener('error', errorHandler, { once: true });
+
+        // 显示模态框
+        const modal = new bootstrap.Modal(document.getElementById('videoModal'));
+        modal.show();
+
+        // 检查内存使用情况
+        this.checkMemoryUsage();
+
+        console.log('播放视频:', filename, isLargeVideo ? '(大视频)' : '(普通视频)');
+    }
+
+    cleanupVideo() {
+        const video = document.getElementById('videoPlayer');
+        if (video) {
+            console.log('🧹 清理视频资源...');
+
+            // 1. 暂停播放
+            video.pause();
+
+            // 2. 重置时间
+            video.currentTime = 0;
+
+            // 3. 清空视频源 - 这是关键，释放内存
+            video.src = '';
+            video.removeAttribute('src');
+
+            // 4. 清空缓冲区
+            video.load();
+
+            // 5. 移除所有事件监听器（防止内存泄漏）
+            const newVideo = video.cloneNode(true);
+            video.parentNode.replaceChild(newVideo, video);
+
+            // 6. 清理当前视频引用
+            this.currentVideo = null;
+
+            // 7. 强制垃圾回收提示（浏览器会自行决定）
+            if (window.gc) {
+                window.gc();
+            }
+
+            // 8. 内存使用情况检查（如果浏览器支持）
+            if (performance.memory) {
+                const memoryInfo = performance.memory;
+                console.log('内存使用情况:', {
+                    used: `${(memoryInfo.usedJSHeapSize / 1024 / 1024).toFixed(1)}MB`,
+                    total: `${(memoryInfo.totalJSHeapSize / 1024 / 1024).toFixed(1)}MB`,
+                    limit: `${(memoryInfo.jsHeapSizeLimit / 1024 / 1024).toFixed(1)}MB`
+                });
+            }
+
+            console.log('✅ 视频资源清理完成');
+        }
+    }
+
+    // 内存监控方法
+    checkMemoryUsage() {
+        if (performance.memory) {
+            const memory = performance.memory;
+            const used = memory.usedJSHeapSize / 1024 / 1024;
+            const total = memory.totalJSHeapSize / 1024 / 1024;
+            const limit = memory.jsHeapSizeLimit / 1024 / 1024;
+
+            console.log(`📊 内存使用: ${used.toFixed(1)}MB / ${total.toFixed(1)}MB (限制: ${limit.toFixed(1)}MB)`);
+
+            // 如果内存使用超过80%，发出警告
+            if (used / limit > 0.8) {
+                console.warn('⚠️ 内存使用率较高，建议关闭一些视频');
+                showNotification('内存使用率较高，建议关闭视频播放器', 'warning');
+            }
+
+            return { used, total, limit, usage: used / limit };
+        }
+        return null;
+    }
+
+    downloadFile(filename) {
+        window.open(`/files/download/${encodeURIComponent(filename)}`, '_blank');
+    }
+    
+    async deleteFile(filename) {
+        if (!confirm(`确定要删除文件 "${filename}" 吗？`)) return;
+        
+        try {
+            const response = await apiRequest(`/files/delete/${encodeURIComponent(filename)}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                showNotification('文件删除成功', 'success');
+                this.selectedFiles.delete(filename);
+                await this.loadFiles();
+            } else {
+                showNotification('删除失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+    
+    async deleteSelected() {
+        if (this.selectedFiles.size === 0) return;
+        
+        const fileList = Array.from(this.selectedFiles).join('\n');
+        if (!confirm(`确定要删除以下 ${this.selectedFiles.size} 个文件吗？\n\n${fileList}`)) return;
+        
+        const promises = Array.from(this.selectedFiles).map(filename => 
+            apiRequest(`/files/delete/${encodeURIComponent(filename)}`, { method: 'DELETE' })
+        );
+        
+        try {
+            const results = await Promise.allSettled(promises);
+            const successful = results.filter(r => r.status === 'fulfilled').length;
+            
+            showNotification(`成功删除 ${successful} 个文件`, 'success');
+            this.selectedFiles.clear();
+            await this.loadFiles();
+        } catch (error) {
+            showNotification('批量删除失败', 'danger');
+        }
+    }
+}
+
+// 初始化应用
+let app;
+document.addEventListener('DOMContentLoaded', function() {
+    app = new FilesApp();
+
+    // 绑定下载按钮事件
+    document.getElementById('downloadVideoBtn').addEventListener('click', () => {
+        if (app.currentVideo) {
+            app.downloadFile(app.currentVideo.name);
+        }
+    });
+
+    // 模态框关闭时完整清理视频资源
+    document.getElementById('videoModal').addEventListener('hidden.bs.modal', () => {
+        app.cleanupVideo();
+    });
+});
+</script>
+{% endblock %}
