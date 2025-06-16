@@ -33,7 +33,7 @@ def login():
             return render_template('auth/login.html', error=error_msg)
         
         # 验证用户凭据
-        from ...core.auth import get_auth_manager
+        from core.auth import get_auth_manager
         auth_manager = get_auth_manager()
         
         token = auth_manager.login(username, password)
@@ -78,7 +78,7 @@ def logout():
     """用户登出"""
     try:
         # 获取令牌
-        from ...core.auth import get_token_from_request, get_auth_manager
+        from core.auth import get_token_from_request, get_auth_manager
         token = get_token_from_request()
         
         if token:
@@ -105,7 +105,7 @@ def logout():
 def status():
     """检查登录状态"""
     try:
-        from ...core.auth import get_token_from_request, get_auth_manager
+        from core.auth import get_token_from_request, get_auth_manager
         
         token = get_token_from_request()
         if not token:
@@ -132,7 +132,7 @@ def status():
 def refresh_token():
     """刷新令牌"""
     try:
-        from ...core.auth import get_token_from_request, get_auth_manager
+        from core.auth import get_token_from_request, get_auth_manager
         
         token = get_token_from_request()
         if not token:
