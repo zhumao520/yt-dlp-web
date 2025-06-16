@@ -1,0 +1,257 @@
+name: 构建和推送Docker镜像
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_platforms:
+        description: '构建平台'
+        required: true
+        default: 'linux/amd64,linux/arm64'
+        type: choice
+        options:
+        - 'linux/amd64'
+        - 'linux/arm64'
+        - 'linux/amd64,linux/arm64'
+      push_image:
+        description: '是否推送镜像'
+        required: true
+        default: true
+        type: boolean
+      run_tests:
+        description: '是否运行测试'
+        required: true
+        default: true
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    name: 🏗️ 构建Docker镜像
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: 📥 检出代码仓库
+      uses: actions/checkout@v4
+
+    - name: 🔧 设置Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🔐 登录容器注册表
+      if: ${{ inputs.push_image }}
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 📋 提取镜像元数据
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest
+          type=raw,value={{date 'YYYYMMDD-HHmmss'}}
+
+    - name: 🏗️ 构建并推送Docker镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: ${{ inputs.build_platforms }}
+        push: ${{ inputs.push_image }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+          VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+
+    - name: 📊 输出构建信息
+      run: |
+        echo "🎯 构建平台: ${{ inputs.build_platforms }}"
+        echo "📦 镜像标签: ${{ steps.meta.outputs.tags }}"
+        echo "🚀 推送状态: ${{ inputs.push_image }}"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Basic syntax check
+      run: |
+        python -m py_compile main.py
+        python -c "import core; print('✅ Core module import successful')"
+        python -c "import modules; print('✅ Modules import successful')"
+        python -c "import web; print('✅ Web module import successful')"
+        python -c "import api; print('✅ API module import successful')"
+
+  container-test:
+    name: 🧪 容器功能测试
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ inputs.run_tests }}
+
+    steps:
+    - name: 📥 检出代码仓库
+      uses: actions/checkout@v4
+
+    - name: 🔧 设置Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🏗️ 构建测试镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        load: true
+        tags: yt-dlp-web-v2:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: 🌐 创建测试网络
+      run: docker network create yt-dlp-test
+
+    - name: 🧪 运行容器测试
+      run: |
+        # 🚀 启动测试容器
+        echo "🚀 启动测试容器..."
+        docker run -d \
+          --name yt-dlp-test \
+          --network yt-dlp-test \
+          -p 8080:8080 \
+          -e SECRET_KEY=test-secret-key \
+          -e DATABASE_URL=sqlite:///data/test.db \
+          -v /tmp/yt-dlp-test:/app/downloads \
+          yt-dlp-web-v2:test
+
+        # ⏳ 等待容器启动
+        echo "⏳ 等待容器启动..."
+        sleep 30
+
+        # 📊 检查容器状态
+        if ! docker ps | grep yt-dlp-test; then
+          echo "❌ 容器启动失败"
+          echo "📋 容器日志："
+          docker logs yt-dlp-test
+          exit 1
+        fi
+        echo "✅ 容器启动成功"
+
+        # 🔍 健康检查
+        echo "🔍 执行健康检查..."
+        for i in {1..10}; do
+          if curl -f http://localhost:8080/api/health; then
+            echo "✅ 健康检查通过"
+            break
+          fi
+          echo "⏳ 等待服务启动... ($i/10)"
+          sleep 10
+          if [ $i -eq 10 ]; then
+            echo "❌ 健康检查失败"
+            echo "📋 容器日志："
+            docker logs yt-dlp-test
+            exit 1
+          fi
+        done
+
+        # 🧪 功能测试
+        echo "🧪 执行功能测试..."
+
+        # 测试首页访问
+        echo "🏠 测试首页访问..."
+        if curl -f http://localhost:8080/; then
+          echo "✅ 首页访问正常"
+        else
+          echo "❌ 首页访问失败"
+          exit 1
+        fi
+
+        # 测试API接口 (使用无需认证的健康检查端点)
+        echo "🔌 测试API接口..."
+        if curl -f http://localhost:8080/api/health; then
+          echo "✅ API接口正常"
+        else
+          echo "❌ API接口失败"
+          exit 1
+        fi
+
+        # 测试静态文件
+        echo "📁 测试静态文件服务..."
+        if curl -f http://localhost:8080/static/ || curl -I http://localhost:8080/static/; then
+          echo "✅ 静态文件服务正常"
+        else
+          echo "⚠️ 静态文件服务可能有问题（非致命）"
+        fi
+
+        # 测试数据库连接 (通过健康检查端点)
+        echo "🗄️ 测试数据库连接..."
+        if curl -s http://localhost:8080/api/health | grep -q "database"; then
+          echo "✅ 数据库连接正常"
+        else
+          echo "⚠️ 数据库连接测试跳过（非致命）"
+        fi
+
+        echo "🎉 所有容器测试通过！"
+
+    - name: 🧹 清理测试容器
+      if: always()
+      run: |
+        echo "🧹 清理测试环境..."
+        docker stop yt-dlp-test || true
+        docker rm yt-dlp-test || true
+        docker network rm yt-dlp-test || true
+        docker rmi yt-dlp-web-v2:test || true
+        echo "✅ 清理完成"
+
+  security-scan:
+    name: 🔒 安全漏洞扫描
+    runs-on: ubuntu-latest
+    needs: [build, container-test]
+    if: ${{ inputs.push_image }}
+
+    steps:
+    - name: 🔍 运行Trivy漏洞扫描器
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: 📤 上传扫描结果到GitHub安全选项卡
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+    - name: 📊 输出扫描摘要
+      run: |
+        echo "🔒 安全扫描完成"
+        echo "📋 扫描结果已上传到GitHub Security选项卡"
