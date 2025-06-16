@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-YT-DLP Web V2 - 轻量化可扩展架构
+YT-DLP Web - 轻量化可扩展架构
 """
 
 __version__ = "2.0.0"

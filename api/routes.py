@@ -941,7 +941,7 @@ def api_get_general_settings():
         from ..core.config import get_config
 
         settings = {
-            "app_name": get_config("app.name", "YT-DLP Web V2"),
+            "app_name": get_config("app.name", "YT-DLP Web"),
             "app_version": get_config("app.version", "2.0.0"),
             "host": get_config("app.host", "0.0.0.0"),
             "port": get_config("app.port", 8080),
@@ -1747,7 +1747,7 @@ def api_shortcuts_info():
         from ..core.config import get_config
 
         return jsonify({
-            "service": "YT-DLP Web V2",
+            "service": "YT-DLP Web",
             "version": get_config("app.version", "2.0.0"),
             "supported_sites": "1000+ 网站",
             "max_file_size": "无限制",

@@ -1,6 +1,6 @@
 # 部署指南
 
-本文档详细说明了YT-DLP Web V2的各种部署方式和配置选项。
+本文档详细说明了YT-DLP Web的各种部署方式和配置选项。
 
 ## 🐳 Docker部署（推荐）
 
@@ -8,12 +8,12 @@
 
 ```bash
 docker run -d \
-  --name yt-dlp-web2 \
+  --name yt-dlp-web \
   -p 8080:8080 \
   -v $(pwd)/downloads:/app/downloads \
   -v $(pwd)/data:/app/data \
   -e SECRET_KEY=your-secret-key-here \
-  ghcr.io/your-username/yt-dlp-web2:latest
+  ghcr.io/your-username/yt-dlp-web:latest
 ```
 
 ### Docker Compose部署
@@ -24,9 +24,9 @@ docker run -d \
 version: '3.8'
 
 services:
-  yt-dlp-web2:
-    image: ghcr.io/your-username/yt-dlp-web2:latest
-    container_name: yt-dlp-web2
+  yt-dlp-web:
+    image: ghcr.io/your-username/yt-dlp-web:latest
+    container_name: yt-dlp-web
     ports:
       - "8080:8080"
     volumes:
@@ -80,8 +80,8 @@ docker-compose up -d
 
 1. **克隆项目**
 ```bash
-git clone https://github.com/your-username/yt-dlp-web2.git
-cd yt-dlp-web2
+git clone https://github.com/your-username/yt-dlp-web.git
+cd yt-dlp-web
 ```
 
 2. **创建虚拟环境**
@@ -141,17 +141,17 @@ gunicorn -w 4 -b 0.0.0.0:8080 main:app
 使用systemd管理服务：
 
 ```ini
-# /etc/systemd/system/yt-dlp-web2.service
+# /etc/systemd/system/yt-dlp-web.service
 [Unit]
-Description=YT-DLP Web V2
+Description=YT-DLP Web
 After=network.target
 
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/path/to/yt-dlp-web2
-Environment=PATH=/path/to/yt-dlp-web2/venv/bin
-ExecStart=/path/to/yt-dlp-web2/venv/bin/gunicorn -w 4 -b 0.0.0.0:8080 main:app
+WorkingDirectory=/path/to/yt-dlp-web
+Environment=PATH=/path/to/yt-dlp-web/venv/bin
+ExecStart=/path/to/yt-dlp-web/venv/bin/gunicorn -w 4 -b 0.0.0.0:8080 main:app
 Restart=always
 
 [Install]
@@ -161,8 +161,8 @@ WantedBy=multi-user.target
 启用服务：
 
 ```bash
-sudo systemctl enable yt-dlp-web2
-sudo systemctl start yt-dlp-web2
+sudo systemctl enable yt-dlp-web
+sudo systemctl start yt-dlp-web
 ```
 
 ## 🌐 反向代理配置
@@ -189,7 +189,7 @@ server {
 
     # 静态文件直接服务
     location /static/ {
-        alias /path/to/yt-dlp-web2/web/static/;
+        alias /path/to/yt-dlp-web/web/static/;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
@@ -216,10 +216,10 @@ server {
     ProxyPass / http://127.0.0.1:8080/
     ProxyPassReverse / http://127.0.0.1:8080/
     
-    Alias /static/ /path/to/yt-dlp-web2/web/static/
+    Alias /static/ /path/to/yt-dlp-web/web/static/
     Alias /downloads/ /path/to/downloads/
-    
-    <Directory "/path/to/yt-dlp-web2/web/static/">
+
+    <Directory "/path/to/yt-dlp-web/web/static/">
         Require all granted
     </Directory>
     
@@ -296,7 +296,7 @@ if curl -f -s --max-time $TIMEOUT $URL > /dev/null; then
     echo "$(date): Service is healthy"
 else
     echo "$(date): Service is down, restarting..."
-    systemctl restart yt-dlp-web2
+    systemctl restart yt-dlp-web
 fi
 ```
 
@@ -315,8 +315,8 @@ sudo lsof -i :8080
 2. **权限问题**
 ```bash
 # 确保目录权限正确
-sudo chown -R www-data:www-data /path/to/yt-dlp-web2
-sudo chmod -R 755 /path/to/yt-dlp-web2
+sudo chown -R www-data:www-data /path/to/yt-dlp-web
+sudo chmod -R 755 /path/to/yt-dlp-web
 ```
 
 3. **FFmpeg未找到**
@@ -339,10 +339,10 @@ pip install --upgrade -r requirements.txt
 tail -f /app/data/logs/app.log
 
 # 查看Docker日志
-docker logs -f yt-dlp-web2
+docker logs -f yt-dlp-web
 
 # 查看系统日志
-journalctl -u yt-dlp-web2 -f
+journalctl -u yt-dlp-web -f
 ```
 
 ## 🚀 性能优化

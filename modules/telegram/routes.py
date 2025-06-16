@@ -148,7 +148,7 @@ def _handle_command(command, config):
         notifier = get_telegram_notifier()
 
         if command.startswith('/start'):
-            help_text = """🤖 **YT-DLP Web V2 机器人**
+            help_text = """🤖 **YT-DLP Web 机器人**
 
 欢迎使用！我可以帮您下载视频。
 
@@ -1099,7 +1099,7 @@ def _send_help_message(config):
         from .notifier import get_telegram_notifier
         notifier = get_telegram_notifier()
 
-        help_text = """🤖 **YT-DLP Web V2 机器人**
+        help_text = """🤖 **YT-DLP Web 机器人**
 
 欢迎使用！我可以帮您下载视频。
 

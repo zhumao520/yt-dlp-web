@@ -1,14 +1,14 @@
-# YT-DLP Web V2
+# YT-DLP Web
 
 🚀 **现代化轻量级YouTube下载器Web界面** - 基于Flask的双引擎下载系统
 
-[![Docker Build](https://github.com/your-username/yt-dlp-web2/actions/workflows/docker-build.yml/badge.svg)](https://github.com/your-username/yt-dlp-web2/actions/workflows/docker-build.yml)
+[![Docker Build](https://github.com/your-username/yt-dlp-web/actions/workflows/docker-build.yml/badge.svg)](https://github.com/your-username/yt-dlp-web/actions/workflows/docker-build.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://python.org)
 
 ## 📋 项目简介
 
-YT-DLP Web V2 是一个现代化的YouTube视频下载器Web界面，采用轻量化架构设计，支持1000+网站的视频下载。项目基于Flask框架，集成了双引擎下载系统、智能Telegram推送、现代化Web界面等功能。
+YT-DLP Web 是一个现代化的YouTube视频下载器Web界面，采用轻量化架构设计，支持1000+网站的视频下载。项目基于Flask框架，集成了双引擎下载系统、智能Telegram推送、现代化Web界面等功能。
 
 ## ✨ 核心功能
 
@@ -71,24 +71,24 @@ YT-DLP Web V2 是一个现代化的YouTube视频下载器Web界面，采用轻�
 
 ```bash
 # 拉取镜像
-docker pull ghcr.io/your-username/yt-dlp-web2:latest
+docker pull ghcr.io/your-username/yt-dlp-web:latest
 
 # 运行容器
 docker run -d \
-  --name yt-dlp-web2 \
+  --name yt-dlp-web \
   -p 8080:8080 \
   -v /path/to/downloads:/app/downloads \
   -v /path/to/data:/app/data \
   -e SECRET_KEY=your-secret-key \
-  ghcr.io/your-username/yt-dlp-web2:latest
+  ghcr.io/your-username/yt-dlp-web:latest
 ```
 
 ### 手动部署
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/yt-dlp-web2.git
-cd yt-dlp-web2
+git clone https://github.com/your-username/yt-dlp-web.git
+cd yt-dlp-web
 
 # 安装依赖
 pip install -r requirements.txt
@@ -144,7 +144,7 @@ TELEGRAM_CHAT_ID=your-chat-id
 
 ```yaml
 app:
-  name: "YT-DLP Web V2"
+  name: "YT-DLP Web"
   host: "0.0.0.0"
   port: 8080
   debug: false
@@ -164,7 +164,7 @@ telegram:
 ## 📁 项目结构
 
 ```
-yt-dlp-web2/
+yt-dlp-web/
 ├── api/                    # API接口
 ├── core/                   # 核心功能
 ├── modules/                # 功能模块
@@ -199,16 +199,8 @@ yt-dlp-web2/
 
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - 强大的视频下载工具
 - [PyTubeFix](https://github.com/JuanBindez/pytubefix) - YouTube专用下载库
-- [PyroFork](https://github.com/pyrogram/pyrogram) - Telegram客户端库
+- [PyroFork](https://github.com/Mayuri-Chan/pyrofork) - Telegram客户端库
 - [Flask](https://flask.palletsprojects.com/) - 轻量级Web框架
 
-## 📞 支持
-
-如果您遇到问题或有建议，请：
-- 创建 [Issue](https://github.com/your-username/yt-dlp-web2/issues)
-- 查看 [Wiki](https://github.com/your-username/yt-dlp-web2/wiki)
-- 加入讨论 [Discussions](https://github.com/your-username/yt-dlp-web2/discussions)
-
----
 
 ⭐ 如果这个项目对您有帮助，请给个Star支持一下！

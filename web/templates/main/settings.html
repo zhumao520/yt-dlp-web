@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}系统设置 - YT-DLP Web V2{% endblock %}
+{% block title %}系统设置 - YT-DLP Web{% endblock %}
 
 {% block content %}
 <div class="container-fluid" id="settingsApp">
@@ -61,7 +61,7 @@
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label for="appName" class="form-label">应用名称</label>
-                                <input type="text" class="form-control" id="appName" value="YT-DLP Web V2">
+                                <input type="text" class="form-control" id="appName" value="YT-DLP Web">
                             </div>
 
                             <div class="col-md-6">
@@ -709,7 +709,7 @@ class SettingsApp {
     constructor() {
         this.settings = {
             general: {
-                app_name: 'YT-DLP Web V2',
+                app_name: 'YT-DLP Web',
                 session_timeout: 24,
                 secret_key: '',
                 debug_mode: false

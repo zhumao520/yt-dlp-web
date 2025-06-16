@@ -20,7 +20,7 @@ class TelegramCommandService:
     
     def handle_start_command(self) -> str:
         """处理/start命令"""
-        return """🤖 **YT-DLP Web V2 机器人**
+        return """🤖 **YT-DLP Web 机器人**
 
 欢迎使用！我可以帮您下载视频。
 

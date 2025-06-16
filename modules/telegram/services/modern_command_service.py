@@ -31,7 +31,7 @@ class ModernTelegramCommandService:
     
     def handle_start_command(self) -> str:
         """处理/start命令 - 现代化帮助信息"""
-        return """🤖 **YT-DLP Web V2 机器人**
+        return """🤖 **YT-DLP Web 机器人**
 
 欢迎使用！我可以帮您下载视频并智能发送文件。
 

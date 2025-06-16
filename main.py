@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-YT-DLP Web V2 - 应用入口点
+YT-DLP Web - 应用入口点
 轻量化可扩展架构
 """
 
@@ -60,7 +60,7 @@ def setup_environment():
 def main():
     """主函数"""
     try:
-        logger.info("🚀 启动 YT-DLP Web V2...")
+        logger.info("🚀 启动 YT-DLP Web...")
 
         # 配置验证和修复
         logger.info("🔍 验证系统配置...")

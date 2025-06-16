@@ -54,7 +54,7 @@ def create_app(config_override=None):
 
             emit(
                 Events.APP_STARTED,
-                {"app_name": app.config.get("APP_NAME", "YT-DLP Web V2")},
+                {"app_name": app.config.get("APP_NAME", "YT-DLP Web")},
             )
 
             # 启动时检查并安装yt-dlp
@@ -108,7 +108,7 @@ def _configure_app(app: Flask, config_override=None):
         {
             "SECRET_KEY": get_config("app.secret_key"),
             "DEBUG": get_config("app.debug", False),
-            "APP_NAME": get_config("app.name", "YT-DLP Web V2"),
+            "APP_NAME": get_config("app.name", "YT-DLP Web"),
             "APP_VERSION": get_config("app.version", "2.0.0"),
             # 文件上传配置
             "MAX_CONTENT_LENGTH": 16 * 1024 * 1024 * 1024,  # 16GB

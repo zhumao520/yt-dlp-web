@@ -57,7 +57,7 @@ class Config:
         """获取默认配置"""
         return {
             "app": {
-                "name": "YT-DLP Web V2",
+                "name": "YT-DLP Web",
                 "version": "2.0.0",
                 "host": "0.0.0.0",
                 "port": 8080,

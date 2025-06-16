@@ -1,4 +1,4 @@
-# YT-DLP Web V2 - 轻量化Docker镜像
+# YT-DLP Web - 轻量化Docker镜像
 FROM python:3.11-slim
 
 # 设置工作目录

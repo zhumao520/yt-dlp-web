@@ -1,4 +1,4 @@
-# YT-DLP Web V2 - 轻量化依赖
+# YT-DLP Web - 轻量化依赖
 # 核心框架
 Flask>=3.1.1
 Flask-CORS>=6.0.0
