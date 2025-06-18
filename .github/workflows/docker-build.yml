@@ -76,8 +76,7 @@ jobs:
         push: ${{ inputs.push_image }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+
         build-args: |
           INSTALL_WARP=${{ inputs.install_warp }}
           BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
@@ -141,8 +140,7 @@ jobs:
         context: .
         load: true
         tags: yt-dlp-web-v2:test
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+
         build-args: |
           INSTALL_WARP=${{ inputs.install_warp }}
 
