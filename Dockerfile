@@ -24,6 +24,9 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     cmake \
     pkg-config \
+    gnupg \
+    lsb-release \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置容器环境标识
@@ -62,9 +65,12 @@ RUN if [ "$INSTALL_WARP" = "true" ]; then \
 
 # 安装 Cloudflare WARP（如果需要）
 RUN if [ "$INSTALL_WARP" = "true" ]; then \
-        echo "🔑 添加 Cloudflare 仓库..." && \
-        curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | gpg --dearmor -o /usr/share/keyrings/cloudflare-main.gpg && \
-        echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflare-main $(lsb_release -cs) main" > /etc/apt/sources.list.d/cloudflare-main.list && \
+        echo "🔑 添加 Cloudflare WARP 仓库..." && \
+        # 使用正确的 Cloudflare WARP 仓库 \
+        curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg && \
+        DEBIAN_VERSION=$(lsb_release -cs) && \
+        echo "检测到系统版本: $DEBIAN_VERSION" && \
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $DEBIAN_VERSION main" > /etc/apt/sources.list.d/cloudflare-client.list && \
         apt-get update && \
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cloudflare-warp && \
         rm -rf /var/lib/apt/lists/*; \
@@ -73,7 +79,16 @@ RUN if [ "$INSTALL_WARP" = "true" ]; then \
 # 安装 GOST 代理（如果需要）
 RUN if [ "$INSTALL_WARP" = "true" ]; then \
         echo "📡 安装 GOST 代理..." && \
-        curl -fsSL -o /tmp/gost.gz https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz && \
+        ARCH=$(uname -m) && \
+        if [ "$ARCH" = "x86_64" ]; then \
+            GOST_ARCH="amd64"; \
+        elif [ "$ARCH" = "aarch64" ]; then \
+            GOST_ARCH="arm64"; \
+        else \
+            echo "❌ 不支持的架构: $ARCH" && exit 1; \
+        fi && \
+        echo "🔍 检测到架构: $ARCH，使用 GOST $GOST_ARCH 版本" && \
+        curl -fsSL -o /tmp/gost.gz "https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-${GOST_ARCH}-2.11.5.gz" && \
         gunzip /tmp/gost.gz && \
         mv /tmp/gost /usr/local/bin/gost && \
         chmod +x /usr/local/bin/gost && \
