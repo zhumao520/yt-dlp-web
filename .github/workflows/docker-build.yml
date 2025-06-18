@@ -12,6 +12,11 @@ on:
         - 'linux/amd64'
         - 'linux/arm64'
         - 'linux/amd64,linux/arm64'
+      install_warp:
+        description: '是否安装 WARP'
+        required: true
+        default: false
+        type: boolean
       push_image:
         description: '是否推送镜像'
         required: true
@@ -25,7 +30,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}${{ inputs.install_warp && '-warp' || '' }}
 
 jobs:
   build:
@@ -74,12 +79,14 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         build-args: |
+          INSTALL_WARP=${{ inputs.install_warp }}
           BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
           VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
 
     - name: 📊 输出构建信息
       run: |
         echo "🎯 构建平台: ${{ inputs.build_platforms }}"
+        echo "🌐 WARP 支持: ${{ inputs.install_warp && '是' || '否' }}"
         echo "📦 镜像标签: ${{ steps.meta.outputs.tags }}"
         echo "🚀 推送状态: ${{ inputs.push_image }}"
 
@@ -136,6 +143,8 @@ jobs:
         tags: yt-dlp-web-v2:test
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        build-args: |
+          INSTALL_WARP=${{ inputs.install_warp }}
 
     - name: 🌐 创建测试网络
       run: docker network create yt-dlp-test
@@ -144,18 +153,42 @@ jobs:
       run: |
         # 🚀 启动测试容器
         echo "🚀 启动测试容器..."
-        docker run -d \
-          --name yt-dlp-test \
-          --network yt-dlp-test \
-          -p 8080:8080 \
-          -e SECRET_KEY=test-secret-key \
-          -e DATABASE_URL=sqlite:///data/test.db \
-          -v /tmp/yt-dlp-test:/app/downloads \
-          yt-dlp-web-v2:test
+
+        # 根据是否安装 WARP 决定启动参数
+        if [[ "${{ inputs.install_warp }}" == "true" ]]; then
+          echo "📋 启动 WARP 版本测试容器（禁用 WARP 以避免测试环境问题）..."
+          docker run -d \
+            --name yt-dlp-test \
+            --network yt-dlp-test \
+            --cap-add NET_ADMIN \
+            --sysctl net.ipv6.conf.all.disable_ipv6=0 \
+            --sysctl net.ipv4.conf.all.src_valid_mark=1 \
+            -p 8080:8080 \
+            -e SECRET_KEY=test-secret-key \
+            -e DATABASE_URL=sqlite:///data/test.db \
+            -e ENABLE_WARP=false \
+            -v /tmp/yt-dlp-test:/app/downloads \
+            yt-dlp-web-v2:test
+        else
+          echo "📋 启动标准版测试容器..."
+          docker run -d \
+            --name yt-dlp-test \
+            --network yt-dlp-test \
+            -p 8080:8080 \
+            -e SECRET_KEY=test-secret-key \
+            -e DATABASE_URL=sqlite:///data/test.db \
+            -v /tmp/yt-dlp-test:/app/downloads \
+            yt-dlp-web-v2:test
+        fi
 
         # ⏳ 等待容器启动
-        echo "⏳ 等待容器启动..."
-        sleep 30
+        if [[ "${{ inputs.install_warp }}" == "true" ]]; then
+          echo "⏳ 等待 WARP 版本容器启动（需要更长时间）..."
+          sleep 60
+        else
+          echo "⏳ 等待标准版容器启动..."
+          sleep 30
+        fi
 
         # 📊 检查容器状态
         if ! docker ps | grep yt-dlp-test; then
@@ -236,7 +269,7 @@ jobs:
     name: 🔒 安全漏洞扫描
     runs-on: ubuntu-latest
     needs: [build, container-test]
-    if: ${{ inputs.push_image }}
+    if: ${{ inputs.push_image && always() && !failure() }}
 
     steps:
     - name: 🔍 运行Trivy漏洞扫描器
@@ -255,3 +288,38 @@ jobs:
       run: |
         echo "🔒 安全扫描完成"
         echo "📋 扫描结果已上传到GitHub Security选项卡"
+
+  build-summary:
+    name: 📊 构建摘要
+    runs-on: ubuntu-latest
+    needs: [build, container-test]
+    if: always()
+
+    steps:
+    - name: 📋 输出构建摘要
+      run: |
+        echo "🎯 构建平台: ${{ inputs.build_platforms }}"
+        echo "🌐 WARP 支持: ${{ inputs.install_warp && '是' || '否' }}"
+        echo "🚀 推送状态: ${{ inputs.push_image }}"
+        echo "🧪 测试状态: ${{ inputs.run_tests }}"
+        echo ""
+        echo "📦 构建结果:"
+
+        if [[ "${{ needs.build.result }}" == "success" ]]; then
+          echo "✅ 镜像构建成功"
+        else
+          echo "❌ 镜像构建失败"
+        fi
+
+        echo ""
+        echo "🧪 测试结果:"
+
+        if [[ "${{ inputs.run_tests }}" == "true" ]]; then
+          if [[ "${{ needs.container-test.result }}" == "success" ]]; then
+            echo "✅ 容器测试通过"
+          else
+            echo "❌ 容器测试失败"
+          fi
+        else
+          echo "⏭️ 测试已跳过"
+        fi
