@@ -73,6 +73,27 @@ jobs:
           type=raw,value=latest
           type=raw,value={{date 'YYYYMMDD-HHmmss'}}
 
+    - name: 🔍 获取 GOST 版本
+      id: get-gost-version
+      run: |
+        if [ "${{ inputs.install_warp }}" = "true" ]; then
+          echo "GOST_VERSION=$(curl -H 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -s https://api.github.com/repos/ginuerzh/gost/releases/latest | jq -r '.tag_name' | cut -c 2-)" >> "$GITHUB_OUTPUT"
+        else
+          echo "GOST_VERSION=none" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: 🔍 获取 WARP 客户端版本
+      id: get-warp-version
+      if: ${{ inputs.install_warp }}
+      run: |
+        # 在构建机器上测试 WARP 仓库可用性
+        curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
+        sudo apt-get update
+        WARP_VERSION=$(apt-cache show cloudflare-warp | grep '^Version:' | awk '{print $2}' | sed 's/-[0-9]*$//')
+        echo "WARP_VERSION=${WARP_VERSION}" >> "$GITHUB_OUTPUT"
+        echo "✅ 检测到 WARP 版本: ${WARP_VERSION}"
+
     - name: 🏗️ 构建并推送Docker镜像
       uses: docker/build-push-action@v5
       with:
@@ -84,6 +105,8 @@ jobs:
 
         build-args: |
           INSTALL_WARP=${{ inputs.install_warp == true && 'true' || 'false' }}
+          GOST_VERSION=${{ steps.get-gost-version.outputs.GOST_VERSION }}
+          WARP_VERSION=${{ steps.get-warp-version.outputs.WARP_VERSION || 'none' }}
           BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
           VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
 
