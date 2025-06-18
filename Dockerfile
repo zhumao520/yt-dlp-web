@@ -45,40 +45,54 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 复制应用代码
 COPY . .
 
-# 根据构建参数决定是否安装 WARP
+# 安装 WARP 相关依赖（如果需要）
 RUN if [ "$INSTALL_WARP" = "true" ]; then \
-        echo "🌐 构建时安装 WARP..." && \
-        # 安装 WARP 相关依赖 \
-        apt-get update && apt-get install -y \
+        echo "🌐 安装 WARP 依赖..." && \
+        apt-get update && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             gnupg \
             lsb-release \
             iptables \
             iproute2 \
             procps \
-            net-tools && \
-        # 安装 Cloudflare WARP \
+            net-tools \
+            ca-certificates && \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# 安装 Cloudflare WARP（如果需要）
+RUN if [ "$INSTALL_WARP" = "true" ]; then \
+        echo "🔑 添加 Cloudflare 仓库..." && \
         curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | gpg --dearmor -o /usr/share/keyrings/cloudflare-main.gpg && \
-        echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflare-main $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/cloudflare-main.list && \
+        echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflare-main $(lsb_release -cs) main" > /etc/apt/sources.list.d/cloudflare-main.list && \
         apt-get update && \
-        apt-get install -y cloudflare-warp && \
-        # 安装 GOST 代理 \
-        curl -L https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz | gunzip > /usr/local/bin/gost && \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cloudflare-warp && \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
+
+# 安装 GOST 代理（如果需要）
+RUN if [ "$INSTALL_WARP" = "true" ]; then \
+        echo "📡 安装 GOST 代理..." && \
+        curl -fsSL -o /tmp/gost.gz https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz && \
+        gunzip /tmp/gost.gz && \
+        mv /tmp/gost /usr/local/bin/gost && \
         chmod +x /usr/local/bin/gost && \
-        # 复制启动脚本 \
+        rm -f /tmp/gost.gz; \
+    fi
+
+# 配置启动脚本
+RUN if [ "$INSTALL_WARP" = "true" ]; then \
+        echo "🚀 配置 WARP 启动脚本..." && \
         cp modules/warp/start-with-warp.sh /start-app.sh && \
         chmod +x /start-app.sh && \
-        # 设置 WARP 可用标识 \
         echo "true" > /warp-available && \
-        # 清理 \
-        rm -rf /var/lib/apt/lists/* && \
         echo "✅ WARP 安装完成"; \
     else \
-        echo "ℹ️ 跳过 WARP 安装" && \
-        # 复制标准启动脚本 \
+        echo "ℹ️ 配置标准启动脚本..." && \
         cp scripts/start-standard.sh /start-app.sh && \
         chmod +x /start-app.sh && \
-        # 设置 WARP 不可用标识 \
-        echo "false" > /warp-available; \
+        echo "false" > /warp-available && \
+        echo "✅ 标准版配置完成"; \
     fi
 
 # 创建必要目录
