@@ -142,7 +142,7 @@ class DownloadManagerV2:
         """创建下载任务"""
         try:
             download_id = str(uuid.uuid4())
-            
+
             # 创建下载记录
             download_info = {
                 'id': download_id,
@@ -159,34 +159,42 @@ class DownloadManagerV2:
                 'retry_count': 0,
                 'max_retries': options.get('max_retries', 3) if options else 3
             }
-            
+
             with self.lock:
                 self.downloads[download_id] = download_info
-            
+
             # 保存到数据库
             self._save_to_database(download_id, url)
-            
+
             # 发送事件
             self._emit_event('DOWNLOAD_STARTED', {
                 'download_id': download_id,
                 'url': url,
                 'options': options
             })
-            
+
             # 提交下载任务
             self.executor.submit(self._execute_download, download_id)
-            
+
             logger.info(f"📥 创建下载任务: {download_id} - {url}")
             return download_id
-            
+
         except Exception as e:
             logger.error(f"❌ 创建下载任务失败: {e}")
             raise
+
+    def add_download(self, url: str, options: Dict[str, Any] = None) -> str:
+        """添加下载任务（向后兼容别名）"""
+        return self.create_download(url, options)
     
     def get_download(self, download_id: str) -> Optional[Dict[str, Any]]:
         """获取下载信息"""
         with self.lock:
             return self.downloads.get(download_id)
+
+    def get_download_status(self, download_id: str) -> Optional[Dict[str, Any]]:
+        """获取下载状态（向后兼容别名）"""
+        return self.get_download(download_id)
     
     def get_all_downloads(self) -> List[Dict[str, Any]]:
         """获取所有下载"""

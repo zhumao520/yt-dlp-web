@@ -73,7 +73,7 @@ class TelegramCommandService:
     def handle_downloads_command(self) -> str:
         """处理/downloads命令"""
         try:
-            from modules.downloader.manager import get_download_manager
+            from ....modules.downloader.manager import get_download_manager
             download_manager = get_download_manager()
             downloads = download_manager.get_all_downloads()
             
@@ -103,7 +103,7 @@ class TelegramCommandService:
     def handle_files_command(self) -> str:
         """处理/files命令"""
         try:
-            from core.config import get_config
+            from ....core.config import get_config
             
             download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
             
@@ -184,7 +184,7 @@ CPU: {psutil.cpu_percent()}%
     def _get_active_downloads_count(self) -> int:
         """获取活跃下载数量"""
         try:
-            from modules.downloader.manager import get_download_manager
+            from ....modules.downloader.manager import get_download_manager
             download_manager = get_download_manager()
             downloads = download_manager.get_all_downloads()
             return len([d for d in downloads if d['status'] in ['pending', 'downloading']])
@@ -208,7 +208,7 @@ CPU: {psutil.cpu_percent()}%
         """获取详细系统状态（需要psutil）"""
         try:
             import psutil
-            from core.config import get_config
+            from ....core.config import get_config
             
             # 获取系统信息
             cpu_percent = psutil.cpu_percent(interval=1)

@@ -381,12 +381,10 @@ def handle_download_started(data):
         url = data.get('url')
         options = data.get('options', {})
 
-        # 只处理来自 Telegram 的下载
-        if options.get('source') != 'telegram_webhook':
-            return
-
+        # 提前检查 Telegram 是否启用
         notifier = get_telegram_notifier()
-        if not notifier.is_enabled():
+        if not notifier or not notifier.is_enabled():
+            logger.debug(f"📡 Telegram 未启用，跳过下载开始事件: {download_id}")
             return
 
         # 获取下载信息
@@ -400,10 +398,20 @@ def handle_download_started(data):
                     'title': download_info.get('title', 'Unknown'),
                     'url': url,
                     'last_progress': 0,
-                    'start_time': time.time()
+                    'start_time': time.time(),
+                    'source': options.get('source', 'web')  # 记录下载来源
                 }
 
-        logger.info(f"📡 Telegram 下载开始跟踪: {download_id}")
+        # 根据下载来源发送不同的开始通知
+        source = options.get('source', 'web')
+        if source == 'telegram_webhook':
+            logger.info(f"📡 Telegram 下载开始跟踪: {download_id}")
+        else:
+            logger.info(f"📡 Web 下载开始跟踪: {download_id}")
+            # 为 Web 下载发送开始通知
+            title = download_info.get('title', 'Unknown') if download_info else 'Unknown'
+            start_message = f"📥 **开始下载**\n\n📹 **{title[:50]}**\n🔗 **来源**: Web 界面"
+            notifier.send_message(start_message)
 
     except Exception as e:
         logger.error(f"❌ 处理下载开始事件失败: {e}")
@@ -420,17 +428,19 @@ def handle_download_progress(data):
         if not download_id:
             return
 
+        # 提前检查 Telegram 是否启用
         notifier = get_telegram_notifier()
-        if not notifier.is_enabled():
+        if not notifier or not notifier.is_enabled():
             return
 
-        # 只处理来自 Telegram 的下载
+        # 检查是否是被跟踪的下载
         with notifier._lock:
             if download_id not in notifier._active_downloads:
                 return
 
             download_info = notifier._active_downloads[download_id]
             title = download_info.get('title', 'Unknown')[:30]
+            source = download_info.get('source', 'web')
 
         # 智能进度更新策略 - 减少消息频率
         should_update = False
@@ -447,8 +457,12 @@ def handle_download_progress(data):
             # 生成现代化进度条
             progress_bar = _generate_progress_bar(progress)
 
+            # 根据下载来源生成不同的消息
             if status == 'downloading':
-                message = f"📥 **下载中** ({progress}%)\n\n📹 **{title}**\n\n{progress_bar}\n\n💡 发送 `/cancel {download_id[:8]}` 可取消下载"
+                if source == 'telegram_webhook':
+                    message = f"📥 **下载中** ({progress}%)\n\n📹 **{title}**\n\n{progress_bar}\n\n💡 发送 `/cancel {download_id[:8]}` 可取消下载"
+                else:
+                    message = f"📥 **下载中** ({progress}%)\n\n📹 **{title}**\n\n{progress_bar}\n\n🌐 **来源**: Web 界面"
             elif status == 'completed':
                 message = f"✅ **下载完成**\n\n📹 **{title}**\n\n{progress_bar}"
             elif status == 'failed':
@@ -476,8 +490,15 @@ def handle_download_completed(data):
         file_path = data.get('file_path')
         title = data.get('title', 'Unknown')
 
+        # 提前检查 Telegram 是否启用，避免不必要的处理
         notifier = get_telegram_notifier()
-        if not notifier.is_enabled():
+        if not notifier or not notifier.is_enabled():
+            logger.debug(f"📡 Telegram 未启用，跳过下载完成事件: {download_id}")
+            return
+
+        # 检查是否有有效的上传器
+        if not notifier.uploader:
+            logger.debug(f"📡 Telegram 上传器不可用，跳过下载完成事件: {download_id}")
             return
 
         logger.info(f"📡 收到下载完成事件: {download_id} - {title}")
@@ -486,16 +507,32 @@ def handle_download_completed(data):
         caption = f"✅ **下载完成**\n\n📹 **{title[:50]}**"
 
         if file_path and Path(file_path).exists():
-            success = notifier.send_file(file_path, caption, upload_id=download_id)
-            if success:
-                logger.info(f"✅ 文件自动发送成功: {title}")
-            else:
-                # 发送失败，提供详细的帮助信息
-                file_size_mb = Path(file_path).stat().st_size / (1024 * 1024) if Path(file_path).exists() else 0
+            # 添加上传状态跟踪，防止重复上传
+            upload_key = f"upload_{download_id}"
 
-                if file_size_mb > 50:
-                    # 大文件特殊处理
-                    help_message = f"""{caption}
+            # 检查是否已经在上传中
+            with notifier._lock:
+                if upload_key in notifier._active_downloads:
+                    logger.warning(f"⚠️ 文件已在上传中，跳过重复上传: {download_id}")
+                    return
+
+                # 标记为上传中
+                notifier._active_downloads[upload_key] = {
+                    'status': 'uploading',
+                    'start_time': time.time()
+                }
+
+            try:
+                success = notifier.send_file(file_path, caption, upload_id=download_id)
+                if success:
+                    logger.info(f"✅ 文件自动发送成功: {title}")
+                else:
+                    # 发送失败，提供详细的帮助信息
+                    file_size_mb = Path(file_path).stat().st_size / (1024 * 1024) if Path(file_path).exists() else 0
+
+                    if file_size_mb > 50:
+                        # 大文件特殊处理
+                        help_message = f"""{caption}
 
 ❌ **文件发送失败** (文件过大: {file_size_mb:.1f}MB)
 
@@ -512,10 +549,14 @@ def handle_download_completed(data):
    • 下次选择较低质量以减小文件大小
 
 💡 **当前限制**: Bot API 最大 50MB，Client API 最大 2GB"""
-                else:
-                    help_message = f"{caption}\n\n⚠️ 文件发送失败，请使用 `/files` 查看"
+                    else:
+                        help_message = f"{caption}\n\n⚠️ 文件发送失败，请使用 `/files` 查看"
 
-                notifier.send_message(help_message)
+                    notifier.send_message(help_message)
+            finally:
+                # 清理上传状态
+                with notifier._lock:
+                    notifier._active_downloads.pop(upload_key, None)
         else:
             notifier.send_message(caption)
 
@@ -537,8 +578,10 @@ def handle_download_failed(data):
         title = data.get('title', 'Unknown')
         url = data.get('url', '')
 
+        # 提前检查 Telegram 是否启用
         notifier = get_telegram_notifier()
-        if not notifier.is_enabled():
+        if not notifier or not notifier.is_enabled():
+            logger.debug(f"📡 Telegram 未启用，跳过下载失败事件: {download_id}")
             return
 
         logger.info(f"📡 收到下载失败事件: {url}")

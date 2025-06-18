@@ -79,9 +79,13 @@ def telegram_webhook():
             return jsonify({'error': '无效的消息格式'}), 400
 
         # 使用现代化路由处理器
-        from .modern_routes import get_modern_telegram_router
-        router = get_modern_telegram_router()
-        result = router.process_telegram_message(update, config)
+        try:
+            from modules.telegram.modern_routes import get_modern_telegram_router
+            router = get_modern_telegram_router()
+            result = router.process_telegram_message(update, config)
+        except ImportError:
+            # 回退到传统处理方式
+            result = _process_telegram_message(update, config)
         logger.info(f"消息处理结果: {result}")
 
         return jsonify({'success': True, 'result': result})

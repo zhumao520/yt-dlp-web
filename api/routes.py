@@ -1206,7 +1206,7 @@ def api_get_download_settings():
             "default_quality": current_quality,
             "auto_cleanup": get_config("downloader.auto_cleanup", True),
             "file_retention_hours": get_config("downloader.file_retention_hours", 24),
-            "cleanup_interval": get_config("downloader.cleanup_interval", 1),  # 小时
+            "cleanup_interval": get_config("downloader.cleanup_interval", 1),
             "max_storage_mb": get_config("downloader.max_storage_mb", 2048),
             "keep_recent_files": get_config("downloader.keep_recent_files", 20)
         }
@@ -1247,7 +1247,7 @@ def api_save_download_settings():
             ("downloader.timeout", str(data.get("timeout", 300))),
             ("downloader.auto_cleanup", str(data.get("auto_cleanup", True))),
             ("downloader.file_retention_hours", str(data.get("file_retention_hours", 24))),
-            ("downloader.cleanup_interval", str(data.get("cleanup_interval", 1))),  # 存储为小时
+            ("downloader.cleanup_interval", str(data.get("cleanup_interval", 1))),
             ("downloader.max_storage_mb", str(data.get("max_storage_mb", 2048))),
             ("downloader.keep_recent_files", str(data.get("keep_recent_files", 20))),
             ("ytdlp.format", quality_mapping.get(data.get("default_quality", "medium"), "best[height<=720]"))

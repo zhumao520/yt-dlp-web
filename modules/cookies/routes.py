@@ -3,6 +3,7 @@
 Cookies管理路由
 """
 
+import json
 import logging
 from flask import Blueprint, request, jsonify, send_file
 from core.auth import auth_required
@@ -592,3 +593,26 @@ def _get_oauth2_recommendation(test_results):
         recommendations.append("OAuth2 配置看起来正常，应该能有效提高下载成功率")
 
     return recommendations
+
+
+@cookies_bp.route('/api/emergency/<platform>', methods=['POST'])
+@auth_required
+def generate_emergency_cookies(platform):
+    """生成紧急cookies（用于VPS环境机器人检测问题）"""
+    try:
+        cookies_manager = get_cookies_manager()
+        result = cookies_manager.generate_emergency_cookies(platform)
+
+        if result['success']:
+            logger.info(f"✅ 紧急{platform}cookies生成成功")
+        else:
+            logger.error(f"❌ 紧急{platform}cookies生成失败: {result.get('error')}")
+
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"❌ 生成紧急cookies失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

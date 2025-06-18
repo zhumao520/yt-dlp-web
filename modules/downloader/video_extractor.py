@@ -82,8 +82,8 @@ class VideoExtractor:
         try:
             import asyncio
 
-            # 获取代理配置
-            proxy = self._get_proxy_config()
+            # 获取PyTubeFix专用的代理配置
+            proxy = self._get_pytubefix_proxy_config()
 
             # 创建PyTubeFix下载器实例
             downloader = extractor_class(proxy=proxy)
@@ -146,19 +146,21 @@ class VideoExtractor:
     def _get_proxy_config(self) -> Optional[str]:
         """获取代理配置"""
         try:
-            # 尝试从配置获取代理
+            # 首先尝试从运行时配置获取
             try:
                 from core.config import get_config
-                return get_config('downloader.proxy', None)
+                proxy = get_config('downloader.proxy', None)
+                if proxy:
+                    return proxy
             except ImportError:
                 pass
-            
-            # 尝试从数据库获取代理
+
+            # 如果运行时配置没有，从数据库获取
             try:
                 from core.database import get_database
                 db = get_database()
                 proxy_config = db.get_proxy_config()
-                
+
                 if proxy_config and proxy_config.get('enabled'):
                     proxy_url = f"{proxy_config.get('proxy_type', 'http')}://"
                     if proxy_config.get('username'):
@@ -170,11 +172,62 @@ class VideoExtractor:
                     return proxy_url
             except ImportError:
                 pass
-            
+
             return None
-            
+
         except Exception as e:
             logger.debug(f"🔍 获取代理配置失败: {e}")
+            return None
+
+    def _get_pytubefix_proxy_config(self) -> Optional[str]:
+        """获取PyTubeFix专用的代理配置（HTTP代理）"""
+        try:
+            import os
+
+            # 检查是否在VPS环境（Docker容器）
+            is_vps = os.getenv('VPS_ENV') == '1' or os.path.exists('/.dockerenv')
+
+            # 无论是否在VPS环境，都尝试从数据库获取代理配置
+            try:
+                from core.database import get_database
+                db = get_database()
+                proxy_config = db.get_proxy_config()
+
+                if proxy_config and proxy_config.get('enabled'):
+                    host = proxy_config.get('host')
+                    port = proxy_config.get('port')
+
+                    # 为PyTubeFix构建代理
+                    if host and port:
+                        proxy_type = proxy_config.get('proxy_type', 'http')
+
+                        if proxy_type == 'socks5':
+                            # SOCKS5代理，PyTubeFix不直接支持，但可以尝试
+                            socks_proxy = f"socks5://{host}:{port}"
+                            logger.info(f"✅ 为PyTubeFix使用SOCKS5代理: {socks_proxy}")
+                            return socks_proxy
+                        else:
+                            # HTTP代理
+                            proxy_url = f"http://"
+                            if proxy_config.get('username'):
+                                proxy_url += f"{proxy_config['username']}"
+                                if proxy_config.get('password'):
+                                    proxy_url += f":{proxy_config['password']}"
+                                proxy_url += "@"
+                            proxy_url += f"{host}:{port}"
+                            logger.info(f"✅ 为PyTubeFix使用HTTP代理: {proxy_url}")
+                            return proxy_url
+            except ImportError:
+                pass
+
+            if is_vps:
+                logger.info("🌐 VPS环境：未配置代理，直接连接")
+            else:
+                logger.info("🌐 本地环境：未配置代理，直接连接")
+            return None
+
+        except Exception as e:
+            logger.debug(f"🔍 获取PyTubeFix代理配置失败: {e}")
             return None
     
     def get_available_extractors(self) -> List[str]:

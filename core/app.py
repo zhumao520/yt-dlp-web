@@ -154,6 +154,17 @@ def _initialize_core_components(app: Flask):
 
             # 初始化Telegram模块（注册事件监听器）
             try:
+                # 修复容器环境中的导入问题
+                import sys
+                from pathlib import Path
+
+                # 确保modules目录在Python路径中
+                app_root = Path(__file__).parent.parent
+                modules_path = str(app_root / "modules")
+                if modules_path not in sys.path:
+                    sys.path.insert(0, modules_path)
+
+                # 使用绝对导入
                 import modules.telegram as telegram
                 logger.info("✅ Telegram事件监听器注册完成")
             except ImportError as e:
@@ -186,8 +197,11 @@ def _register_blueprints(app: Flask):
         app.register_blueprint(downloader_bp, url_prefix="/download")
 
         # Telegram模块蓝图
-        from modules.telegram.routes import telegram_bp
-        app.register_blueprint(telegram_bp, url_prefix="/telegram")
+        try:
+            from modules.telegram.routes import telegram_bp
+            app.register_blueprint(telegram_bp, url_prefix="/telegram")
+        except ImportError as e:
+            logger.warning(f"⚠️ Telegram模块导入失败: {e}")
 
         # Cookies管理蓝图
         from modules.cookies.routes import cookies_bp

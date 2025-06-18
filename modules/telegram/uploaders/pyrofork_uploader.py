@@ -429,9 +429,17 @@ class PyroForkUploader(BaseUploader):
                     return None
 
                 except Exception as start_error:
-                    logger.error(f"❌ Pyrofork 客户端启动失败: {start_error}")
-                    await self._cleanup_failed_client()
-                    return None
+                    error_msg = str(start_error).lower()
+                    if "bound to a different event loop" in error_msg or "queue" in error_msg:
+                        logger.error(f"❌ Pyrofork 客户端启动失败（队列绑定错误）: {start_error}")
+                        await self._cleanup_failed_client()
+                        # 强制重置客户端状态
+                        self.client = None
+                        return None
+                    else:
+                        logger.error(f"❌ Pyrofork 客户端启动失败: {start_error}")
+                        await self._cleanup_failed_client()
+                        return None
 
             return self.client
 
@@ -494,7 +502,14 @@ class PyroForkUploader(BaseUploader):
                     logger.error("❌ Pyrofork 操作超时")
 
                 except Exception as e:
-                    exception[0] = e
+                    # 检查是否是队列绑定错误
+                    error_msg = str(e).lower()
+                    if "bound to a different event loop" in error_msg or "queue" in error_msg:
+                        logger.warning("🔄 检测到队列绑定错误，重置客户端状态")
+                        self.client = None
+                        exception[0] = Exception(f"Pyrogram 队列绑定错误，已重置客户端: {str(e)}")
+                    else:
+                        exception[0] = e
                     completed[0] = True
                     logger.error(f"❌ Pyrofork 异步操作失败: {e}")
 
@@ -577,8 +592,9 @@ class PyroForkUploader(BaseUploader):
 
         if exception[0]:
             # 如果出现事件循环相关错误，重置客户端状态
-            if "event loop" in str(exception[0]).lower():
-                logger.warning("🔄 检测到事件循环错误，重置客户端状态")
+            error_msg = str(exception[0]).lower()
+            if any(keyword in error_msg for keyword in ["event loop", "queue", "bound to", "different event loop"]):
+                logger.warning("🔄 检测到事件循环/队列错误，重置客户端状态")
                 self.client = None
             raise exception[0]
 

@@ -9,11 +9,16 @@ import re
 import time
 from typing import Dict, Any, Optional
 
+from flask import Blueprint, request, jsonify
+
 from .services.modern_command_service import ModernTelegramCommandService
 from .services.state_service import SelectionStateService
 from .notifier import get_telegram_notifier
 
 logger = logging.getLogger(__name__)
+
+# 创建Telegram Blueprint
+telegram_bp = Blueprint('telegram', __name__, url_prefix='/telegram')
 
 
 class ModernTelegramRouter:
@@ -365,8 +370,37 @@ _modern_router_instance = None
 def get_modern_telegram_router() -> ModernTelegramRouter:
     """获取现代化路由器实例（单例）"""
     global _modern_router_instance
-    
+
     if _modern_router_instance is None:
         _modern_router_instance = ModernTelegramRouter()
-    
+
     return _modern_router_instance
+
+
+@telegram_bp.route('/webhook', methods=['POST'])
+def telegram_webhook():
+    """Telegram Webhook处理"""
+    try:
+        from core.database import get_database
+
+        # 获取请求数据
+        update = request.get_json()
+        if not update:
+            return jsonify({'status': 'error', 'message': 'No data received'}), 400
+
+        # 获取Telegram配置
+        db = get_database()
+        telegram_config = db.get_telegram_config()
+
+        if not telegram_config or not telegram_config.get('enabled'):
+            return jsonify({'status': 'disabled', 'message': 'Telegram not enabled'}), 200
+
+        # 处理消息
+        router = get_modern_telegram_router()
+        result = router.process_telegram_message(update, telegram_config)
+
+        return jsonify({'status': 'success', 'result': result}), 200
+
+    except Exception as e:
+        logger.error(f"❌ Telegram webhook处理失败: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500

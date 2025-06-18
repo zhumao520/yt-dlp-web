@@ -330,6 +330,92 @@ class CookiesManager:
         except Exception as e:
             logger.error(f"❌ 删除 OAuth2 配置失败: {e}")
             return {'success': False, 'error': str(e)}
+
+    def generate_emergency_cookies(self, platform: str = 'youtube') -> Dict:
+        """生成紧急cookies（用于VPS环境机器人检测问题）"""
+        try:
+            import time
+            import random
+
+            logger.info(f"🚨 生成紧急{platform}cookies以解决机器人检测问题")
+
+            current_time = int(time.time())
+            expire_time = current_time + (365 * 24 * 60 * 60)  # 1年后过期
+
+            if platform == 'youtube':
+                # 生成随机的visitor ID
+                visitor_id = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=11))
+                ysc_id = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-', k=11))
+                consent_id = random.randint(100, 999)
+
+                # 创建标准JSON格式的cookies
+                json_cookies = [
+                    {
+                        "name": "CONSENT",
+                        "value": f"YES+cb.20210328-17-p0.en+FX+{consent_id}",
+                        "domain": ".youtube.com",
+                        "path": "/",
+                        "expiration": expire_time,
+                        "secure": False,
+                        "flag": True
+                    },
+                    {
+                        "name": "VISITOR_INFO1_LIVE",
+                        "value": visitor_id,
+                        "domain": ".youtube.com",
+                        "path": "/",
+                        "expiration": expire_time,
+                        "secure": False,
+                        "flag": True
+                    },
+                    {
+                        "name": "YSC",
+                        "value": ysc_id,
+                        "domain": ".youtube.com",
+                        "path": "/",
+                        "expiration": expire_time,
+                        "secure": False,
+                        "flag": True
+                    },
+                    {
+                        "name": "PREF",
+                        "value": "f4=4000000&tz=Asia.Shanghai&f6=40000000",
+                        "domain": ".youtube.com",
+                        "path": "/",
+                        "expiration": expire_time,
+                        "secure": False,
+                        "flag": True
+                    }
+                ]
+
+                # 使用现有的保存方法
+                save_result = self.save_cookies(platform, json.dumps(json_cookies), 'json')
+
+                if save_result['success']:
+                    logger.info(f"✅ 紧急cookies已生成并保存")
+                    logger.warning("⚠️ 这些是临时cookies，建议尽快获取真实的YouTube cookies")
+
+                    return {
+                        'success': True,
+                        'message': f'紧急{platform}cookies已生成，用于解决VPS机器人检测问题',
+                        'website': platform,
+                        'count': len(json_cookies),
+                        'warning': '这些是临时cookies，建议尽快获取真实cookies'
+                    }
+                else:
+                    return save_result
+
+            return {
+                'success': False,
+                'error': f'不支持的平台: {platform}'
+            }
+
+        except Exception as e:
+            logger.error(f"❌ 生成紧急cookies失败: {e}")
+            return {
+                'success': False,
+                'error': f'生成失败: {str(e)}'
+            }
     
     def _detect_format(self, cookies_data: str) -> str:
         """检测Cookies格式 - 增强版"""

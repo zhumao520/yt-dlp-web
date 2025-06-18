@@ -49,7 +49,10 @@ class SystemOptimizer:
         
         # 清理会话文件
         self._cleanup_sessions()
-        
+
+        # VPS环境优化
+        self._optimize_for_vps()
+
         result = {
             "success": len(self.errors) == 0,
             "optimizations": self.optimizations,
@@ -237,6 +240,155 @@ class SystemOptimizer:
             
         except Exception as e:
             self.errors.append(f"会话文件清理失败: {e}")
+
+    def _optimize_for_vps(self):
+        """VPS环境优化"""
+        try:
+            # 检查是否在VPS/容器环境中
+            is_vps = self._detect_vps_environment()
+
+            if is_vps:
+                logger.info("🔍 检测到VPS/容器环境，应用VPS优化")
+
+                # 生成紧急cookies（如果需要）
+                self._generate_emergency_cookies_if_needed()
+
+                # 设置VPS环境变量
+                self._set_vps_environment_variables()
+
+                # 创建VPS配置文件
+                self._create_vps_config_files()
+
+                self.optimizations.append("应用VPS环境优化配置")
+
+        except Exception as e:
+            self.errors.append(f"VPS环境优化失败: {e}")
+
+    def _detect_vps_environment(self) -> bool:
+        """检测VPS/容器环境"""
+        try:
+            # 检查Docker环境
+            if os.path.exists('/.dockerenv'):
+                return True
+
+            # 检查环境变量
+            if os.environ.get('CONTAINER') or os.environ.get('VPS_ENV'):
+                return True
+
+            # 检查是否在云服务器上
+            cloud_indicators = [
+                '/sys/hypervisor/uuid',
+                '/proc/xen',
+                '/sys/devices/virtual/dmi/id/product_name'
+            ]
+
+            for indicator in cloud_indicators:
+                if os.path.exists(indicator):
+                    return True
+
+            return False
+
+        except Exception:
+            return False
+
+    def _generate_emergency_cookies_if_needed(self):
+        """如果需要，生成紧急cookies"""
+        try:
+            # 检查是否已有YouTube cookies
+            cookies_files = [
+                'data/cookies/youtube.json',
+                'data/cookies/youtube.txt'
+            ]
+
+            has_cookies = any(Path(f).exists() and Path(f).stat().st_size > 0 for f in cookies_files)
+
+            if not has_cookies:
+                logger.info("🚨 未找到YouTube cookies，生成紧急cookies")
+
+                # 使用cookies管理器生成紧急cookies
+                try:
+                    sys.path.insert(0, str(Path(__file__).parent.parent))
+                    from modules.cookies.manager import get_cookies_manager
+
+                    cookies_manager = get_cookies_manager()
+                    result = cookies_manager.generate_emergency_cookies('youtube')
+
+                    if result['success']:
+                        self.optimizations.append("生成紧急YouTube cookies")
+                    else:
+                        self.errors.append(f"生成紧急cookies失败: {result.get('error')}")
+
+                except ImportError:
+                    logger.warning("⚠️ 无法导入cookies管理器，跳过紧急cookies生成")
+
+        except Exception as e:
+            logger.warning(f"⚠️ 检查cookies失败: {e}")
+
+    def _set_vps_environment_variables(self):
+        """设置VPS环境变量"""
+        try:
+            vps_env_vars = {
+                'PYTHONUNBUFFERED': '1',
+                'YT_DLP_NO_UPDATE': '1',
+                'PYTUBE_LOG_LEVEL': 'ERROR'
+            }
+
+            env_file = Path('.env')
+            env_content = []
+
+            # 读取现有环境变量
+            if env_file.exists():
+                with open(env_file, 'r', encoding='utf-8') as f:
+                    env_content = f.readlines()
+
+            # 添加新的环境变量
+            existing_vars = set()
+            for line in env_content:
+                if '=' in line:
+                    var_name = line.split('=')[0].strip()
+                    existing_vars.add(var_name)
+
+            new_vars_added = 0
+            for var_name, var_value in vps_env_vars.items():
+                if var_name not in existing_vars:
+                    env_content.append(f"{var_name}={var_value}\n")
+                    os.environ[var_name] = var_value
+                    new_vars_added += 1
+
+            # 写回文件
+            if new_vars_added > 0:
+                with open(env_file, 'w', encoding='utf-8') as f:
+                    f.writelines(env_content)
+
+                self.optimizations.append(f"设置{new_vars_added}个VPS环境变量")
+
+        except Exception as e:
+            logger.warning(f"⚠️ 设置VPS环境变量失败: {e}")
+
+    def _create_vps_config_files(self):
+        """创建VPS配置文件"""
+        try:
+            # 创建yt-dlp配置文件
+            ytdlp_config = Path('yt-dlp.conf')
+            if not ytdlp_config.exists():
+                config_content = """# yt-dlp VPS优化配置
+--cookies data/cookies/youtube.txt
+--user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+--referer "https://www.youtube.com/"
+--sleep-interval 1
+--max-sleep-interval 3
+--retries 3
+--no-check-certificate
+--prefer-free-formats
+"""
+
+                with open(ytdlp_config, 'w', encoding='utf-8') as f:
+                    f.write(config_content)
+
+                self.optimizations.append("创建yt-dlp VPS配置文件")
+
+        except Exception as e:
+            logger.warning(f"⚠️ 创建VPS配置文件失败: {e}")
 
 
 def main():

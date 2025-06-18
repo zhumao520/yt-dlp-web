@@ -29,7 +29,7 @@ class TelegramConfigService:
                 return self._config_cache
             
             # 从数据库获取配置
-            from core.database import get_database
+            from ....core.database import get_database
             db = get_database()
             config = db.get_telegram_config()
             

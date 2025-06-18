@@ -136,19 +136,19 @@ def _get_system_status():
             status['database'] = True
         except:
             pass
-        
+
         # 检查yt-dlp
         try:
             import yt_dlp
             status['ytdlp'] = True
         except ImportError:
             pass
-        
+
         # 检查配置
         from core.config import get_config
         if get_config('app.secret_key') != 'change-this-secret-key-in-production':
             status['config'] = True
-        
+
         # 检查管理员用户
         try:
             from core.database import get_database

@@ -1,0 +1,7 @@
+# Netscape HTTP Cookie File
+# This is a generated file! Do not edit.
+
+.youtube.com	TRUE	/	FALSE	1735689600	CONSENT	PENDING+987
+.youtube.com	TRUE	/	TRUE	1735689600	__Secure-YEC	CgtCeXFxYWJjZGVmZw%3D%3D
+.youtube.com	TRUE	/	FALSE	1735689600	VISITOR_INFO1_LIVE	abcdefghijk
+.youtube.com	TRUE	/	FALSE	1735689600	YSC	lmnopqrstuv

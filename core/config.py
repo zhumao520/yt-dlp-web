@@ -71,15 +71,13 @@ class Config:
                 "default_password": "admin123",
             },
             "downloader": {
-                "output_dir": "/app/downloads",
+                "output_dir": "data/downloads",
                 "temp_dir": "/app/temp",
                 "max_concurrent": 3,
                 "timeout": 300,
                 "auto_cleanup": True,
-                "cleanup_interval": 1,  # 1小时
-                "file_retention_hours": 24,  # 文件保留时间（小时）
-                "max_storage_mb": 2048,  # 最大存储空间（MB）
-                "keep_recent_files": 20,  # 保留最近文件数量
+                "cleanup_interval": 3600,  # 1小时
+                "max_file_age": 86400,  # 24小时
             },
             "telegram": {
                 "enabled": False,

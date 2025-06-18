@@ -28,7 +28,7 @@ TgCrypto-pyrofork>=1.2.5
 
 
 # 下载引擎 (双引擎系统)
-yt-dlp>=2025.6.1
+yt-dlp>=2025.5.22
 pytubefix>=9.1.2
 
 # 生产部署 (可选)

@@ -68,7 +68,7 @@ class CobaltDownloader:
                     from app.core.database import get_database
                 except ImportError:
                     try:
-                        from ...core.database import get_database
+                        from core.database import get_database
                     except ImportError:
                         get_database = None
 
@@ -98,7 +98,7 @@ class CobaltDownloader:
                     from app.core.config import get_config
                 except ImportError:
                     try:
-                        from ...core.config import get_config
+                        from core.config import get_config
                     except ImportError:
                         get_config = None
 
