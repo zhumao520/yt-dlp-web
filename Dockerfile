@@ -3,6 +3,9 @@ FROM python:3.11-slim
 
 # 构建参数 - 决定是否安装 WARP
 ARG INSTALL_WARP=false
+ARG TARGETPLATFORM
+ARG GOST_VERSION=2.11.5
+ARG WARP_VERSION=none
 
 # 设置工作目录
 WORKDIR /app
@@ -50,49 +53,56 @@ COPY . .
 
 # 安装 WARP 相关依赖（如果需要）
 RUN if [ "$INSTALL_WARP" = "true" ]; then \
-        echo "🌐 安装 WARP 依赖..." && \
+        echo "🌐 安装 WARP 运行时依赖..." && \
         apt-get update && \
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            gnupg \
-            lsb-release \
             iptables \
             iproute2 \
             procps \
-            net-tools \
-            ca-certificates && \
+            net-tools && \
         rm -rf /var/lib/apt/lists/*; \
     fi
 
 # 安装 Cloudflare WARP（如果需要）
-RUN if [ "$INSTALL_WARP" = "true" ]; then \
-        echo "🔑 添加 Cloudflare WARP 仓库..." && \
-        # 使用正确的 Cloudflare WARP 仓库 \
+RUN if [ "$INSTALL_WARP" = "true" ] && [ "$WARP_VERSION" != "none" ]; then \
+        echo "🔑 安装 Cloudflare WARP v${WARP_VERSION}..." && \
+        echo "🏗️ 构建平台: ${TARGETPLATFORM}" && \
+        # 检测架构 \
+        case ${TARGETPLATFORM} in \
+            "linux/amd64") export ARCH="amd64" ;; \
+            "linux/arm64") export ARCH="arm64" ;; \
+            *) echo "❌ 不支持的平台: ${TARGETPLATFORM}" && exit 1 ;; \
+        esac && \
+        echo "🔍 使用架构: ${ARCH}" && \
+        # 使用预先验证的版本信息安装 \
         curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg && \
-        DEBIAN_VERSION=$(lsb_release -cs) && \
-        echo "检测到系统版本: $DEBIAN_VERSION" && \
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $DEBIAN_VERSION main" > /etc/apt/sources.list.d/cloudflare-client.list && \
+        echo "deb [arch=${ARCH} signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ bullseye main" > /etc/apt/sources.list.d/cloudflare-client.list && \
         apt-get update && \
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cloudflare-warp && \
-        rm -rf /var/lib/apt/lists/*; \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cloudflare-warp=${WARP_VERSION}* && \
+        rm -rf /var/lib/apt/lists/* && \
+        echo "✅ WARP v${WARP_VERSION} 安装完成"; \
+    elif [ "$INSTALL_WARP" = "true" ]; then \
+        echo "⚠️ WARP 版本信息不可用，跳过安装"; \
     fi
 
 # 安装 GOST 代理（如果需要）
-RUN if [ "$INSTALL_WARP" = "true" ]; then \
-        echo "📡 安装 GOST 代理..." && \
-        ARCH=$(uname -m) && \
-        if [ "$ARCH" = "x86_64" ]; then \
-            GOST_ARCH="amd64"; \
-        elif [ "$ARCH" = "aarch64" ]; then \
-            GOST_ARCH="arm64"; \
-        else \
-            echo "❌ 不支持的架构: $ARCH" && exit 1; \
-        fi && \
-        echo "🔍 检测到架构: $ARCH，使用 GOST $GOST_ARCH 版本" && \
-        curl -fsSL -o /tmp/gost.gz "https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-${GOST_ARCH}-2.11.5.gz" && \
+RUN if [ "$INSTALL_WARP" = "true" ] && [ "$GOST_VERSION" != "none" ]; then \
+        echo "📡 安装 GOST 代理 v${GOST_VERSION}..." && \
+        # 使用 TARGETPLATFORM 进行架构检测 \
+        case ${TARGETPLATFORM} in \
+            "linux/amd64") export ARCH="amd64" ;; \
+            "linux/arm64") export ARCH="arm64" ;; \
+            *) echo "❌ 不支持的平台: ${TARGETPLATFORM}" && exit 1 ;; \
+        esac && \
+        echo "🔍 构建平台: ${TARGETPLATFORM}，使用 GOST ${ARCH} v${GOST_VERSION}" && \
+        curl -fsSL -o /tmp/gost.gz "https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/gost-linux-${ARCH}-${GOST_VERSION}.gz" && \
         gunzip /tmp/gost.gz && \
         mv /tmp/gost /usr/local/bin/gost && \
         chmod +x /usr/local/bin/gost && \
-        rm -f /tmp/gost.gz; \
+        rm -f /tmp/gost.gz && \
+        echo "✅ GOST v${GOST_VERSION} 代理安装完成"; \
+    elif [ "$INSTALL_WARP" = "true" ]; then \
+        echo "⚠️ GOST 版本信息不可用，跳过安装"; \
     fi
 
 # 配置启动脚本
@@ -101,7 +111,7 @@ RUN if [ "$INSTALL_WARP" = "true" ]; then \
         cp modules/warp/start-with-warp.sh /start-app.sh && \
         chmod +x /start-app.sh && \
         echo "true" > /warp-available && \
-        echo "✅ WARP 安装完成"; \
+        echo "✅ WARP 版本配置完成"; \
     else \
         echo "ℹ️ 配置标准启动脚本..." && \
         cp scripts/start-standard.sh /start-app.sh && \
