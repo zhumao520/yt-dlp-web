@@ -81,6 +81,15 @@ class VideoExtractor:
         """使用PyTubeFix提取"""
         try:
             import asyncio
+            from urllib.parse import urlparse
+
+            # 首先检查URL是否为YouTube - 避免无效尝试
+            parsed_url = urlparse(url.lower())
+            youtube_domains = ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be', 'youtube-nocookie.com']
+
+            if not any(domain in parsed_url.netloc for domain in youtube_domains):
+                logger.info(f"🚫 PyTubeFix跳过非YouTube URL: {parsed_url.netloc}")
+                return {'error': 'unsupported_site', 'message': 'PyTubeFix只支持YouTube网站'}
 
             # 获取PyTubeFix专用的代理配置
             proxy = self._get_pytubefix_proxy_config()
@@ -115,33 +124,50 @@ class VideoExtractor:
         """使用yt-dlp提取"""
         try:
             import yt_dlp
-            
+
             # 构建yt-dlp选项
             ydl_opts = {
                 'quiet': True,
                 'no_warnings': True,
                 'extract_flat': False,
             }
-            
+
             # 添加代理配置
             proxy = self._get_proxy_config()
             if proxy:
                 ydl_opts['proxy'] = proxy
-            
-            # 添加其他选项
-            if options.get('cookies'):
+                logger.info(f"✅ yt-dlp使用代理: {proxy}")
+
+            # 自动获取cookies配置
+            cookies_path = self._get_cookies_for_site(url)
+            if cookies_path:
+                ydl_opts['cookiefile'] = cookies_path
+                logger.info(f"✅ yt-dlp使用cookies: {cookies_path}")
+            elif options.get('cookies'):
                 ydl_opts['cookiefile'] = options['cookies']
-            
+                logger.info(f"✅ yt-dlp使用选项cookies: {options['cookies']}")
+
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
                 if info:
                     return ydl.sanitize_info(info)
                 else:
                     return {'error': 'no_info', 'message': 'yt-dlp未返回信息'}
-                    
+
         except Exception as e:
             logger.error(f"❌ yt-dlp提取失败: {e}")
             return {'error': 'ytdlp_failed', 'message': str(e)}
+
+    def _get_cookies_for_site(self, url: str) -> Optional[str]:
+        """获取网站对应的 Cookies 文件"""
+        try:
+            # 尝试导入 cookies 管理器
+            from modules.cookies.manager import get_cookies_manager
+            cookies_manager = get_cookies_manager()
+            return cookies_manager.get_cookies_for_ytdlp(url)
+        except Exception as e:
+            logger.debug(f"🔍 获取Cookies失败: {e}")
+            return None
     
     def _get_proxy_config(self) -> Optional[str]:
         """获取代理配置"""

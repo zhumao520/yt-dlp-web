@@ -4,117 +4,537 @@
 
 {% block extra_styles %}
 <style>
-/* 通用过渡动画 */
-.audio-format-option, .video-quality-option {
-    transition: all 0.3s ease;
+/* 🌟 美化首页样式 - 现代化设计 */
+
+/* 页面背景渐变 */
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
 }
 
-/* 音频格式帮助样式 */
-.audio-format-help {
-    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
-    border: none;
-    border-radius: 12px;
+/* 动态背景装饰 */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+    z-index: -1;
+    animation: backgroundFloat 20s ease-in-out infinite;
 }
 
-.audio-format-help .alert-heading {
-    color: #1976d2;
+@keyframes backgroundFloat {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    33% { transform: translateY(-10px) rotate(1deg); }
+    66% { transform: translateY(10px) rotate(-1deg); }
 }
 
-/* 视频质量帮助样式 */
-.video-quality-help {
-    background: linear-gradient(135deg, #fff3e0 0%, #fce4ec 100%);
-    border: none;
-    border-radius: 12px;
+/* 容器美化 */
+.container-fluid {
+    position: relative;
+    z-index: 1;
 }
 
-.video-quality-help .alert-heading {
-    color: #f57c00;
-}
-
-/* 通用徽章样式 */
-.format-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    background: #e3f2fd;
-    color: #1976d2;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    margin-left: 8px;
-}
-
-.quality-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    background: #fff3e0;
-    color: #f57c00;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    margin-left: 8px;
-}
-
-/* 下载类型切换动画 */
-.download-type-switch {
-    transition: all 0.3s ease;
-}
-
-/* 选择框样式优化 */
-#audioFormatSection select option, #videoQualitySection select option {
-    padding: 8px;
-}
-
-/* 表单卡片增强 */
-.download-form-card {
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-    border: none;
-}
-
-.download-form-card .card-body {
+/* 页面标题区域美化 */
+.page-header {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
     padding: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
 }
 
-/* 输入组增强 */
+.page-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+    100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+.page-header h1 {
+    color: white;
+    font-weight: 700;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.page-header p {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.1rem;
+    margin-bottom: 0;
+}
+
+/* 主要卡片美化 */
+.glass-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    backdrop-filter: blur(15px);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.glass-card:hover {
+    transform: translateY(-5px);
+    box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.glass-card .card-body {
+    padding: 2.5rem;
+    position: relative;
+    z-index: 2;
+}
+
+/* 表单控件美化 */
+.form-label {
+    color: white;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.form-label i {
+    margin-right: 0.5rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.enhanced-input-group {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
 .enhanced-input-group .form-control {
-    border-radius: 12px 0 0 12px;
-    border-right: none;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px 0 0 16px;
+    color: white;
+    padding: 0.875rem 1.25rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.enhanced-input-group .form-control:focus {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.enhanced-input-group .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.6);
 }
 
 .enhanced-input-group .btn {
-    border-radius: 0 12px 12px 0;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0 16px 16px 0;
     border-left: none;
-}
-
-/* 选择框增强 */
-.enhanced-select {
-    border-radius: 12px;
-    border: 2px solid #e9ecef;
+    color: white;
+    padding: 0.875rem 1.5rem;
     transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.enhanced-select:focus {
-    border-color: #1976d2;
-    box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+.enhanced-input-group .btn:hover {
+    background: linear-gradient(135deg, #ee5a24 0%, #ff6b6b 100%);
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(238, 90, 36, 0.4);
+}
+
+.enhanced-input-group .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.enhanced-input-group .btn:hover::before {
+    left: 100%;
+}
+
+/* 选择框美化 */
+.form-select {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    color: white;
+    padding: 0.875rem 1.25rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.form-select:focus {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.form-select option {
+    background: #2c3e50;
+    color: white;
+}
+
+/* 主要下载按钮美化 */
+.btn-download-primary {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    border: none;
+    border-radius: 16px;
+    color: white;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+}
+
+.btn-download-primary:hover {
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(79, 172, 254, 0.4);
+    color: white;
+}
+
+.btn-download-primary:active {
+    transform: translateY(0);
+}
+
+.btn-download-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-download-primary:hover::before {
+    left: 100%;
+}
+
+/* 脉冲动画 */
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(79, 172, 254, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(79, 172, 254, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(79, 172, 254, 0); }
+}
+
+.btn-download-primary.pulse {
+    animation: pulse 2s infinite;
+}
+
+/* 视频信息预览美化 */
+.video-info-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    animation: slideInUp 0.5s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.video-info-card img {
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease;
+}
+
+.video-info-card img:hover {
+    transform: scale(1.05);
+}
+
+.video-info-card h6 {
+    color: white;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.video-info-card .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* 音频格式帮助美化 */
+.audio-format-help {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    color: white;
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.audio-format-help .alert-heading {
+    color: white;
+    font-weight: 600;
+}
+
+.audio-format-help .text-primary {
+    color: #4facfe !important;
+}
+
+.audio-format-help .text-success {
+    color: #43e97b !important;
+}
+
+.audio-format-help .text-warning {
+    color: #fee140 !important;
+}
+
+.audio-format-help .text-info {
+    color: #00f2fe !important;
+}
+
+.audio-format-help .bg-light {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px;
+}
+
+.audio-format-help .text-muted {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* 徽章美化 */
+.format-badge {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    border-radius: 20px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+    box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3);
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from { box-shadow: 0 2px 8px rgba(79, 172, 254, 0.3); }
+    to { box-shadow: 0 2px 15px rgba(79, 172, 254, 0.6); }
+}
+
+/* 下载状态卡片美化 */
+.download-status-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.download-status-card:hover {
+    transform: translateX(5px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+}
+
+.download-status-card .card-body {
+    padding: 1.5rem;
+    color: white;
+}
+
+.download-status-card h6 {
+    color: white;
+    font-weight: 600;
+}
+
+.download-status-card .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* 进度条美化 */
+.progress {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+    border-radius: 10px;
+    transition: width 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-bar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: progressShine 2s ease-in-out infinite;
+}
+
+@keyframes progressShine {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* 状态徽章美化 */
+.badge {
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.bg-success {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%) !important;
+}
+
+.bg-primary {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+}
+
+.bg-warning {
+    background: linear-gradient(135deg, #fee140 0%, #fa709a 100%) !important;
+}
+
+.bg-danger {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%) !important;
+}
+
+/* 空状态美化 */
+#emptyState {
+    color: rgba(255, 255, 255, 0.6);
+    padding: 3rem 1rem;
+}
+
+#emptyState i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .page-header h1 {
+        font-size: 2rem;
+    }
+
+    .glass-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .enhanced-input-group .form-control,
+    .enhanced-input-group .btn {
+        padding: 0.75rem 1rem;
+    }
+}
+
+/* 加载动画 */
+.spinner-border-sm {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 通用过渡动画 */
+.audio-format-option, .video-quality-option {
+    transition: all 0.3s ease;
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid" id="downloadApp">
-    
-    <!-- 页面标题 -->
+
+    <!-- 美化页面标题 -->
     <div class="row mb-4">
         <div class="col">
-            <h1 class="h2 mb-1">视频下载</h1>
-            <p class="text-muted">输入视频链接开始下载</p>
+            <div class="page-header">
+                <h1>🎬 视频下载中心</h1>
+                <p>支持 YouTube、TikTok、Twitter 等多平台视频下载</p>
+                <div class="mt-3">
+                    <span class="badge bg-primary me-2">⚡ 高速下载</span>
+                    <span class="badge bg-success me-2">🎵 多格式支持</span>
+                    <span class="badge bg-warning me-2">📱 移动友好</span>
+                    <span class="badge bg-info">🛡️ 安全可靠</span>
+                </div>
+            </div>
         </div>
     </div>
     
-    <!-- 下载表单 -->
+    <!-- 美化下载表单 -->
     <div class="row mb-4">
         <div class="col">
-            <div class="card download-form-card">
+            <div class="card glass-card">
                 <div class="card-body">
                     <form id="downloadForm">
                         
@@ -138,12 +558,12 @@
                             </div>
                         </div>
                         
-                        <!-- 视频信息预览 -->
-                        <div id="videoInfo" class="alert alert-info d-none">
+                        <!-- 美化视频信息预览 -->
+                        <div id="videoInfo" class="video-info-card d-none">
                             <div class="row align-items-center">
                                 <div class="col-auto">
-                                    <img id="videoThumbnail" 
-                                         class="rounded" 
+                                    <img id="videoThumbnail"
+                                         class="rounded"
                                          style="width: 120px; height: 90px; object-fit: cover;"
                                          alt="视频缩略图">
                                 </div>
@@ -151,8 +571,12 @@
                                     <h6 id="videoTitle" class="mb-1"></h6>
                                     <p id="videoUploader" class="text-muted mb-1"></p>
                                     <div class="d-flex gap-3">
-                                        <small id="videoDuration" class="text-muted"></small>
-                                        <small id="videoViews" class="text-muted"></small>
+                                        <small id="videoDuration" class="text-muted">
+                                            <i class="bi bi-clock me-1"></i><span></span>
+                                        </small>
+                                        <small id="videoViews" class="text-muted">
+                                            <i class="bi bi-eye me-1"></i><span></span>
+                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -162,18 +586,15 @@
                         <div class="row g-3 mb-3">
                             <div class="col-md-3">
                                 <label for="downloadType" class="form-label">下载类型</label>
-                                <select class="form-select enhanced-select" id="downloadType">
+                                <select class="form-select" id="downloadType">
                                     <option value="video">视频+音频</option>
                                     <option value="audio">仅音频</option>
                                 </select>
                             </div>
 
-                            <div class="col-md-3 video-quality-option" id="videoQualitySection">
-                                <label for="quality" class="form-label">
-                                    视频质量
-                                    <span class="quality-badge">分辨率</span>
-                                </label>
-                                <select class="form-select enhanced-select" id="quality">
+                            <div class="col-md-3" id="videoQualitySection">
+                                <label for="quality" class="form-label">视频质量</label>
+                                <select class="form-select" id="quality">
                                     <option value="high">最高质量 (4K/1080p)</option>
                                     <option value="medium" selected>中等质量 (720p)</option>
                                     <option value="low">低质量 (360p)</option>
@@ -185,7 +606,7 @@
                                     音频格式
                                     <span class="format-badge">专业音质</span>
                                 </label>
-                                <select class="form-select enhanced-select" id="audioFormat">
+                                <select class="form-select" id="audioFormat">
                                     <optgroup label="MP3 格式 (通用兼容)">
                                         <option value="audio_mp3_high">MP3 高质量 (320kbps) - 最佳音质</option>
                                         <option value="audio_mp3_medium" selected>MP3 中等质量 (192kbps) - 推荐</option>
@@ -213,7 +634,7 @@
 
                             <div class="col-md-3 d-flex align-items-end">
                                 <button type="submit"
-                                        class="btn btn-primary w-100"
+                                        class="btn btn-download-primary w-100 pulse"
                                         id="downloadBtn">
                                     <i class="bi bi-download me-2"></i>
                                     开始下载
@@ -270,42 +691,44 @@
         </div>
     </div>
     
-    <!-- 当前下载任务 -->
+    <!-- 美化当前下载任务 -->
     <div class="row mb-4" id="activeDownloadsSection" style="display: none;">
         <div class="col">
-            <div class="card">
+            <div class="card glass-card">
                 <div class="card-body">
-                    <h5 class="card-title">
+                    <h5 class="card-title" style="color: white;">
                         <i class="bi bi-activity me-2"></i>
-                        当前下载 (<span id="activeCount">0</span>)
+                        🔥 当前下载 (<span id="activeCount">0</span>)
                     </h5>
                     <div id="activeDownloadsList"></div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- 最近下载 -->
+
+    <!-- 美化最近下载 -->
     <div class="row">
         <div class="col">
-            <div class="card">
+            <div class="card glass-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="card-title mb-0">
+                        <h5 class="card-title mb-0" style="color: white;">
                             <i class="bi bi-clock-history me-2"></i>
-                            最近下载
+                            📚 最近下载
                         </h5>
-                        <a href="{{ url_for('main.history') }}" 
-                           class="btn btn-outline-primary btn-sm">
+                        <a href="{{ url_for('main.history') }}"
+                           class="btn btn-outline-light btn-sm"
+                           style="border-radius: 20px;">
                             查看全部
                         </a>
                     </div>
-                    
-                    <div id="emptyState" class="text-center py-5 text-muted">
-                        <i class="bi bi-inbox display-4 opacity-50"></i>
+
+                    <div id="emptyState" class="text-center py-5">
+                        <i class="bi bi-inbox display-4"></i>
                         <p class="mt-2">暂无下载记录</p>
+                        <small>开始您的第一次下载吧！</small>
                     </div>
-                    
+
                     <div id="recentDownloadsList"></div>
                 </div>
             </div>
@@ -439,8 +862,8 @@ class DownloadApp {
         
         title.textContent = this.videoInfo.title || '';
         uploader.textContent = this.videoInfo.uploader || '';
-        duration.textContent = this.videoInfo.duration ? this.formatDuration(this.videoInfo.duration) : '';
-        views.textContent = this.videoInfo.view_count ? this.formatNumber(this.videoInfo.view_count) + ' 次观看' : '';
+        duration.querySelector('span').textContent = this.videoInfo.duration ? this.formatDuration(this.videoInfo.duration) : '';
+        views.querySelector('span').textContent = this.videoInfo.view_count ? this.formatNumber(this.videoInfo.view_count) + ' 次观看' : '';
         
         infoDiv.classList.remove('d-none');
     }
@@ -454,6 +877,9 @@ class DownloadApp {
                 audio_only: this.form.download_type === 'audio',
                 custom_filename: this.form.custom_filename
             };
+
+
+
             const response = await apiRequest('/download/start', {
                 method: 'POST',
                 body: JSON.stringify({
@@ -543,20 +969,31 @@ class DownloadApp {
         
         section.style.display = 'block';
         list.innerHTML = this.activeDownloads.map(download => `
-            <div class="card mb-2">
+            <div class="download-status-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h6 class="mb-0">${download.title || '获取信息中...'}</h6>
+                        <h6 class="mb-0">
+                            <i class="bi bi-play-circle me-2"></i>
+                            ${download.title || '获取信息中...'}
+                        </h6>
                         <span class="badge ${this.getStatusClass(download.status)}">${this.getStatusText(download.status)}</span>
                     </div>
-                    <small class="text-muted d-block mb-2">${download.url}</small>
-                    <div class="progress mb-2" style="height: 8px;">
+                    <small class="text-muted d-block mb-2">
+                        <i class="bi bi-link-45deg me-1"></i>
+                        ${download.url}
+                    </small>
+                    <div class="progress mb-2">
                         <div class="progress-bar" style="width: ${download.progress}%"></div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">${download.progress}%</small>
-                        ${download.status === 'downloading' ? 
-                            `<button class="btn btn-sm btn-outline-danger" onclick="app.cancelDownload(${download.id})">取消</button>` : 
+                        <small class="text-muted">
+                            <i class="bi bi-percent me-1"></i>
+                            ${download.progress}%
+                        </small>
+                        ${download.status === 'downloading' ?
+                            `<button class="btn btn-sm btn-outline-light" onclick="app.cancelDownload(${download.id})" style="border-radius: 20px;">
+                                <i class="bi bi-x-circle me-1"></i>取消
+                            </button>` :
                             ''
                         }
                     </div>
@@ -577,19 +1014,25 @@ class DownloadApp {
         
         emptyState.style.display = 'none';
         list.innerHTML = this.recentDownloads.slice(0, 5).map(download => `
-            <div class="card mb-2">
+            <div class="download-status-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="flex-grow-1">
-                            <h6 class="mb-1">${download.title || 'Unknown'}</h6>
-                            <small class="text-muted">${this.formatDate(download.created_at)}</small>
+                            <h6 class="mb-1">
+                                <i class="bi bi-file-earmark-play me-2"></i>
+                                ${download.title || 'Unknown'}
+                            </h6>
+                            <small class="text-muted">
+                                <i class="bi bi-calendar3 me-1"></i>
+                                ${this.formatDate(download.created_at)}
+                            </small>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge ${this.getStatusClass(download.status)}">${this.getStatusText(download.status)}</span>
-                            ${download.status === 'completed' && download.filename ? 
-                                `<button class="btn btn-sm btn-outline-primary" onclick="app.downloadFile('${download.filename}')">
-                                    <i class="bi bi-download"></i>
-                                </button>` : 
+                            ${download.status === 'completed' && download.filename ?
+                                `<button class="btn btn-sm btn-outline-light" onclick="app.downloadFile('${download.filename}')" style="border-radius: 20px;">
+                                    <i class="bi bi-download me-1"></i>下载
+                                </button>` :
                                 ''
                             }
                         </div>
@@ -619,7 +1062,7 @@ class DownloadApp {
         };
         return classes[status] || classes['pending'];
     }
-    
+
     getStatusText(status) {
         const texts = {
             'pending': '等待中',

@@ -65,23 +65,59 @@ class BilibiliPlatform(BasePlatform):
         }
     
     def get_format_selector(self, quality: str = 'best') -> str:
-        """Bilibili 格式选择器"""
-        if quality == 'best':
-            return 'best[ext=mp4][height<=1080]/best[ext=flv][height<=1080]/best[height<=1080]/best/worst'
-        elif quality == 'worst':
-            return 'worst[ext=mp4]/worst[ext=flv]/worst/best[height<=480]/best'
-        elif quality.isdigit():
-            return f'best[height<={quality}][ext=mp4]/best[height<={quality}]/best[ext=mp4]/best/worst'
+        """Bilibili 格式选择器 - 优化非会员格式选择"""
+        # Bilibili格式选择策略：优先选择可用的非会员格式
+        base_selectors = [
+            # 优先选择合并格式（视频+音频）
+            'best[ext=mp4]',
+            'best[ext=flv]',
+            # 备选：分离格式，自动合并
+            'best[height<=720]+bestaudio/best[height<=720]',
+            'best[height<=480]+bestaudio/best[height<=480]',
+            # 最后备选：任何可用格式
+            'best/worst'
+        ]
+
+        if quality == 'high':
+            quality_selectors = [
+                'best[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]',
+                'best[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]',
+            ]
+        elif quality == 'medium':
+            quality_selectors = [
+                'best[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]',
+                'best[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]',
+            ]
+        elif quality == 'low':
+            quality_selectors = [
+                'best[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]',
+                'best[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]',
+            ]
         else:
-            return 'best[ext=mp4][height<=1080]/best[height<=1080]/best/worst'
+            quality_selectors = []
+
+        # 组合所有选择器
+        all_selectors = quality_selectors + base_selectors
+
+        # 返回用斜杠分隔的格式选择器字符串
+        return '/'.join(all_selectors)
     
     def get_config(self, url: str, quality: str = 'best') -> Dict[str, Any]:
-        """获取 Bilibili 完整配置"""
+        """获取 Bilibili 完整配置 - 包含FFmpeg自动合并"""
         config = self.get_base_config()
-        
+
         # 添加格式选择器
         config['format'] = self.get_format_selector(quality)
-        
+
+        # 添加FFmpeg路径配置，确保自动合并
+        ffmpeg_path = self._get_ffmpeg_path()
+        if ffmpeg_path:
+            config['ffmpeg_location'] = ffmpeg_path
+            config['merge_output_format'] = 'mp4'  # 强制合并为MP4格式
+            logger.info(f"✅ Bilibili配置FFmpeg自动合并: {ffmpeg_path}")
+        else:
+            logger.warning("⚠️ 未找到FFmpeg，Bilibili视频可能无法自动合并")
+
         # Bilibili 特殊配置
         config.update({
             # 字幕配置
@@ -89,24 +125,54 @@ class BilibiliPlatform(BasePlatform):
             'writeautomaticsub': True,
             'subtitleslangs': ['zh-CN', 'zh-TW', 'en'],
             'writethumbnail': True,   # Bilibili 缩略图很重要
-            
+
             # 网络优化
             'socket_timeout': 30,
             'http_chunk_size': 10485760,  # 10MB chunks
-            
+
             # Bilibili 特殊选项
             'extract_flat': False,
             'ignoreerrors': False,
-            
+
             # 输出优化
             'no_warnings': False,
-            
+
             # 分P视频支持
             'playlist_items': '1-50',  # 限制播放列表项目数量
         })
-        
+
         self.log_config(url)
         return config
+
+    def _get_ffmpeg_path(self) -> str:
+        """获取FFmpeg路径"""
+        try:
+            # 尝试从FFmpeg工具模块获取
+            try:
+                from modules.downloader.ffmpeg_tools import get_ffmpeg_path
+                ffmpeg_path = get_ffmpeg_path()
+                if ffmpeg_path:
+                    return ffmpeg_path
+            except ImportError:
+                pass
+
+            # 尝试项目路径
+            from pathlib import Path
+            project_ffmpeg = Path('ffmpeg/bin')
+            if project_ffmpeg.exists():
+                return str(project_ffmpeg.resolve())
+
+            # 尝试系统路径
+            import shutil
+            which_ffmpeg = shutil.which('ffmpeg')
+            if which_ffmpeg:
+                return str(Path(which_ffmpeg).parent)
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"🔍 获取FFmpeg路径失败: {e}")
+            return None
     
     def get_quality_options(self) -> Dict[str, str]:
         """获取质量选项"""

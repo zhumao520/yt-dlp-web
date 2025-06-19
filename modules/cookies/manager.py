@@ -21,14 +21,18 @@ class CookiesManager:
         self._load_config()
     
     def _load_config(self):
-        """加载配置"""
+        """加载配置 - 统一使用项目相对路径"""
         try:
-            from core.config import get_config
-            self.cookies_dir = Path(get_config('app.data_dir', '/app/data')) / 'cookies'
+            # 始终使用项目相对路径，确保所有平台cookies在同一目录
+            self.cookies_dir = Path('data/cookies')
             self.cookies_dir.mkdir(parents=True, exist_ok=True)
-            logger.info(f"✅ Cookies目录: {self.cookies_dir}")
+            logger.info(f"✅ Cookies目录: {self.cookies_dir.resolve()}")
         except Exception as e:
             logger.error(f"❌ 加载Cookies配置失败: {e}")
+            # 备用方案：使用当前目录下的cookies文件夹
+            self.cookies_dir = Path('cookies')
+            self.cookies_dir.mkdir(parents=True, exist_ok=True)
+            logger.warning(f"⚠️ 使用备用Cookies目录: {self.cookies_dir.resolve()}")
     
     def save_cookies(self, website: str, cookies_data: str, format_type: str = 'auto') -> Dict:
         """保存Cookies"""

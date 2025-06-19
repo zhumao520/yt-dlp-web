@@ -4,7 +4,7 @@ Twitter/X 平台下载器配置
 专门针对 Twitter/X 平台的下载优化
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 from .base import BasePlatform
 
 
@@ -28,10 +28,13 @@ class TwitterPlatform(BasePlatform):
         }
     
     def get_extractor_args(self) -> Dict[str, Any]:
-        """Twitter 提取器参数"""
+        """Twitter 提取器参数 - 增强版"""
         return {
             'twitter': {
-                'api': ['syndication', 'legacy'],  # 使用多种 API
+                'api': ['syndication', 'legacy', 'graphql'],  # 使用多种 API
+                'legacy_api': True,  # 启用传统 API
+                'guest_token': True,  # 使用访客令牌
+                'syndication_api': True,  # 启用联合 API
             }
         }
     
@@ -68,29 +71,102 @@ class TwitterPlatform(BasePlatform):
             return f'best[ext=mp4]/best[ext=m4v]/best/worst'
     
     def get_config(self, url: str, quality: str = 'best') -> Dict[str, Any]:
-        """获取 Twitter 完整配置"""
+        """获取 Twitter 完整配置 - 增强版，解决SSL问题"""
         config = self.get_base_config()
-        
-        # 添加格式选择器
-        config['format'] = self.get_format_selector(quality)
-        
+
+        # 添加格式选择器 - 更宽松的格式选择
+        config['format'] = self.get_enhanced_format_selector(quality)
+
         # Twitter 特殊配置
         config.update({
             # 禁用不必要的功能
             'writesubtitles': False,
             'writeautomaticsub': False,
-            'writethumbnail': False,  # Twitter 缩略图通常不重要
-            
-            # 网络优化
-            'socket_timeout': 30,
-            'fragment_retries': 5,
-            
+            'writethumbnail': True,  # 保留缩略图用于预览
+
+            # 网络优化 - 解决SSL问题
+            'socket_timeout': 30,  # 减少超时时间避免SSL问题
+            'fragment_retries': 10,
+            'http_chunk_size': 1048576,  # 1MB chunks，减小块大小
+
+            # SSL和连接优化
+            'nocheckcertificate': True,  # 跳过SSL证书验证
+            'prefer_insecure': False,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            },
+
+            # 错误处理
+            'ignoreerrors': False,
+            'no_warnings': False,
+
+            # 地区绕过
+            'geo_bypass': True,
+            'geo_bypass_country': 'US',
+
+            # 认证相关 - 关键改进
+            'username': None,  # 不使用用户名密码
+            'password': None,
+            'netrc': False,
+
+            # 重试策略
+            'retries': 5,
+            'extractor_retries': 3,
+
             # 输出优化
-            'no_warnings': False,  # 保留警告以便调试
+            'outtmpl': '%(uploader)s - %(title)s.%(ext)s',
         })
-        
+
         self.log_config(url)
         return config
+
+    def get_enhanced_format_selector(self, quality: str) -> str:
+        """增强的格式选择器 - 最宽松的选择策略，解决格式不可用问题"""
+        # Twitter视频格式选择策略：从最宽松开始，确保能下载到内容
+        base_selectors = [
+            'best',  # 最优先：任何最佳格式
+            'worst',  # 备选：任何最差格式
+            'best[ext=mp4]',  # MP4格式
+            'best[ext=m4v]',  # M4V格式
+            'best[ext=mov]',  # MOV格式
+            'best[protocol=https]',  # HTTPS协议
+            'best[protocol=http]',  # HTTP协议
+        ]
+
+        if quality == 'high':
+            quality_selectors = [
+                'best[height<=1080]',
+                'best[height<=720]',
+                'best[width<=1920]',
+                'best[width<=1280]',
+            ]
+        elif quality == 'medium':
+            quality_selectors = [
+                'best[height<=720]',
+                'best[height<=480]',
+                'best[width<=1280]',
+                'best[width<=854]',
+            ]
+        elif quality == 'low':
+            quality_selectors = [
+                'best[height<=480]',
+                'best[height<=360]',
+                'best[width<=854]',
+                'best[width<=640]',
+            ]
+        else:
+            quality_selectors = []
+
+        # 组合所有选择器，确保有备选方案
+        all_selectors = quality_selectors + base_selectors
+
+        # 返回用斜杠分隔的格式选择器字符串
+        return '/'.join(all_selectors)
     
     def get_quality_options(self) -> Dict[str, str]:
         """获取质量选项"""

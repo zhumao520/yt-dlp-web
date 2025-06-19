@@ -75,6 +75,28 @@ def main():
             logger.error("❌ 环境初始化失败，退出")
             sys.exit(1)
 
+        # 初始化FFmpeg配置
+        logger.info("🎬 初始化FFmpeg配置...")
+        try:
+            from modules.downloader.ffmpeg_config import update_ytdlp_config_file, get_ffmpeg_config_manager
+
+            # 更新yt-dlp.conf文件
+            if update_ytdlp_config_file():
+                logger.info("✅ FFmpeg配置已自动更新到yt-dlp.conf")
+            else:
+                logger.warning("⚠️ FFmpeg配置更新失败，将使用默认配置")
+
+            # 显示FFmpeg状态
+            manager = get_ffmpeg_config_manager()
+            status = manager.get_status()
+            if status['ffmpeg_available']:
+                logger.info(f"✅ FFmpeg可用: {status['ffmpeg_version']} @ {status['ffmpeg_path']}")
+            else:
+                logger.warning("⚠️ FFmpeg不可用，视频合并功能将受限")
+
+        except Exception as e:
+            logger.warning(f"⚠️ FFmpeg配置初始化失败: {e}")
+
         # 创建Flask应用
         logger.info("🔧 创建Flask应用...")
         app = create_app()

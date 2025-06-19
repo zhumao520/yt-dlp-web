@@ -372,7 +372,7 @@ class CoreDownloadManager:
             return None
     
     def _fallback_download(self, download_id: str, url: str, video_info: Dict[str, Any], options: Dict[str, Any]) -> Optional[str]:
-        """备用下载方法 - 针对不同网站优化"""
+        """备用下载方法 - 针对不同网站优化，包含FFmpeg自动合并"""
         try:
             import yt_dlp
 
@@ -385,6 +385,15 @@ class CoreDownloadManager:
                 'no_warnings': False,
                 'ignoreerrors': False,
             }
+
+            # 添加FFmpeg配置，确保自动合并
+            ffmpeg_path = self._get_ffmpeg_path()
+            if ffmpeg_path:
+                ydl_opts['ffmpeg_location'] = ffmpeg_path
+                ydl_opts['merge_output_format'] = 'mp4'  # 强制合并为MP4格式
+                logger.info(f"✅ 配置FFmpeg自动合并: {ffmpeg_path}")
+            else:
+                logger.warning("⚠️ 未找到FFmpeg，视频可能无法自动合并")
 
             # 使用新的平台配置系统（包含格式选择）
             platform_config = self._get_platform_config(url, options.get('quality', 'best'))
@@ -446,7 +455,7 @@ class CoreDownloadManager:
             parsed = urlparse(url.lower())
             domain = parsed.netloc
 
-            # X 平台（Twitter）特殊配置
+            # X 平台（Twitter）特殊配置 - 增强版
             if any(x in domain for x in ['twitter.com', 'x.com']):
                 return {
                     'http_headers': {
@@ -457,23 +466,42 @@ class CoreDownloadManager:
                         'DNT': '1',
                         'Connection': 'keep-alive',
                         'Upgrade-Insecure-Requests': '1',
+                        'Referer': 'https://twitter.com/',
+                        'Origin': 'https://twitter.com',
                     },
-                    'sleep_interval': 1,
-                    'max_sleep_interval': 3,
-                    'writesubtitles': False,  # X 平台通常没有字幕
+                    'sleep_interval': 2,  # 增加延迟避免限制
+                    'max_sleep_interval': 5,
+                    'writesubtitles': False,
                     'writeautomaticsub': False,
-                    # X 平台专用格式选择 - 优先选择可用格式
-                    'format': 'best[ext=mp4]/best[ext=m4v]/best[height<=720]/best/worst',
-                    # 添加 X 平台特殊选项
+                    'writethumbnail': True,  # 保留缩略图
+                    # 更宽松的格式选择策略
+                    'format': 'best[ext=mp4]/best[ext=m4v]/best[height<=1080]/best[height<=720]/best[height<=480]/best/worst',
+                    # 增强的 X 平台选项
                     'extractor_args': {
                         'twitter': {
-                            'api': ['syndication', 'legacy'],  # 使用多种 API
+                            'api': ['syndication', 'legacy', 'graphql'],  # 使用所有可用 API
+                            'legacy_api': True,
+                            'guest_token': True,
+                            'syndication_api': True,
                         }
                     },
-                    # 增加重试和容错
-                    'retries': 5,
-                    'fragment_retries': 5,
-                    'extractor_retries': 3,
+                    # 网络优化
+                    'socket_timeout': 60,
+                    'fragment_retries': 8,
+                    'http_chunk_size': 10485760,  # 10MB chunks
+                    # 增强重试策略
+                    'retries': 8,
+                    'extractor_retries': 5,
+                    # 错误处理
+                    'ignoreerrors': False,
+                    'no_warnings': False,
+                    # 地区绕过
+                    'geo_bypass': True,
+                    'geo_bypass_country': 'US',
+                    # 认证设置
+                    'username': None,
+                    'password': None,
+                    'netrc': False,
                 }
 
             # Instagram 特殊配置
@@ -573,6 +601,44 @@ class CoreDownloadManager:
             return max(0, int(options['max_retries']))
         return 3  # 默认值
 
+    def _get_ffmpeg_path(self) -> str:
+        """获取FFmpeg路径 - 使用智能配置管理器"""
+        try:
+            from .ffmpeg_config import get_ffmpeg_path_for_ytdlp
+            ffmpeg_path = get_ffmpeg_path_for_ytdlp()
+            if ffmpeg_path:
+                logger.debug(f"✅ 智能检测FFmpeg路径: {ffmpeg_path}")
+                return ffmpeg_path
+            else:
+                logger.warning("⚠️ 智能检测未找到FFmpeg路径")
+                return None
+
+        except Exception as e:
+            logger.debug(f"🔍 智能FFmpeg路径检测失败: {e}")
+            # 备用方案：传统检测
+            return self._get_ffmpeg_path_fallback()
+
+    def _get_ffmpeg_path_fallback(self) -> str:
+        """FFmpeg路径检测备用方案"""
+        try:
+            # 尝试项目路径
+            from pathlib import Path
+            project_ffmpeg = Path('ffmpeg/bin')
+            if project_ffmpeg.exists():
+                return str(project_ffmpeg.resolve())
+
+            # 尝试系统路径
+            import shutil
+            which_ffmpeg = shutil.which('ffmpeg')
+            if which_ffmpeg:
+                return str(Path(which_ffmpeg).parent)
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"🔍 备用FFmpeg路径检测失败: {e}")
+            return None
+
     def _get_site_name(self, url: str) -> str:
         """获取网站名称"""
         try:
@@ -614,9 +680,31 @@ class CoreDownloadManager:
             return None
 
     def _get_proxy_config(self) -> Optional[str]:
-        """获取代理配置"""
+        """获取代理配置 - 增强版，支持代理健康检查"""
         try:
-            # 尝试从配置中获取代理
+            # 首先尝试从数据库获取代理配置
+            from core.database import get_database
+            db = get_database()
+            proxy_config = db.get_proxy_config()
+
+            if proxy_config and proxy_config.get('enabled'):
+                proxy_url = f"{proxy_config.get('proxy_type', 'http')}://"
+                if proxy_config.get('username'):
+                    proxy_url += f"{proxy_config['username']}"
+                    if proxy_config.get('password'):
+                        proxy_url += f":{proxy_config['password']}"
+                    proxy_url += "@"
+                proxy_url += f"{proxy_config.get('host')}:{proxy_config.get('port')}"
+
+                # 测试代理连接
+                if self._test_proxy_connection(proxy_url):
+                    logger.info(f"✅ 使用数据库代理配置: {proxy_config.get('proxy_type')}://{proxy_config.get('host')}:{proxy_config.get('port')}")
+                    return proxy_url
+                else:
+                    logger.warning(f"⚠️ 代理连接失败，跳过代理: {proxy_config.get('host')}:{proxy_config.get('port')}")
+                    return None
+
+            # 其次尝试从配置文件获取
             from core.config import get_config
             config = get_config()
             proxy_config = config.get('proxy', {})
@@ -627,12 +715,50 @@ class CoreDownloadManager:
                 proxy_port = proxy_config.get('port', '')
 
                 if proxy_host and proxy_port:
-                    return f"{proxy_type}://{proxy_host}:{proxy_port}"
+                    proxy_url = f"{proxy_type}://{proxy_host}:{proxy_port}"
+                    if self._test_proxy_connection(proxy_url):
+                        logger.info(f"✅ 使用配置文件代理: {proxy_url}")
+                        return proxy_url
+                    else:
+                        logger.warning(f"⚠️ 配置文件代理连接失败，跳过代理: {proxy_host}:{proxy_port}")
 
             return None
         except Exception as e:
             logger.debug(f"🔍 获取代理配置失败: {e}")
             return None
+
+    def _test_proxy_connection(self, proxy_url: str) -> bool:
+        """测试代理连接是否可用"""
+        try:
+            import urllib.request
+            import socket
+
+            # 设置短超时时间进行快速测试
+            original_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(3)  # 3秒超时
+
+            try:
+                proxy_handler = urllib.request.ProxyHandler({
+                    'http': proxy_url,
+                    'https': proxy_url
+                })
+                opener = urllib.request.build_opener(proxy_handler)
+
+                # 测试连接到一个简单的HTTP服务
+                request = urllib.request.Request('http://httpbin.org/ip')
+                response = opener.open(request, timeout=3)
+
+                if response.getcode() == 200:
+                    return True
+                else:
+                    return False
+
+            finally:
+                socket.setdefaulttimeout(original_timeout)
+
+        except Exception as e:
+            logger.debug(f"🔍 代理连接测试失败: {e}")
+            return False
 
     def _save_to_database(self, download_id: str, url: str):
         """保存到数据库"""

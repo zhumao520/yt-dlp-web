@@ -86,19 +86,48 @@ class FFmpegTools:
             return False
     
     def _get_project_ffmpeg_paths(self) -> List[Path]:
-        """获取项目目录中的FFmpeg路径"""
+        """获取项目目录中的FFmpeg路径 - 跨平台智能检测"""
+        project_paths = []
+
         if self._system_type == 'windows':
-            return [
-                Path("ffmpeg/bin/ffmpeg.exe"),
-                Path("ffmpeg/ffmpeg.exe"),
-                Path("bin/ffmpeg.exe"),
-            ]
-        else:
-            return [
-                Path("ffmpeg/bin/ffmpeg"),
-                Path("ffmpeg/ffmpeg"),
-                Path("bin/ffmpeg"),
-            ]
+            # Windows平台路径
+            project_paths.extend([
+                Path("ffmpeg/bin/ffmpeg.exe"),           # 当前项目标准路径
+                Path("ffmpeg/ffmpeg.exe"),               # 简化路径
+                Path("bin/ffmpeg.exe"),                  # 根目录bin
+                Path("./ffmpeg/bin/ffmpeg.exe"),         # 相对路径
+                Path("../ffmpeg/bin/ffmpeg.exe"),        # 上级目录
+                Path("tools/ffmpeg/bin/ffmpeg.exe"),     # 工具目录
+                Path("external/ffmpeg/bin/ffmpeg.exe"),  # 外部工具
+            ])
+        elif self._system_type == 'darwin':  # macOS
+            # macOS平台路径
+            project_paths.extend([
+                Path("ffmpeg/bin/ffmpeg"),               # 当前项目标准路径
+                Path("ffmpeg/ffmpeg"),                   # 简化路径
+                Path("bin/ffmpeg"),                      # 根目录bin
+                Path("./ffmpeg/bin/ffmpeg"),             # 相对路径
+                Path("../ffmpeg/bin/ffmpeg"),            # 上级目录
+                Path("tools/ffmpeg/bin/ffmpeg"),         # 工具目录
+                Path("external/ffmpeg/bin/ffmpeg"),      # 外部工具
+                Path("/app/ffmpeg/bin/ffmpeg"),          # 容器环境
+            ])
+        else:  # Linux/容器
+            # Linux平台路径
+            project_paths.extend([
+                Path("ffmpeg/bin/ffmpeg"),               # 当前项目标准路径
+                Path("ffmpeg/ffmpeg"),                   # 简化路径
+                Path("bin/ffmpeg"),                      # 根目录bin
+                Path("./ffmpeg/bin/ffmpeg"),             # 相对路径
+                Path("../ffmpeg/bin/ffmpeg"),            # 上级目录
+                Path("tools/ffmpeg/bin/ffmpeg"),         # 工具目录
+                Path("external/ffmpeg/bin/ffmpeg"),      # 外部工具
+                Path("/app/ffmpeg/bin/ffmpeg"),          # 容器环境
+                Path("/usr/local/ffmpeg/bin/ffmpeg"),    # 本地安装
+                Path("/opt/ffmpeg/bin/ffmpeg"),          # 可选安装
+            ])
+
+        return project_paths
     
     def _get_common_ffmpeg_paths(self) -> List[Path]:
         """获取常见安装位置的FFmpeg路径"""
