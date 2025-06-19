@@ -95,7 +95,9 @@ RUN if [ "$INSTALL_WARP" = "true" ] && [ "$GOST_VERSION" != "none" ]; then \
             *) echo "❌ 不支持的平台: ${TARGETPLATFORM}" && exit 1 ;; \
         esac && \
         echo "🔍 构建平台: ${TARGETPLATFORM}，使用 GOST ${ARCH} v${GOST_VERSION}" && \
-        curl -fsSL -o /tmp/gost.tar.gz "https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/gost_${GOST_VERSION}_linux_${ARCH}.tar.gz" && \
+        # 简单下载 GOST，失败则使用备用版本 \
+        curl -fsSL -o /tmp/gost.tar.gz "https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/gost_${GOST_VERSION}_linux_${ARCH}.tar.gz" || \
+        curl -fsSL -o /tmp/gost.tar.gz "https://github.com/ginuerzh/gost/releases/download/v2.12.0/gost_2.12.0_linux_${ARCH}.tar.gz" && \
         echo "✅ GOST 下载成功" && \
         cd /tmp && \
         tar -xzf gost.tar.gz && \
