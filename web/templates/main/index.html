@@ -2,6 +2,43 @@
 
 {% block title %}下载 - YT-DLP Web{% endblock %}
 
+{% block extra_styles %}
+<style>
+.audio-format-option {
+    transition: all 0.3s ease;
+}
+
+.audio-format-help {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border: none;
+    border-radius: 12px;
+}
+
+.audio-format-help .alert-heading {
+    color: #1976d2;
+}
+
+.format-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #e3f2fd;
+    color: #1976d2;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+.download-type-switch {
+    transition: all 0.3s ease;
+}
+
+#audioFormatSection select option {
+    padding: 8px;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid" id="downloadApp">
     
@@ -60,6 +97,14 @@
                         <!-- 下载选项 -->
                         <div class="row g-3 mb-3">
                             <div class="col-md-3">
+                                <label for="downloadType" class="form-label">下载类型</label>
+                                <select class="form-select" id="downloadType">
+                                    <option value="video">视频+音频</option>
+                                    <option value="audio">仅音频</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-3" id="videoQualitySection">
                                 <label for="quality" class="form-label">视频质量</label>
                                 <select class="form-select" id="quality">
                                     <option value="high">最高质量 (4K/1080p)</option>
@@ -68,11 +113,26 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-3">
-                                <label for="downloadType" class="form-label">下载类型</label>
-                                <select class="form-select" id="downloadType">
-                                    <option value="video">视频+音频</option>
-                                    <option value="audio">仅音频</option>
+                            <div class="col-md-3 d-none audio-format-option" id="audioFormatSection">
+                                <label for="audioFormat" class="form-label">
+                                    音频格式
+                                    <span class="format-badge">专业音质</span>
+                                </label>
+                                <select class="form-select" id="audioFormat">
+                                    <optgroup label="MP3 格式 (通用兼容)">
+                                        <option value="audio_mp3_high">MP3 高质量 (320kbps) - 最佳音质</option>
+                                        <option value="audio_mp3_medium" selected>MP3 中等质量 (192kbps) - 推荐</option>
+                                        <option value="audio_mp3_low">MP3 低质量 (128kbps) - 节省空间</option>
+                                    </optgroup>
+                                    <optgroup label="AAC 格式 (高效编码)">
+                                        <option value="audio_aac_high">AAC 高质量 (256kbps) - 高效音质</option>
+                                        <option value="audio_aac_medium">AAC 中等质量 (128kbps) - 平衡选择</option>
+                                        <option value="audio_aac_low">AAC 低质量 (96kbps) - 最小文件</option>
+                                    </optgroup>
+                                    <optgroup label="专业格式">
+                                        <option value="audio_flac">FLAC 无损 - 原始音质</option>
+                                        <option value="audio_ogg_medium">OGG 中等质量 - 开源格式</option>
+                                    </optgroup>
                                 </select>
                             </div>
 
@@ -93,7 +153,50 @@
                                 </button>
                             </div>
                         </div>
-                        
+
+                        <!-- 音频格式说明 -->
+                        <div class="row mb-3 d-none" id="audioFormatHelp">
+                            <div class="col">
+                                <div class="alert audio-format-help">
+                                    <h6 class="alert-heading mb-3">
+                                        <i class="bi bi-music-note-beamed"></i> 音频格式选择指南
+                                    </h6>
+                                    <div class="row g-4">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <strong class="text-primary">🎵 MP3</strong>
+                                                <p class="mb-1 small">最广泛支持的音频格式</p>
+                                                <small class="text-muted">适用于所有设备和播放器</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong class="text-success">🎧 AAC</strong>
+                                                <p class="mb-1 small">高效压缩，音质优秀</p>
+                                                <small class="text-muted">Apple 设备和现代播放器首选</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <strong class="text-warning">🎼 FLAC</strong>
+                                                <p class="mb-1 small">无损压缩，保持原始音质</p>
+                                                <small class="text-muted">音乐收藏和专业用途</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <strong class="text-info">🎶 OGG</strong>
+                                                <p class="mb-1 small">开源格式，质量出色</p>
+                                                <small class="text-muted">Linux 系统和开源软件</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 p-2 bg-light rounded">
+                                        <small class="text-muted">
+                                            <i class="bi bi-lightbulb"></i>
+                                            <strong>建议：</strong>日常使用选择 MP3 192kbps，追求音质选择 AAC 256kbps，收藏音乐选择 FLAC 无损
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </form>
                 </div>
             </div>
@@ -153,6 +256,7 @@ class DownloadApp {
             url: '',
             quality: 'medium',
             download_type: 'video',
+            audio_format: 'audio_mp3_medium',
             custom_filename: ''
         };
         this.loading = false;
@@ -194,14 +298,42 @@ class DownloadApp {
         // 下载类型变化
         document.getElementById('downloadType').addEventListener('change', (e) => {
             this.form.download_type = e.target.value;
+            this.toggleDownloadOptions();
+        });
+
+        // 音频格式变化
+        document.getElementById('audioFormat').addEventListener('change', (e) => {
+            this.form.audio_format = e.target.value;
         });
 
         // 自定义文件名变化
         document.getElementById('customFilename').addEventListener('input', (e) => {
             this.form.custom_filename = e.target.value.trim();
         });
+
+        // 初始化界面状态
+        this.toggleDownloadOptions();
     }
-    
+
+    toggleDownloadOptions() {
+        const downloadType = this.form.download_type;
+        const videoQualitySection = document.getElementById('videoQualitySection');
+        const audioFormatSection = document.getElementById('audioFormatSection');
+        const audioFormatHelp = document.getElementById('audioFormatHelp');
+
+        if (downloadType === 'audio') {
+            // 显示音频选项，隐藏视频选项
+            videoQualitySection.classList.add('d-none');
+            audioFormatSection.classList.remove('d-none');
+            audioFormatHelp.classList.remove('d-none');
+        } else {
+            // 显示视频选项，隐藏音频选项
+            videoQualitySection.classList.remove('d-none');
+            audioFormatSection.classList.add('d-none');
+            audioFormatHelp.classList.add('d-none');
+        }
+    }
+
     async getVideoInfo() {
         if (!this.form.url) return;
         
@@ -251,7 +383,7 @@ class DownloadApp {
         
         try {
             const options = {
-                quality: this.form.quality,
+                quality: this.form.download_type === 'audio' ? this.form.audio_format : this.form.quality,
                 audio_only: this.form.download_type === 'audio',
                 custom_filename: this.form.custom_filename
             };

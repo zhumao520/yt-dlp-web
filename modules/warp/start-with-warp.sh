@@ -49,10 +49,11 @@ if [ "$ENABLE_WARP" = "true" ]; then
     fi
     
     # 启动 WARP 守护进程（后台静默）
+    echo "🔧 启动 WARP 守护进程..."
     log_info "启动 WARP 守护进程..."
-    warp-svc >>"$WARP_LOG" 2>&1 &
+    nohup warp-svc >>"$WARP_LOG" 2>&1 &
     WARP_PID=$!
-    sleep 3
+    sleep 5
 
     # 检查守护进程是否启动成功
     if ! kill -0 $WARP_PID 2>/dev/null; then
@@ -61,58 +62,126 @@ if [ "$ENABLE_WARP" = "true" ]; then
         echo "📋 错误详情查看: $WARP_LOG"
     else
         log_info "WARP 守护进程启动成功 (PID: $WARP_PID)"
+        echo "✅ WARP 守护进程已启动"
+
+        # 等待守护进程完全启动
+        sleep 3
+
         # 注册和连接 WARP（静默）
         if [ ! -f /var/lib/cloudflare-warp/reg.json ]; then
+            echo "🔑 注册 WARP 客户端..."
             log_info "注册 WARP 客户端..."
-            if ! timeout 30 warp-cli register >>"$WARP_LOG" 2>&1; then
+            if ! timeout 30 warp-cli registration new --accept-tos >>"$WARP_LOG" 2>&1; then
                 log_error "WARP 注册失败"
                 echo "⚠️ WARP 注册失败，应用将以直连模式运行"
             else
                 log_info "WARP 注册成功"
+                echo "✅ WARP 客户端注册成功"
 
                 # 设置许可证（如果提供）
                 if [ -n "$WARP_LICENSE_KEY" ]; then
+                    echo "🔑 设置 WARP+ 许可证..."
                     log_info "设置 WARP+ 许可证..."
                     if ! timeout 10 warp-cli set-license "$WARP_LICENSE_KEY" >>"$WARP_LOG" 2>&1; then
                         log_error "许可证设置失败"
+                        echo "⚠️ 许可证设置失败"
                     else
                         log_info "许可证设置成功"
+                        echo "✅ WARP+ 许可证设置成功"
                     fi
                 fi
             fi
+        else
+            echo "✅ WARP 客户端已注册"
+            log_info "WARP 客户端已注册"
+        fi
+
+        # 设置代理模式
+        echo "🔧 设置 WARP 代理模式..."
+        log_info "设置 WARP 代理模式..."
+        if ! timeout 10 warp-cli mode proxy >>"$WARP_LOG" 2>&1; then
+            log_error "WARP 代理模式设置失败"
+            echo "⚠️ WARP 代理模式设置失败"
+        else
+            log_info "WARP 代理模式设置成功"
+            echo "✅ WARP 代理模式已设置"
         fi
 
         # 连接 WARP（静默）
+        echo "🌐 连接到 WARP..."
         log_info "连接到 WARP..."
         if ! timeout 30 warp-cli connect >>"$WARP_LOG" 2>&1; then
             log_error "WARP 连接失败"
             echo "⚠️ WARP 连接失败，应用将以直连模式运行"
         else
             log_info "WARP 连接成功"
-            sleep 5
+            echo "✅ WARP 连接成功"
+            sleep 3
         fi
     fi
     
-    # 启动 GOST 代理（后台静默）
-    log_info "启动 SOCKS5 代理（端口 $WARP_PROXY_PORT）..."
-    if ! gost -L :$WARP_PROXY_PORT >>"$WARP_LOG" 2>&1 &; then
-        log_error "GOST 代理启动失败"
-        echo "⚠️ SOCKS5 代理启动失败"
-    else
-        GOST_PID=$!
-        sleep 2
+    # 检查 WARP 代理端口
+    echo "🔍 检查 WARP 代理端口..."
+    log_info "检查 WARP 代理端口..."
 
-        # 验证代理服务（静默）
-        log_info "验证代理服务状态..."
-        if command -v netstat >/dev/null && netstat -ln 2>/dev/null | grep -q ":$WARP_PROXY_PORT "; then
-            log_info "SOCKS5 代理启动成功 (PID: $GOST_PID)"
-            PROXY_RUNNING=true
-        elif command -v ss >/dev/null && ss -ln 2>/dev/null | grep -q ":$WARP_PROXY_PORT "; then
-            log_info "SOCKS5 代理启动成功 (PID: $GOST_PID)"
+    # 等待 WARP 代理端口启动
+    WARP_INTERNAL_PORT=""
+    for i in {1..10}; do
+        # 检查常见的 WARP 代理端口
+        for port in 40000 1080 8080; do
+            if netstat -ln 2>/dev/null | grep -q ":$port " || ss -ln 2>/dev/null | grep -q ":$port "; then
+                # 验证这是 WARP 的端口
+                if timeout 5 curl -s --socks5 127.0.0.1:$port http://httpbin.org/ip >/dev/null 2>&1; then
+                    WARP_INTERNAL_PORT=$port
+                    break 2
+                fi
+            fi
+        done
+        sleep 2
+    done
+
+    if [ -n "$WARP_INTERNAL_PORT" ]; then
+        echo "✅ 发现 WARP 代理端口: $WARP_INTERNAL_PORT"
+        log_info "发现 WARP 代理端口: $WARP_INTERNAL_PORT"
+
+        # 如果 WARP 已经监听用户指定的端口，直接使用
+        if [ "$WARP_INTERNAL_PORT" = "$WARP_PROXY_PORT" ]; then
+            echo "✅ WARP 已监听目标端口 $WARP_PROXY_PORT，无需 GOST 转发"
+            log_info "WARP 已监听目标端口 $WARP_PROXY_PORT，无需 GOST 转发"
             PROXY_RUNNING=true
         else
-            log_info "无法验证代理状态，但可能正在运行"
+            # 使用 GOST 转发到用户指定的端口
+            echo "📡 启动 GOST 代理转发（$WARP_INTERNAL_PORT → $WARP_PROXY_PORT）..."
+            log_info "启动 GOST 代理转发（$WARP_INTERNAL_PORT → $WARP_PROXY_PORT）..."
+            nohup gost -L "socks5://:$WARP_PROXY_PORT" -F "socks5://127.0.0.1:$WARP_INTERNAL_PORT" >>"$WARP_LOG" 2>&1 &
+            GOST_PID=$!
+            sleep 3
+        fi
+    else
+        echo "⚠️ 未发现 WARP 代理端口，尝试直接启动 GOST..."
+        log_info "未发现 WARP 代理端口，尝试直接启动 GOST..."
+        # 直接启动 GOST，不转发（可能 WARP 在其他模式）
+        nohup gost -L "socks5://:$WARP_PROXY_PORT" >>"$WARP_LOG" 2>&1 &
+        GOST_PID=$!
+        sleep 3
+    fi
+
+    # 验证最终代理服务
+    if [ "$PROXY_RUNNING" != "true" ]; then
+        echo "🔍 验证代理服务状态..."
+        log_info "验证代理服务状态..."
+        if command -v netstat >/dev/null && netstat -ln 2>/dev/null | grep -q ":$WARP_PROXY_PORT "; then
+            log_info "SOCKS5 代理端口 $WARP_PROXY_PORT 监听成功"
+            echo "✅ SOCKS5 代理已启动"
             PROXY_RUNNING=true
+        elif command -v ss >/dev/null && ss -ln 2>/dev/null | grep -q ":$WARP_PROXY_PORT "; then
+            log_info "SOCKS5 代理端口 $WARP_PROXY_PORT 监听成功"
+            echo "✅ SOCKS5 代理已启动"
+            PROXY_RUNNING=true
+        else
+            log_error "SOCKS5 代理端口 $WARP_PROXY_PORT 验证失败"
+            echo "⚠️ SOCKS5 代理状态未知"
+            PROXY_RUNNING=false
         fi
     fi
     

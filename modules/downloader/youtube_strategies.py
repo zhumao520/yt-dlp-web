@@ -25,27 +25,34 @@ class YouTubeStrategies:
             # 基础策略
             self.strategies = [
                 {
+                    'name': 'audio_only',
+                    'description': '仅音频策略',
+                    'priority': 1,
+                    'options': self._get_audio_only_opts,
+                    'condition': lambda options: self._is_audio_only_request(options)
+                },
+                {
                     'name': 'default',
                     'description': '默认策略',
-                    'priority': 1,
+                    'priority': 2,
                     'options': self._get_default_opts
                 },
                 {
                     'name': 'high_quality',
                     'description': '高质量策略',
-                    'priority': 2,
+                    'priority': 3,
                     'options': self._get_high_quality_opts
                 },
                 {
                     'name': 'with_cookies',
                     'description': '使用Cookies策略',
-                    'priority': 3,
+                    'priority': 4,
                     'options': self._get_cookies_opts
                 },
                 {
                     'name': 'mobile_client',
                     'description': '移动客户端策略',
-                    'priority': 4,
+                    'priority': 5,
                     'options': self._get_mobile_opts
                 }
             ]
@@ -93,8 +100,28 @@ class YouTubeStrategies:
     def _download_with_ytdlp(self, download_id: str, url: str, video_info: Dict[str, Any], options: Dict[str, Any], output_dir: Path) -> Optional[str]:
         """使用yt-dlp下载"""
         try:
-            # 尝试不同的yt-dlp策略
+            # 筛选适用的策略
+            applicable_strategies = []
             for strategy in self.strategies:
+                # 检查策略条件
+                if 'condition' in strategy:
+                    if strategy['condition'](options):
+                        applicable_strategies.append(strategy)
+                        logger.info(f"✅ 策略条件匹配: {strategy['name']}")
+                    else:
+                        logger.debug(f"⏭️ 策略条件不匹配: {strategy['name']}")
+                        continue
+                else:
+                    # 没有条件的策略总是适用
+                    applicable_strategies.append(strategy)
+
+            # 如果没有适用的策略，使用所有策略
+            if not applicable_strategies:
+                applicable_strategies = [s for s in self.strategies if 'condition' not in s]
+                logger.warning("⚠️ 没有匹配的策略，使用默认策略")
+
+            # 尝试适用的yt-dlp策略
+            for strategy in applicable_strategies:
                 try:
                     logger.info(f"🔄 yt-dlp策略: {strategy['name']}")
 
@@ -577,13 +604,35 @@ class YouTubeStrategies:
                 logger.debug(f"详细错误: {traceback.format_exc()}")
                 logger.warning("⚠️ 建议上传YouTube cookies以避免机器人检测")
 
-        # 添加FFmpeg路径
+        # 添加FFmpeg路径和音频兼容性修复
         ffmpeg_path = self._get_ffmpeg_path()
         if ffmpeg_path:
             opts['ffmpeg_location'] = ffmpeg_path
             logger.debug(f"✅ 使用FFmpeg: {ffmpeg_path}")
+
+            # 添加音频兼容性修复
+            if 'postprocessors' not in opts:
+                opts['postprocessors'] = []
+
+            # 确保MP4音频兼容性
+            opts['postprocessors'].extend([
+                {
+                    'key': 'FFmpegFixupM4a',  # 修复M4A音频兼容性问题
+                },
+                {
+                    'key': 'FFmpegVideoConvertor',  # 确保视频格式兼容性
+                    'preferedformat': 'mp4',
+                }
+            ])
+
+            # 音频编码优化 - 确保使用兼容的AAC编码
+            opts['postprocessor_args'] = {
+                'ffmpeg': ['-c:a', 'aac', '-avoid_negative_ts', 'make_zero']
+            }
+
+            logger.debug("✅ 添加MP4音频兼容性修复")
         else:
-            logger.warning("⚠️ 未找到FFmpeg，高质量合并可能失败")
+            logger.warning("⚠️ 未找到FFmpeg，高质量合并和音频修复可能失败")
 
         return opts
     
@@ -594,14 +643,25 @@ class YouTubeStrategies:
         # 检查FFmpeg是否可用
         ffmpeg_path = self._get_ffmpeg_path()
         if ffmpeg_path:
-            # FFmpeg可用，使用高质量合并格式
+            # FFmpeg可用，使用高质量合并格式，确保音频兼容性
             opts.update({
-                'format': 'bestvideo[height<=2160]+bestaudio/best[height<=2160]/best',
+                'format': 'bestvideo[height<=2160]+bestaudio[acodec^=mp4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160]/best',
                 'merge_output_format': 'mp4',
                 'writesubtitles': True,
                 'writethumbnail': True,
+                # 确保音频编码兼容性
+                'postprocessors': [{
+                    'key': 'FFmpegVideoConvertor',
+                    'preferedformat': 'mp4',
+                }, {
+                    'key': 'FFmpegFixupM4a',  # 修复M4A音频兼容性
+                }],
+                # 强制使用兼容的音频编码
+                'postprocessor_args': {
+                    'ffmpeg': ['-c:a', 'aac', '-b:a', '128k']  # 强制使用AAC音频编码
+                }
             })
-            logger.info("✅ 使用FFmpeg进行高质量合并")
+            logger.info("✅ 使用FFmpeg进行高质量合并（兼容音频编码）")
         else:
             # FFmpeg不可用，使用单一最佳格式
             opts.update({
@@ -633,7 +693,109 @@ class YouTubeStrategies:
             opts['cookiefile'] = cookies_path
         
         return opts
-    
+
+    def _get_audio_only_opts(self, download_id: str, url: str, options: Dict[str, Any]) -> Dict[str, Any]:
+        """仅音频下载选项"""
+        opts = self._get_default_opts(download_id, url, options)
+
+        # 检查是否指定了音频格式
+        quality = options.get('quality', 'audio_mp3_medium')
+
+        if quality.startswith('audio_'):
+            # 解析音频格式和质量
+            parts = quality.split('_')
+            if len(parts) >= 3:
+                audio_format = parts[1]  # mp3, aac, flac
+                audio_quality = parts[2]  # high, medium, low
+
+                # 设置音频格式选择器
+                if audio_format == 'flac':
+                    format_selector = 'bestaudio[ext=flac]/bestaudio'
+                elif audio_format == 'aac':
+                    format_selector = 'bestaudio[ext=m4a]/bestaudio[ext=aac]/bestaudio'
+                elif audio_format == 'ogg':
+                    format_selector = 'bestaudio[ext=ogg]/bestaudio'
+                else:  # mp3 或其他
+                    format_selector = 'bestaudio[ext=mp3]/bestaudio'
+
+                opts.update({
+                    'format': format_selector,
+                    'extractaudio': True,
+                    'audioformat': audio_format,
+                    'audioquality': self._get_audio_bitrate(audio_format, audio_quality),
+                })
+
+                # 如果需要转换格式，设置后处理器
+                if audio_format != 'best':
+                    opts['postprocessors'] = [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': audio_format,
+                        'preferredquality': self._get_audio_bitrate(audio_format, audio_quality),
+                    }]
+            else:
+                # 默认音频设置
+                opts.update({
+                    'format': 'bestaudio/best',
+                    'extractaudio': True,
+                    'audioformat': 'mp3',
+                    'audioquality': '192',
+                })
+        else:
+            # 传统的仅音频下载
+            opts.update({
+                'format': 'bestaudio/best',
+                'extractaudio': True,
+                'audioformat': 'mp3',
+                'audioquality': '192',
+            })
+
+        # 添加代理
+        proxy = self._get_proxy_config()
+        if proxy:
+            opts['proxy'] = proxy
+
+        return opts
+
+    def _get_audio_bitrate(self, format: str, quality: str) -> str:
+        """获取音频比特率"""
+        bitrate_map = {
+            'mp3': {
+                'high': '320',
+                'medium': '192',
+                'low': '128'
+            },
+            'aac': {
+                'high': '256',
+                'medium': '128',
+                'low': '96'
+            },
+            'flac': {
+                'lossless': '0'  # FLAC 无损
+            },
+            'ogg': {
+                'high': '6',
+                'medium': '4',
+                'low': '2'
+            }
+        }
+
+        return bitrate_map.get(format, {}).get(quality, '192')
+
+    def _is_audio_only_request(self, options: Dict[str, Any]) -> bool:
+        """判断是否为仅音频下载请求"""
+        quality = options.get('quality', '')
+        audio_only = options.get('audio_only', False)
+
+        # 检查是否明确指定了仅音频
+        if audio_only:
+            return True
+
+        # 检查质量参数是否包含音频标识
+        if isinstance(quality, str) and quality.startswith('audio_'):
+            return True
+
+        return False
+
     def _get_mobile_opts(self, download_id: str, url: str, options: Dict[str, Any]) -> Dict[str, Any]:
         """移动客户端下载选项"""
         opts = self._get_default_opts(download_id, url, options)

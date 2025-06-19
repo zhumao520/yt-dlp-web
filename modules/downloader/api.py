@@ -232,17 +232,63 @@ class UnifiedDownloadAPI:
             sorted_qualities = sorted(quality_map.values(), key=lambda x: x['height'], reverse=True)
             
             # 添加音频选项
-            sorted_qualities.append({
-                'quality': 'audio',
-                'display': '仅音频 (MP3)',
-                'size_info': '音频文件',
-                'format_id': 'audio_only',
-                'height': 0,
-                'width': 0,
-                'fps': 0,
-                'tbr': 0,
-                'ext': 'mp3'
-            })
+            audio_formats = [
+                {
+                    'quality': 'audio_mp3_high',
+                    'display': '仅音频 (MP3 高质量)',
+                    'size_info': '320kbps MP3',
+                    'format_id': 'audio_mp3_320k',
+                    'height': 0,
+                    'width': 0,
+                    'fps': 0,
+                    'tbr': 320,
+                    'ext': 'mp3',
+                    'audio_format': 'mp3',
+                    'audio_quality': 'high'
+                },
+                {
+                    'quality': 'audio_mp3_medium',
+                    'display': '仅音频 (MP3 中等)',
+                    'size_info': '192kbps MP3',
+                    'format_id': 'audio_mp3_192k',
+                    'height': 0,
+                    'width': 0,
+                    'fps': 0,
+                    'tbr': 192,
+                    'ext': 'mp3',
+                    'audio_format': 'mp3',
+                    'audio_quality': 'medium'
+                },
+                {
+                    'quality': 'audio_aac_high',
+                    'display': '仅音频 (AAC 高质量)',
+                    'size_info': '256kbps AAC',
+                    'format_id': 'audio_aac_256k',
+                    'height': 0,
+                    'width': 0,
+                    'fps': 0,
+                    'tbr': 256,
+                    'ext': 'm4a',
+                    'audio_format': 'aac',
+                    'audio_quality': 'high'
+                },
+                {
+                    'quality': 'audio_flac',
+                    'display': '仅音频 (FLAC 无损)',
+                    'size_info': '无损 FLAC',
+                    'format_id': 'audio_flac_lossless',
+                    'height': 0,
+                    'width': 0,
+                    'fps': 0,
+                    'tbr': 0,
+                    'ext': 'flac',
+                    'audio_format': 'flac',
+                    'audio_quality': 'lossless'
+                }
+            ]
+
+            # 添加音频选项到质量列表
+            sorted_qualities.extend(audio_formats)
             
             return sorted_qualities[:6]  # 最多6个选项
             

@@ -224,29 +224,186 @@ class FFmpegTools:
             logger.error(f"❌ 视频转换异常: {e}")
             return False
     
-    def extract_audio(self, input_path: str, output_path: str, format: str = 'mp3') -> bool:
+    def extract_audio(self, input_path: str, output_path: str, format: str = 'mp3', quality: str = 'medium') -> bool:
         """提取音频"""
         try:
-            args = [
-                '-i', input_path,
-                '-vn',  # 不包含视频
-                '-acodec', 'libmp3lame' if format == 'mp3' else 'copy',
-                '-y', output_path
-            ]
-            
+            args = ['-i', input_path, '-vn']  # 不包含视频
+
+            # 根据格式和质量设置编码器和参数
+            if format.lower() == 'mp3':
+                args.extend(['-acodec', 'libmp3lame'])
+                # MP3 质量设置
+                if quality == 'high':
+                    args.extend(['-b:a', '320k'])  # 320kbps
+                elif quality == 'medium':
+                    args.extend(['-b:a', '192k'])  # 192kbps
+                elif quality == 'low':
+                    args.extend(['-b:a', '128k'])  # 128kbps
+                else:
+                    args.extend(['-b:a', '192k'])  # 默认
+
+            elif format.lower() == 'aac':
+                args.extend(['-acodec', 'aac'])
+                # AAC 质量设置
+                if quality == 'high':
+                    args.extend(['-b:a', '256k'])  # 256kbps
+                elif quality == 'medium':
+                    args.extend(['-b:a', '128k'])  # 128kbps
+                elif quality == 'low':
+                    args.extend(['-b:a', '96k'])   # 96kbps
+                else:
+                    args.extend(['-b:a', '128k'])  # 默认
+
+            elif format.lower() == 'flac':
+                args.extend(['-acodec', 'flac'])
+                # FLAC 无损，不需要比特率设置
+
+            elif format.lower() == 'ogg':
+                args.extend(['-acodec', 'libvorbis'])
+                # OGG 质量设置
+                if quality == 'high':
+                    args.extend(['-q:a', '6'])     # 高质量
+                elif quality == 'medium':
+                    args.extend(['-q:a', '4'])     # 中等质量
+                elif quality == 'low':
+                    args.extend(['-q:a', '2'])     # 低质量
+                else:
+                    args.extend(['-q:a', '4'])     # 默认
+
+            elif format.lower() == 'm4a':
+                args.extend(['-acodec', 'aac'])
+                # M4A (AAC) 质量设置
+                if quality == 'high':
+                    args.extend(['-b:a', '256k'])
+                elif quality == 'medium':
+                    args.extend(['-b:a', '128k'])
+                elif quality == 'low':
+                    args.extend(['-b:a', '96k'])
+                else:
+                    args.extend(['-b:a', '128k'])
+
+            else:
+                # 默认使用 MP3
+                args.extend(['-acodec', 'libmp3lame', '-b:a', '192k'])
+
+            # 添加通用音频设置
+            args.extend(['-ar', '44100'])  # 采样率 44.1kHz
+            args.extend(['-ac', '2'])      # 立体声
+            args.extend(['-y', output_path])  # 覆盖输出文件
+
             result = self.run_ffmpeg_command(args)
-            
+
             if result['success']:
-                logger.info(f"✅ 音频提取成功: {output_path}")
+                logger.info(f"✅ 音频提取成功: {output_path} (格式: {format.upper()}, 质量: {quality})")
                 return True
             else:
                 logger.error(f"❌ 音频提取失败: {result.get('error', result.get('stderr', '未知错误'))}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"❌ 音频提取异常: {e}")
             return False
-    
+
+    def convert_audio(self, input_path: str, output_path: str, target_format: str = 'mp3', quality: str = 'medium') -> bool:
+        """转换音频格式"""
+        try:
+            args = ['-i', input_path]
+
+            # 根据目标格式设置编码器
+            if target_format.lower() == 'mp3':
+                args.extend(['-acodec', 'libmp3lame'])
+                if quality == 'high':
+                    args.extend(['-b:a', '320k'])
+                elif quality == 'medium':
+                    args.extend(['-b:a', '192k'])
+                else:
+                    args.extend(['-b:a', '128k'])
+
+            elif target_format.lower() == 'aac':
+                args.extend(['-acodec', 'aac'])
+                if quality == 'high':
+                    args.extend(['-b:a', '256k'])
+                elif quality == 'medium':
+                    args.extend(['-b:a', '128k'])
+                else:
+                    args.extend(['-b:a', '96k'])
+
+            elif target_format.lower() == 'flac':
+                args.extend(['-acodec', 'flac'])
+                # FLAC 无损，不设置比特率
+
+            elif target_format.lower() == 'ogg':
+                args.extend(['-acodec', 'libvorbis'])
+                if quality == 'high':
+                    args.extend(['-q:a', '6'])
+                elif quality == 'medium':
+                    args.extend(['-q:a', '4'])
+                else:
+                    args.extend(['-q:a', '2'])
+
+            # 通用设置
+            args.extend(['-ar', '44100', '-ac', '2', '-y', output_path])
+
+            result = self.run_ffmpeg_command(args)
+
+            if result['success']:
+                logger.info(f"✅ 音频转换成功: {output_path} ({target_format.upper()}, {quality})")
+                return True
+            else:
+                logger.error(f"❌ 音频转换失败: {result.get('error', result.get('stderr', '未知错误'))}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ 音频转换异常: {e}")
+            return False
+
+    def get_supported_audio_formats(self) -> Dict[str, Dict[str, Any]]:
+        """获取支持的音频格式"""
+        return {
+            'mp3': {
+                'name': 'MP3',
+                'description': '最常用的音频格式，兼容性好',
+                'codec': 'libmp3lame',
+                'extension': 'mp3',
+                'qualities': {
+                    'high': {'bitrate': '320k', 'description': '高质量 (320kbps)'},
+                    'medium': {'bitrate': '192k', 'description': '中等质量 (192kbps)'},
+                    'low': {'bitrate': '128k', 'description': '低质量 (128kbps)'}
+                }
+            },
+            'aac': {
+                'name': 'AAC',
+                'description': '高效音频编码，质量好文件小',
+                'codec': 'aac',
+                'extension': 'm4a',
+                'qualities': {
+                    'high': {'bitrate': '256k', 'description': '高质量 (256kbps)'},
+                    'medium': {'bitrate': '128k', 'description': '中等质量 (128kbps)'},
+                    'low': {'bitrate': '96k', 'description': '低质量 (96kbps)'}
+                }
+            },
+            'flac': {
+                'name': 'FLAC',
+                'description': '无损音频格式，文件较大',
+                'codec': 'flac',
+                'extension': 'flac',
+                'qualities': {
+                    'lossless': {'description': '无损压缩'}
+                }
+            },
+            'ogg': {
+                'name': 'OGG Vorbis',
+                'description': '开源音频格式，质量好',
+                'codec': 'libvorbis',
+                'extension': 'ogg',
+                'qualities': {
+                    'high': {'quality': '6', 'description': '高质量'},
+                    'medium': {'quality': '4', 'description': '中等质量'},
+                    'low': {'quality': '2', 'description': '低质量'}
+                }
+            }
+        }
+
     def get_video_info(self, video_path: str) -> Optional[Dict[str, Any]]:
         """获取视频信息"""
         try:

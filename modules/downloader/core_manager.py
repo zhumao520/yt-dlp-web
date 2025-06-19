@@ -287,54 +287,285 @@ class CoreDownloadManager:
     def _download_video(self, download_id: str, url: str, video_info: Dict[str, Any], options: Dict[str, Any]) -> Optional[str]:
         """下载视频 - 委托给策略模块"""
         try:
-            if self.youtube_strategies and 'youtube.com' in url:
+            if self.youtube_strategies and self._is_youtube_url(url):
+                logger.info(f"🎬 使用YouTube专用策略下载: {url}")
                 return self.youtube_strategies.download(download_id, url, video_info, options)
             else:
+                logger.info(f"🌐 使用通用yt-dlp下载非YouTube网站: {url}")
                 return self._fallback_download(download_id, url, video_info, options)
         except Exception as e:
             logger.error(f"❌ 视频下载失败: {e}")
             return None
+
+    def _is_youtube_url(self, url: str) -> bool:
+        """检查是否为YouTube URL"""
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url.lower())
+
+            # YouTube 官方域名列表
+            youtube_domains = [
+                'youtube.com',
+                'www.youtube.com',
+                'm.youtube.com',
+                'music.youtube.com',
+                'youtu.be',
+                'youtube-nocookie.com',
+                'www.youtube-nocookie.com'
+            ]
+
+            is_youtube = parsed.netloc in youtube_domains
+
+            if is_youtube:
+                logger.debug(f"✅ 检测到YouTube URL: {parsed.netloc}")
+            else:
+                logger.debug(f"🌐 检测到非YouTube URL: {parsed.netloc}")
+
+            return is_youtube
+
+        except Exception as e:
+            logger.error(f"❌ URL检测失败: {e}")
+            # 如果检测失败，保守地假设不是YouTube
+            return False
     
     def _fallback_extract_info(self, url: str) -> Optional[Dict[str, Any]]:
-        """备用信息提取"""
+        """备用信息提取 - 针对不同网站优化"""
         try:
             import yt_dlp
-            with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
-                return ydl.extract_info(url, download=False)
+
+            # 构建基本选项
+            ydl_opts = {
+                'quiet': True,
+                'no_warnings': False,
+                'extract_flat': False,
+            }
+
+            # 根据网站类型添加特殊配置
+            site_config = self._get_site_specific_config(url)
+            ydl_opts.update(site_config)
+
+            # 添加代理配置
+            proxy = self._get_proxy_config()
+            if proxy:
+                ydl_opts['proxy'] = proxy
+                logger.debug(f"✅ 信息提取使用代理: {proxy}")
+
+            # 添加 Cookies 支持
+            cookies_path = self._get_cookies_for_site(url)
+            if cookies_path:
+                ydl_opts['cookiefile'] = cookies_path
+                logger.debug(f"✅ 信息提取使用Cookies: {cookies_path}")
+
+            logger.info(f"🔍 信息提取配置: {self._get_site_name(url)}")
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if info:
+                    logger.info(f"✅ 信息提取成功: {info.get('title', 'Unknown')}")
+                    return info
+                else:
+                    logger.warning("⚠️ 信息提取返回空结果")
+                    return None
+
         except Exception as e:
             logger.error(f"❌ 备用信息提取失败: {e}")
             return None
     
     def _fallback_download(self, download_id: str, url: str, video_info: Dict[str, Any], options: Dict[str, Any]) -> Optional[str]:
-        """备用下载方法"""
+        """备用下载方法 - 针对不同网站优化"""
         try:
             import yt_dlp
-            
+
             # 构建基本选项
             ydl_opts = {
                 'outtmpl': str(self.output_dir / f'{download_id}.%(ext)s'),
                 'format': options.get('quality', 'best'),
+                'retries': 3,
+                'fragment_retries': 3,
+                'extractor_retries': 3,
+                'no_warnings': False,
+                'ignoreerrors': False,
             }
-            
+
+            # 根据网站类型添加特殊配置
+            site_config = self._get_site_specific_config(url)
+            ydl_opts.update(site_config)
+
+            # 添加代理配置
+            proxy = self._get_proxy_config()
+            if proxy:
+                ydl_opts['proxy'] = proxy
+                logger.info(f"✅ 备用下载使用代理: {proxy}")
+
+            # 添加 Cookies 支持
+            cookies_path = self._get_cookies_for_site(url)
+            if cookies_path:
+                ydl_opts['cookiefile'] = cookies_path
+                logger.info(f"✅ 备用下载使用Cookies: {cookies_path}")
+
+            logger.info(f"🌐 备用下载配置: {self._get_site_name(url)}")
+
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
-            
+
             # 查找下载的文件
             for file_path in self.output_dir.glob(f'{download_id}.*'):
                 if file_path.is_file():
+                    logger.info(f"✅ 备用下载成功: {file_path}")
                     return str(file_path)
-            
+
+            logger.warning("⚠️ 备用下载完成但未找到文件")
             return None
 
         except Exception as e:
             logger.error(f"❌ 备用下载失败: {e}")
             return None
 
+    def _get_site_specific_config(self, url: str) -> Dict[str, Any]:
+        """获取网站特定配置"""
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url.lower())
+            domain = parsed.netloc
+
+            # X 平台（Twitter）特殊配置
+            if any(x in domain for x in ['twitter.com', 'x.com']):
+                return {
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.5',
+                        'Accept-Encoding': 'gzip, deflate',
+                        'DNT': '1',
+                        'Connection': 'keep-alive',
+                        'Upgrade-Insecure-Requests': '1',
+                    },
+                    'sleep_interval': 1,
+                    'max_sleep_interval': 3,
+                    'writesubtitles': False,  # X 平台通常没有字幕
+                    'writeautomaticsub': False,
+                    'format': 'best[height<=720]/best',  # X 平台视频质量限制
+                }
+
+            # Instagram 特殊配置
+            elif 'instagram.com' in domain:
+                return {
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
+                        'Accept': '*/*',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                    },
+                    'sleep_interval': 2,
+                    'max_sleep_interval': 5,
+                    'format': 'best[height<=1080]/best',
+                }
+
+            # TikTok 特殊配置
+            elif 'tiktok.com' in domain:
+                return {
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Referer': 'https://www.tiktok.com/',
+                    },
+                    'sleep_interval': 1,
+                    'max_sleep_interval': 3,
+                    'format': 'best[height<=720]/best',
+                }
+
+            # Bilibili 特殊配置
+            elif 'bilibili.com' in domain:
+                return {
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Referer': 'https://www.bilibili.com/',
+                        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                    },
+                    'sleep_interval': 1,
+                    'max_sleep_interval': 2,
+                    'writesubtitles': True,
+                    'writeautomaticsub': True,
+                }
+
+            # 默认配置
+            else:
+                return {
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    },
+                    'sleep_interval': 1,
+                    'max_sleep_interval': 2,
+                }
+
+        except Exception as e:
+            logger.error(f"❌ 获取网站配置失败: {e}")
+            return {}
+
     def _get_max_retries(self, options: Dict[str, Any] = None) -> int:
         """获取最大重试次数"""
         if options and 'max_retries' in options:
             return max(0, int(options['max_retries']))
         return 3  # 默认值
+
+    def _get_site_name(self, url: str) -> str:
+        """获取网站名称"""
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(url.lower())
+            domain = parsed.netloc
+
+            site_names = {
+                'twitter.com': 'Twitter/X',
+                'x.com': 'Twitter/X',
+                'instagram.com': 'Instagram',
+                'tiktok.com': 'TikTok',
+                'bilibili.com': 'Bilibili',
+                'youtube.com': 'YouTube',
+                'youtu.be': 'YouTube',
+                'facebook.com': 'Facebook',
+                'vimeo.com': 'Vimeo',
+                'dailymotion.com': 'Dailymotion'
+            }
+
+            for site_domain, site_name in site_names.items():
+                if site_domain in domain:
+                    return site_name
+
+            return domain
+
+        except Exception:
+            return "未知网站"
+
+    def _get_cookies_for_site(self, url: str) -> Optional[str]:
+        """获取网站对应的 Cookies 文件"""
+        try:
+            # 尝试导入 cookies 管理器
+            from modules.cookies.manager import CookiesManager
+            cookies_manager = CookiesManager()
+            return cookies_manager.get_cookies_for_ytdlp(url)
+        except Exception as e:
+            logger.debug(f"🔍 获取Cookies失败: {e}")
+            return None
+
+    def _get_proxy_config(self) -> Optional[str]:
+        """获取代理配置"""
+        try:
+            # 尝试从配置中获取代理
+            from core.config import get_config
+            config = get_config()
+            proxy_config = config.get('proxy', {})
+
+            if proxy_config.get('enabled', False):
+                proxy_type = proxy_config.get('type', 'http')
+                proxy_host = proxy_config.get('host', '')
+                proxy_port = proxy_config.get('port', '')
+
+                if proxy_host and proxy_port:
+                    return f"{proxy_type}://{proxy_host}:{proxy_port}"
+
+            return None
+        except Exception as e:
+            logger.debug(f"🔍 获取代理配置失败: {e}")
+            return None
 
     def _save_to_database(self, download_id: str, url: str):
         """保存到数据库"""

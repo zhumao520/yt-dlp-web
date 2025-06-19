@@ -122,12 +122,50 @@ class PyTubeFixDownloader:
         except Exception as e:
             logger.error(f"❌ 提取视频ID失败: {e}")
             return None
+
+    def _is_youtube_url(self, url: str) -> bool:
+        """检查是否为YouTube URL"""
+        try:
+            parsed_url = urlparse(url.lower())
+
+            # YouTube 官方域名列表
+            youtube_domains = [
+                'youtube.com',
+                'www.youtube.com',
+                'm.youtube.com',
+                'music.youtube.com',
+                'youtu.be',
+                'youtube-nocookie.com',
+                'www.youtube-nocookie.com'
+            ]
+
+            is_youtube = parsed_url.netloc in youtube_domains
+
+            if is_youtube:
+                logger.debug(f"✅ PyTubeFix检测到YouTube URL: {parsed_url.netloc}")
+            else:
+                logger.debug(f"🌐 PyTubeFix检测到非YouTube URL: {parsed_url.netloc}")
+
+            return is_youtube
+
+        except Exception as e:
+            logger.error(f"❌ PyTubeFix URL检测失败: {e}")
+            # 如果检测失败，保守地假设不是YouTube
+            return False
     
     async def extract_info(self, url: str, quality: str = "720") -> Optional[Dict[str, Any]]:
         """提取视频信息"""
         try:
             logger.info(f"🔧 PyTubeFix开始提取: {url}")
-            
+
+            # 首先检查是否为YouTube URL
+            if not self._is_youtube_url(url):
+                logger.warning(f"⚠️ PyTubeFix只支持YouTube，跳过: {url}")
+                return {
+                    'error': 'unsupported_site',
+                    'message': 'PyTubeFix只支持YouTube网站'
+                }
+
             # 检查PyTubeFix是否可用
             try:
                 from pytubefix import YouTube
@@ -137,7 +175,7 @@ class PyTubeFixDownloader:
                     'error': 'pytubefix_not_installed',
                     'message': 'PyTubeFix未安装，请先安装PyTubeFix'
                 }
-            
+
             # 提取视频ID
             video_id = self._extract_video_id(url)
             if not video_id:
@@ -298,7 +336,15 @@ class PyTubeFixDownloader:
         """下载视频"""
         try:
             logger.info(f"📥 PyTubeFix开始下载: {url}")
-            
+
+            # 首先检查是否为YouTube URL
+            if not self._is_youtube_url(url):
+                logger.warning(f"⚠️ PyTubeFix只支持YouTube，跳过下载: {url}")
+                return {
+                    'error': 'unsupported_site',
+                    'message': 'PyTubeFix只支持YouTube网站'
+                }
+
             # 先提取信息
             info = await self.extract_info(url, quality)
             if not info or info.get('error'):
