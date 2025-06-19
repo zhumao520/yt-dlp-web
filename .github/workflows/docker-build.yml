@@ -77,7 +77,10 @@ jobs:
       id: get-gost-version
       run: |
         if [ "${{ inputs.install_warp }}" = "true" ]; then
-          echo "GOST_VERSION=$(curl -H 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -s https://api.github.com/repos/ginuerzh/gost/releases/latest | jq -r '.tag_name' | cut -c 2-)" >> "$GITHUB_OUTPUT"
+          # 简单智能获取最新版本，失败则使用备用
+          GOST_VERSION=$(curl -s https://api.github.com/repos/ginuerzh/gost/releases/latest | jq -r '.tag_name' | sed 's/^v//') || GOST_VERSION="2.12.0"
+          echo "GOST_VERSION=${GOST_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "✅ 使用 GOST 版本: ${GOST_VERSION}"
         else
           echo "GOST_VERSION=none" >> "$GITHUB_OUTPUT"
         fi
@@ -86,13 +89,10 @@ jobs:
       id: get-warp-version
       if: ${{ inputs.install_warp }}
       run: |
-        # 在构建机器上测试 WARP 仓库可用性
-        curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
-        echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
-        sudo apt-get update
-        WARP_VERSION=$(apt-cache show cloudflare-warp | grep '^Version:' | awk '{print $2}' | sed 's/-[0-9]*$//')
+        # 简单获取 WARP 版本，失败则使用 latest
+        WARP_VERSION=$(curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg && echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list && sudo apt-get update && apt-cache show cloudflare-warp 2>/dev/null | grep '^Version:' | head -1 | awk '{print $2}' | sed 's/-[0-9]*$//') || WARP_VERSION="latest"
         echo "WARP_VERSION=${WARP_VERSION}" >> "$GITHUB_OUTPUT"
-        echo "✅ 检测到 WARP 版本: ${WARP_VERSION}"
+        echo "✅ 使用 WARP 版本: ${WARP_VERSION}"
 
     - name: 🏗️ 构建并推送Docker镜像
       uses: docker/build-push-action@v5
