@@ -64,8 +64,8 @@ RUN if [ "$INSTALL_WARP" = "true" ]; then \
     fi
 
 # 安装 Cloudflare WARP（如果需要）
-RUN if [ "$INSTALL_WARP" = "true" ] && [ "$WARP_VERSION" != "none" ]; then \
-        echo "🔑 安装 Cloudflare WARP v${WARP_VERSION}..." && \
+RUN if [ "$INSTALL_WARP" = "true" ]; then \
+        echo "🔑 安装 Cloudflare WARP..." && \
         echo "🏗️ 构建平台: ${TARGETPLATFORM}" && \
         # 检测架构 \
         case ${TARGETPLATFORM} in \
@@ -74,15 +74,16 @@ RUN if [ "$INSTALL_WARP" = "true" ] && [ "$WARP_VERSION" != "none" ]; then \
             *) echo "❌ 不支持的平台: ${TARGETPLATFORM}" && exit 1 ;; \
         esac && \
         echo "🔍 使用架构: ${ARCH}" && \
-        # 使用预先验证的版本信息安装 \
+        # 添加 Cloudflare WARP 仓库 \
         curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg && \
-        echo "deb [arch=${ARCH} signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ bullseye main" > /etc/apt/sources.list.d/cloudflare-client.list && \
+        echo "deb [arch=${ARCH} signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" > /etc/apt/sources.list.d/cloudflare-client.list && \
         apt-get update && \
-        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cloudflare-warp=${WARP_VERSION}* && \
+        # 简单安装最新版本，不指定具体版本号 \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cloudflare-warp && \
         rm -rf /var/lib/apt/lists/* && \
-        echo "✅ WARP v${WARP_VERSION} 安装完成"; \
-    elif [ "$INSTALL_WARP" = "true" ]; then \
-        echo "⚠️ WARP 版本信息不可用，跳过安装"; \
+        echo "✅ WARP 安装完成"; \
+    else \
+        echo "⚠️ 跳过 WARP 安装"; \
     fi
 
 # 安装 GOST 代理（如果需要）
