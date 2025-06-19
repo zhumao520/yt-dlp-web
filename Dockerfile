@@ -95,11 +95,19 @@ RUN if [ "$INSTALL_WARP" = "true" ] && [ "$GOST_VERSION" != "none" ]; then \
             *) echo "❌ 不支持的平台: ${TARGETPLATFORM}" && exit 1 ;; \
         esac && \
         echo "🔍 构建平台: ${TARGETPLATFORM}，使用 GOST ${ARCH} v${GOST_VERSION}" && \
-        curl -fsSL -o /tmp/gost.gz "https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/gost-linux-${ARCH}-${GOST_VERSION}.gz" && \
-        gunzip /tmp/gost.gz && \
-        mv /tmp/gost /usr/local/bin/gost && \
-        chmod +x /usr/local/bin/gost && \
-        rm -f /tmp/gost.gz && \
+        curl -fsSL -o /tmp/gost.tar.gz "https://github.com/ginuerzh/gost/releases/download/v${GOST_VERSION}/gost_${GOST_VERSION}_linux_${ARCH}.tar.gz" && \
+        echo "✅ GOST 下载成功" && \
+        cd /tmp && \
+        tar -xzf gost.tar.gz && \
+        GOST_BINARY=$(find . -name "gost" -type f -executable | head -1) && \
+        if [ -n "$GOST_BINARY" ]; then \
+            mv "$GOST_BINARY" /usr/local/bin/gost && \
+            chmod +x /usr/local/bin/gost && \
+            echo "✅ GOST 安装到 /usr/local/bin/gost"; \
+        else \
+            echo "❌ 未找到 gost 可执行文件" && exit 1; \
+        fi && \
+        rm -rf /tmp/gost* && \
         echo "✅ GOST v${GOST_VERSION} 代理安装完成"; \
     elif [ "$INSTALL_WARP" = "true" ]; then \
         echo "⚠️ GOST 版本信息不可用，跳过安装"; \
