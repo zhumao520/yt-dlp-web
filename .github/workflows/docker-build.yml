@@ -85,14 +85,13 @@ jobs:
           echo "GOST_VERSION=none" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: 🔍 获取 WARP 客户端版本
+    - name: 🔍 设置 WARP 客户端版本
       id: get-warp-version
       if: ${{ inputs.install_warp }}
       run: |
-        # 简单获取 WARP 版本，失败则使用 latest
-        WARP_VERSION=$(curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg && echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list && sudo apt-get update && apt-cache show cloudflare-warp 2>/dev/null | grep '^Version:' | head -1 | awk '{print $2}' | sed 's/-[0-9]*$//') || WARP_VERSION="latest"
-        echo "WARP_VERSION=${WARP_VERSION}" >> "$GITHUB_OUTPUT"
-        echo "✅ 使用 WARP 版本: ${WARP_VERSION}"
+        # 直接使用 latest，避免复杂的 apt 操作
+        echo "WARP_VERSION=latest" >> "$GITHUB_OUTPUT"
+        echo "✅ 使用 WARP 版本: latest"
 
     - name: 🏗️ 构建并推送Docker镜像
       uses: docker/build-push-action@v5
