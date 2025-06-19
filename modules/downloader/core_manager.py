@@ -340,9 +340,9 @@ class CoreDownloadManager:
                 'extract_flat': False,
             }
 
-            # 根据网站类型添加特殊配置
-            site_config = self._get_site_specific_config(url)
-            ydl_opts.update(site_config)
+            # 使用新的平台配置系统
+            platform_config = self._get_platform_config(url, 'best')
+            ydl_opts.update(platform_config)
 
             # 添加代理配置
             proxy = self._get_proxy_config()
@@ -379,7 +379,6 @@ class CoreDownloadManager:
             # 构建基本选项
             ydl_opts = {
                 'outtmpl': str(self.output_dir / f'{download_id}.%(ext)s'),
-                'format': options.get('quality', 'best'),
                 'retries': 3,
                 'fragment_retries': 3,
                 'extractor_retries': 3,
@@ -387,9 +386,9 @@ class CoreDownloadManager:
                 'ignoreerrors': False,
             }
 
-            # 根据网站类型添加特殊配置
-            site_config = self._get_site_specific_config(url)
-            ydl_opts.update(site_config)
+            # 使用新的平台配置系统（包含格式选择）
+            platform_config = self._get_platform_config(url, options.get('quality', 'best'))
+            ydl_opts.update(platform_config)
 
             # 添加代理配置
             proxy = self._get_proxy_config()
@@ -421,6 +420,25 @@ class CoreDownloadManager:
             logger.error(f"❌ 备用下载失败: {e}")
             return None
 
+    def _get_platform_config(self, url: str, quality: str = 'best') -> Dict[str, Any]:
+        """使用新的平台配置系统"""
+        try:
+            from .platforms import get_platform_for_url
+
+            # 获取对应的平台处理器
+            platform = get_platform_for_url(url)
+
+            # 获取平台特定配置
+            config = platform.get_config(url, quality)
+
+            logger.info(f"🎯 使用平台配置: {platform.name} for {url}")
+            return config
+
+        except Exception as e:
+            logger.error(f"❌ 获取平台配置失败: {e}")
+            # 回退到旧的配置方法
+            return self._get_site_specific_config(url)
+
     def _get_site_specific_config(self, url: str) -> Dict[str, Any]:
         """获取网站特定配置"""
         try:
@@ -444,7 +462,18 @@ class CoreDownloadManager:
                     'max_sleep_interval': 3,
                     'writesubtitles': False,  # X 平台通常没有字幕
                     'writeautomaticsub': False,
-                    'format': 'best[height<=720]/best',  # X 平台视频质量限制
+                    # X 平台专用格式选择 - 优先选择可用格式
+                    'format': 'best[ext=mp4]/best[ext=m4v]/best[height<=720]/best/worst',
+                    # 添加 X 平台特殊选项
+                    'extractor_args': {
+                        'twitter': {
+                            'api': ['syndication', 'legacy'],  # 使用多种 API
+                        }
+                    },
+                    # 增加重试和容错
+                    'retries': 5,
+                    'fragment_retries': 5,
+                    'extractor_retries': 3,
                 }
 
             # Instagram 特殊配置
@@ -466,10 +495,30 @@ class CoreDownloadManager:
                     'http_headers': {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                         'Referer': 'https://www.tiktok.com/',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'Sec-Fetch-Dest': 'document',
+                        'Sec-Fetch-Mode': 'navigate',
+                        'Sec-Fetch-Site': 'none',
+                        'Sec-Fetch-User': '?1',
                     },
                     'sleep_interval': 1,
                     'max_sleep_interval': 3,
-                    'format': 'best[height<=720]/best',
+                    # TikTok 专用格式选择
+                    'format': 'best[ext=mp4][height<=1080]/best[ext=webm][height<=1080]/best[height<=1080]/best/worst',
+                    # TikTok 特殊选项
+                    'extractor_args': {
+                        'tiktok': {
+                            'api': ['web', 'mobile'],  # 使用多种 API
+                        }
+                    },
+                    # 增加重试和容错
+                    'retries': 4,
+                    'fragment_retries': 4,
+                    'extractor_retries': 3,
+                    'writesubtitles': False,  # TikTok 通常没有字幕
+                    'writeautomaticsub': False,
                 }
 
             # Bilibili 特殊配置
@@ -478,12 +527,28 @@ class CoreDownloadManager:
                     'http_headers': {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                         'Referer': 'https://www.bilibili.com/',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                        'Accept-Encoding': 'gzip, deflate, br',
+                        'Origin': 'https://www.bilibili.com',
                     },
                     'sleep_interval': 1,
                     'max_sleep_interval': 2,
-                    'writesubtitles': True,
+                    # Bilibili 专用格式选择
+                    'format': 'best[ext=mp4][height<=1080]/best[ext=flv][height<=1080]/best[height<=1080]/best/worst',
+                    # Bilibili 特殊选项
+                    'extractor_args': {
+                        'bilibili': {
+                            'api': ['web', 'app'],  # 使用多种 API
+                        }
+                    },
+                    # 增加重试和容错
+                    'retries': 4,
+                    'fragment_retries': 4,
+                    'extractor_retries': 3,
+                    'writesubtitles': True,   # Bilibili 支持字幕
                     'writeautomaticsub': True,
+                    'subtitleslangs': ['zh-CN', 'zh-TW', 'en'],  # 支持多语言字幕
                 }
 
             # 默认配置
@@ -499,6 +564,8 @@ class CoreDownloadManager:
         except Exception as e:
             logger.error(f"❌ 获取网站配置失败: {e}")
             return {}
+
+
 
     def _get_max_retries(self, options: Dict[str, Any] = None) -> int:
         """获取最大重试次数"""
