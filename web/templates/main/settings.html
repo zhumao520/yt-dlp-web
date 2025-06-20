@@ -1,253 +1,243 @@
-{% extends "base.html" %}
+{% extends "base_modern.html" %}
 
-{% block title %}系统设置 - YT-DLP Web{% endblock %}
+{% block title %}设置 - YT-DLP Web{% endblock %}
 
 {% block content %}
-<div class="container-fluid" id="settingsApp">
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h2 class="mb-4">
+                <i class="bi bi-gear me-2 text-primary"></i>系统设置
+            </h2>
 
-    <!-- 页面标题 -->
-    <div class="row mb-4">
-        <div class="col">
-            <h1 class="h2 mb-1">系统设置</h1>
-            <p class="text-muted">配置应用的全局设置</p>
+    <!-- 简洁的选项卡设计 - 强制内联样式 -->
+    <div style="background: var(--bg-primary); border-radius: 8px; box-shadow: var(--shadow); overflow: hidden; margin: 0; padding: 0;">
+        <!-- 选项卡按钮 -->
+        <div style="display: flex; background: var(--bg-secondary); margin: 0; padding: 0; border-bottom: 1px solid var(--border-color);">
+            <button class="settings-tab active" data-target="general" style="flex: 1; padding: 1rem; background: var(--bg-primary); border: none; cursor: pointer; font-weight: 500; color: #0d6efd; border-bottom: 2px solid #0d6efd; margin: 0;">
+                <i class="bi bi-gear me-2"></i>基础设置
+            </button>
+            <button class="settings-tab" data-target="download" style="flex: 1; padding: 1rem; background: none; border: none; cursor: pointer; font-weight: 500; color: var(--text-secondary); margin: 0;">
+                <i class="bi bi-download me-2"></i>下载配置
+            </button>
+            <button class="settings-tab" data-target="security" style="flex: 1; padding: 1rem; background: none; border: none; cursor: pointer; font-weight: 500; color: var(--text-secondary); margin: 0;">
+                <i class="bi bi-shield me-2"></i>安全设置
+            </button>
+            <button class="settings-tab" data-target="shortcuts" style="flex: 1; padding: 1rem; background: none; border: none; cursor: pointer; font-weight: 500; color: var(--text-secondary); margin: 0;">
+                <i class="bi bi-phone me-2"></i>iOS快捷指令
+            </button>
+            <button class="settings-tab" data-target="advanced" style="flex: 1; padding: 1rem; background: none; border: none; cursor: pointer; font-weight: 500; color: var(--text-secondary); margin: 0;">
+                <i class="bi bi-lightning me-2"></i>高级功能
+            </button>
         </div>
-    </div>
 
-    <!-- 设置选项卡 -->
-    <div class="row mb-4">
-        <div class="col">
-            <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
-                        <i class="bi bi-gear me-2"></i>基础设置
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="download-tab" data-bs-toggle="tab" data-bs-target="#download" type="button" role="tab">
-                        <i class="bi bi-download me-2"></i>下载配置
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab">
-                        <i class="bi bi-shield me-2"></i>安全设置
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="shortcuts-tab" data-bs-toggle="tab" data-bs-target="#shortcuts" type="button" role="tab">
-                        <i class="bi bi-phone me-2"></i>iOS快捷指令
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced" type="button" role="tab">
-                        <i class="bi bi-lightning me-2"></i>高级功能
-                    </button>
-                </li>
-            </ul>
-        </div>
-    </div>
-
-    <!-- 选项卡内容 -->
-    <div class="tab-content" id="settingsTabContent">
-
-        <!-- 基础设置 -->
-        <div class="tab-pane fade show active" id="general" role="tabpanel">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-gear me-2"></i>基础设置
-                    </h5>
-
-                    <form id="generalForm">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="appName" class="form-label">应用名称</label>
-                                <input type="text" class="form-control" id="appName" value="YT-DLP Web">
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="sessionTimeout" class="form-label">会话超时 (小时)</label>
-                                <input type="number" class="form-control" id="sessionTimeout" value="24" min="1" max="168">
-                            </div>
-
-                            <div class="col-12">
-                                <label for="secretKey" class="form-label">应用密钥</label>
-                                <div class="input-group">
-                                    <input type="password" class="form-control" id="secretKey" placeholder="点击生成新密钥">
-                                    <button type="button" class="btn btn-outline-secondary" id="toggleSecretKey">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary" id="generateSecretKey">
-                                        生成新密钥
-                                    </button>
-                                </div>
-                                <div class="form-text">用于会话加密，修改后所有用户需要重新登录</div>
-                            </div>
-
-                            <div class="col-12">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="debugMode">
-                                    <label class="form-check-label" for="debugMode">
-                                        启用调试模式
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-check-lg me-2"></i>保存基础设置
+        <!-- 选项卡内容 -->
+        <div style="padding: 1.5rem; background: var(--bg-primary); margin: 0;">
+            <!-- 基础设置 -->
+            <div class="settings-panel active" id="general">
+                <h5 class="mb-3 fw-bold">
+                    <i class="bi bi-gear me-2 text-primary"></i>基础设置
+                </h5>
+                <form id="generalForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="appName" class="form-label fw-bold">
+                                <i class="bi bi-app me-1 text-primary"></i>应用名称
+                            </label>
+                            <input type="text" class="form-control modern-input" id="appName" value="YT-DLP Web">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="sessionTimeout" class="form-label fw-bold">
+                                <i class="bi bi-clock me-1 text-success"></i>会话超时 (小时)
+                            </label>
+                            <input type="number" class="form-control modern-input" id="sessionTimeout" value="24" min="1" max="168">
+                        </div>
+                        <div class="col-12">
+                            <label for="secretKey" class="form-label fw-bold">
+                                <i class="bi bi-key me-1 text-warning"></i>应用密钥
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control modern-input" id="secretKey" placeholder="点击生成新密钥" autocomplete="new-password">
+                                <button type="button" class="btn btn-outline-secondary modern-btn" id="toggleSecretKey">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary modern-btn" id="generateSecretKey">
+                                    生成新密钥
                                 </button>
                             </div>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>用于会话加密，修改后所有用户需要重新登录
+                            </div>
                         </div>
-                    </form>
-                </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="debugMode">
+                                <label class="form-check-label" for="debugMode">
+                                    启用调试模式
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary modern-btn py-3 px-5"
+                                    style="background: var(--gradient-primary); border: none; font-size: 1.1rem;">
+                                <i class="bi bi-check-lg me-2"></i>保存基础设置
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
-        </div>
 
-        <!-- 下载配置 -->
-        <div class="tab-pane fade" id="download" role="tabpanel">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-download me-2"></i>下载配置
-                    </h5>
-
-                    <form id="downloadForm">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="outputDir" class="form-label">下载目录</label>
-                                <input type="text" class="form-control" id="outputDir" value="/downloads">
+            <!-- 下载配置 -->
+            <div class="settings-panel" id="download">
+                <h5 class="mb-3 fw-bold">
+                    <i class="bi bi-download me-2 text-primary"></i>下载配置
+                </h5>
+                <form id="downloadForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="outputDir" class="form-label fw-bold">
+                                <i class="bi bi-folder me-1 text-primary"></i>下载目录
+                            </label>
+                            <input type="text" class="form-control modern-input" id="outputDir" value="/downloads">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="maxConcurrent" class="form-label fw-bold">
+                                <i class="bi bi-layers me-1 text-success"></i>最大并发下载数
+                            </label>
+                            <input type="number" class="form-control modern-input" id="maxConcurrent" value="3" min="1" max="10">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="downloadTimeout" class="form-label fw-bold">
+                                <i class="bi bi-clock me-1 text-warning"></i>下载超时 (秒)
+                            </label>
+                            <input type="number" class="form-control modern-input" id="downloadTimeout" value="300" min="60" max="3600">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="defaultQuality" class="form-label fw-bold">
+                                <i class="bi bi-badge-hd me-1 text-info"></i>默认视频质量
+                            </label>
+                            <select class="form-select modern-input" id="defaultQuality">
+                                <option value="best">🏆 最高质量</option>
+                                <option value="medium" selected>⚡ 中等质量 (720p)</option>
+                                <option value="low">💾 低质量</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="autoCleanup">
+                                <label class="form-check-label fw-bold" for="autoCleanup">
+                                    <i class="bi bi-trash me-1 text-danger"></i>启用自动清理
+                                </label>
                             </div>
-
-                            <div class="col-md-6">
-                                <label for="maxConcurrent" class="form-label">最大并发下载数</label>
-                                <input type="number" class="form-control" id="maxConcurrent" value="3" min="1" max="10">
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="downloadTimeout" class="form-label">下载超时 (秒)</label>
-                                <input type="number" class="form-control" id="downloadTimeout" value="300" min="60" max="3600">
-                            </div>
-
-                            <div class="col-md-6">
-                                <label for="defaultQuality" class="form-label">默认视频质量</label>
-                                <select class="form-select" id="defaultQuality">
-                                    <option value="best">最高质量</option>
-                                    <option value="medium" selected>中等质量 (720p)</option>
-                                    <option value="low">低质量</option>
-                                </select>
-                            </div>
-
-                            <div class="col-12">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="autoCleanup">
-                                    <label class="form-check-label" for="autoCleanup">
-                                        启用自动清理
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="col-12" id="cleanupOptions" style="display: none;">
-                                <div class="card bg-light">
-                                    <div class="card-body">
-                                        <h6 class="card-title">自动清理选项</h6>
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label for="fileRetention" class="form-label">文件保留时间 (小时)</label>
-                                                <input type="number" class="form-control" id="fileRetention" value="72" min="1" max="8760">
-                                            </div>
-
-                                            <div class="col-md-6">
-                                                <label for="cleanupInterval" class="form-label">清理间隔 (小时)</label>
-                                                <input type="number" class="form-control" id="cleanupInterval" value="6" min="1" max="168">
-                                            </div>
-
-                                            <div class="col-md-6">
-                                                <label for="maxStorage" class="form-label">最大存储空间 (MB)</label>
-                                                <input type="number" class="form-control" id="maxStorage" value="5000" min="100">
-                                            </div>
-
-                                            <div class="col-md-6">
-                                                <label for="keepRecentFiles" class="form-label">保留最近文件数</label>
-                                                <input type="number" class="form-control" id="keepRecentFiles" value="10" min="1" max="100">
-                                            </div>
-                                        </div>
+                        </div>
+                        <div class="col-12" id="cleanupOptions" style="display: none;">
+                            <div class="modern-card p-3" style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px;">
+                                <h6 class="fw-bold mb-3">
+                                    <i class="bi bi-gear me-1 text-primary"></i>自动清理选项
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="fileRetention" class="form-label fw-bold">
+                                            <i class="bi bi-clock-history me-1 text-warning"></i>文件保留时间 (小时)
+                                        </label>
+                                        <input type="number" class="form-control modern-input" id="fileRetention" value="72" min="1" max="8760">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="cleanupInterval" class="form-label fw-bold">
+                                            <i class="bi bi-arrow-repeat me-1 text-info"></i>清理间隔 (小时)
+                                        </label>
+                                        <input type="number" class="form-control modern-input" id="cleanupInterval" value="6" min="1" max="168">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="maxStorage" class="form-label fw-bold">
+                                            <i class="bi bi-hdd me-1 text-success"></i>最大存储空间 (MB)
+                                        </label>
+                                        <input type="number" class="form-control modern-input" id="maxStorage" value="5000" min="100">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="keepRecentFiles" class="form-label fw-bold">
+                                            <i class="bi bi-files me-1 text-primary"></i>保留最近文件数
+                                        </label>
+                                        <input type="number" class="form-control modern-input" id="keepRecentFiles" value="10" min="1" max="100">
                                     </div>
                                 </div>
                             </div>
-
-                            <div class="col-12">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-check-lg me-2"></i>保存下载配置
-                                </button>
-                            </div>
                         </div>
-                    </form>
-                </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary modern-btn py-3 px-5"
+                                    style="background: var(--gradient-primary); border: none; font-size: 1.1rem;">
+                                <i class="bi bi-check-lg me-2"></i>保存下载配置
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
-        </div>
 
-        <!-- 安全设置 -->
-        <div class="tab-pane fade" id="security" role="tabpanel">
-            <div class="row g-4">
-                <!-- 修改用户名 -->
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-person me-2"></i>修改管理员用户名
+            <!-- 安全设置 -->
+            <div class="settings-panel" id="security">
+                <div class="row g-3">
+                    <!-- 修改用户名 -->
+                    <div class="col-12">
+                        <div class="modern-card p-4">
+                            <h5 class="mb-3 fw-bold">
+                                <i class="bi bi-person me-2 text-primary"></i>修改管理员用户名
                             </h5>
-
                             <form id="usernameForm">
                                 <div class="row g-3">
                                     <div class="col-md-6">
-                                        <label for="currentUsernamePassword" class="form-label">当前密码</label>
-                                        <input type="password" class="form-control" id="currentUsernamePassword" autocomplete="current-password" required>
+                                        <label for="currentUsernamePassword" class="form-label fw-bold">
+                                            <i class="bi bi-lock me-1 text-warning"></i>当前密码
+                                        </label>
+                                        <input type="password" class="form-control modern-input" id="currentUsernamePassword" autocomplete="current-password" required>
                                     </div>
-
                                     <div class="col-md-6">
-                                        <label for="newUsername" class="form-label">新用户名</label>
-                                        <input type="text" class="form-control" id="newUsername" autocomplete="username" minlength="3" required>
+                                        <label for="newUsername" class="form-label fw-bold">
+                                            <i class="bi bi-person me-1 text-primary"></i>新用户名
+                                        </label>
+                                        <input type="text" class="form-control modern-input" id="newUsername" autocomplete="username" minlength="3" required>
                                     </div>
-
                                     <div class="col-12">
-                                        <button type="submit" class="btn btn-warning">
+                                        <button type="submit" class="btn btn-warning modern-btn py-2 px-4">
                                             <i class="bi bi-person me-2"></i>修改用户名
                                         </button>
-                                        <small class="text-muted ms-2">修改后需要重新登录</small>
+                                        <small class="text-muted ms-2">
+                                            <i class="bi bi-info-circle me-1"></i>修改后需要重新登录
+                                        </small>
                                     </div>
                                 </div>
                             </form>
                         </div>
                     </div>
-                </div>
 
-                <!-- 修改密码 -->
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-key me-2"></i>修改管理员密码
+                    <!-- 修改密码 -->
+                    <div class="col-12">
+                        <div class="modern-card p-4">
+                            <h5 class="mb-3 fw-bold">
+                                <i class="bi bi-key me-2 text-primary"></i>修改管理员密码
                             </h5>
-
                             <form id="passwordForm">
                                 <div class="row g-3">
                                     <div class="col-md-4">
-                                        <label for="currentPassword" class="form-label">当前密码</label>
-                                        <input type="password" class="form-control" id="currentPassword" autocomplete="current-password" required>
+                                        <label for="currentPassword" class="form-label fw-bold">
+                                            <i class="bi bi-lock me-1 text-warning"></i>当前密码
+                                        </label>
+                                        <input type="password" class="form-control modern-input" id="currentPassword" autocomplete="current-password" required>
                                     </div>
-
                                     <div class="col-md-4">
-                                        <label for="newPassword" class="form-label">新密码</label>
-                                        <input type="password" class="form-control" id="newPassword" autocomplete="new-password" minlength="6" required>
+                                        <label for="newPassword" class="form-label fw-bold">
+                                            <i class="bi bi-key me-1 text-success"></i>新密码
+                                        </label>
+                                        <input type="password" class="form-control modern-input" id="newPassword" autocomplete="new-password" minlength="6" required>
                                     </div>
-
                                     <div class="col-md-4">
-                                        <label for="confirmPassword" class="form-label">确认新密码</label>
-                                        <input type="password" class="form-control" id="confirmPassword" autocomplete="new-password" required>
+                                        <label for="confirmPassword" class="form-label fw-bold">
+                                            <i class="bi bi-shield-check me-1 text-info"></i>确认新密码
+                                        </label>
+                                        <input type="password" class="form-control modern-input" id="confirmPassword" autocomplete="new-password" required>
                                     </div>
-
                                     <div class="col-12">
-                                        <button type="submit" class="btn btn-primary">
+                                        <button type="submit" class="btn btn-primary modern-btn py-2 px-4"
+                                                style="background: var(--gradient-primary); border: none;">
                                             <i class="bi bi-key me-2"></i>修改密码
                                         </button>
                                     </div>
@@ -255,44 +245,43 @@
                             </form>
                         </div>
                     </div>
-                </div>
 
-                <!-- API访问控制 -->
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">
-                                <i class="bi bi-shield-check me-2"></i>API访问控制
+                    <!-- API访问控制 -->
+                    <div class="col-12">
+                        <div class="modern-card p-4">
+                            <h5 class="mb-3 fw-bold">
+                                <i class="bi bi-shield-check me-2 text-primary"></i>API访问控制
                             </h5>
-
                             <form id="apiForm">
                                 <div class="row g-3">
                                     <div class="col-12">
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="apiEnabled">
-                                            <label class="form-check-label" for="apiEnabled">
-                                                启用API访问
+                                            <label class="form-check-label fw-bold" for="apiEnabled">
+                                                <i class="bi bi-toggle-on me-1 text-success"></i>启用API访问
                                             </label>
                                         </div>
                                     </div>
-
                                     <div class="col-12" id="apiKeySection" style="display: none;">
-                                        <label for="apiKey" class="form-label">API密钥</label>
+                                        <label for="apiKey" class="form-label fw-bold">
+                                            <i class="bi bi-key me-1 text-primary"></i>API密钥
+                                        </label>
                                         <div class="input-group">
-                                            <input type="text" class="form-control" id="apiKey" readonly>
-                                            <button type="button" class="btn btn-outline-secondary" id="generateApiKey">
+                                            <input type="text" class="form-control modern-input" id="apiKey" readonly>
+                                            <button type="button" class="btn btn-outline-secondary modern-btn" id="generateApiKey">
                                                 重新生成
                                             </button>
                                         </div>
-
-                                        <div class="alert alert-info mt-3">
-                                            <i class="bi bi-info-circle me-2"></i>
-                                            此API密钥可用于iOS快捷指令等第三方应用访问下载服务
+                                        <div class="modern-card p-3 mt-3" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                                            <div class="text-white">
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                此API密钥可用于iOS快捷指令等第三方应用访问下载服务
+                                            </div>
                                         </div>
                                     </div>
-
                                     <div class="col-12">
-                                        <button type="submit" class="btn btn-primary">
+                                        <button type="submit" class="btn btn-primary modern-btn py-2 px-4"
+                                                style="background: var(--gradient-primary); border: none;">
                                             <i class="bi bi-check-lg me-2"></i>保存API设置
                                         </button>
                                     </div>
@@ -302,22 +291,20 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- iOS快捷指令 -->
-        <div class="tab-pane fade" id="shortcuts" role="tabpanel">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-phone me-2"></i>iOS快捷指令集成
+            <!-- iOS快捷指令 -->
+            <div class="settings-panel" id="shortcuts">
+                <div class="modern-card p-4">
+                    <h5 class="mb-3 fw-bold">
+                        <i class="bi bi-phone me-2 text-primary"></i>iOS快捷指令集成
                     </h5>
 
                     <!-- 服务状态 -->
-                    <div class="alert alert-success mb-4">
-                        <div class="d-flex">
+                    <div class="modern-card p-4 mb-4" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        <div class="d-flex text-white">
                             <i class="bi bi-check-circle me-3 mt-1"></i>
                             <div>
-                                <h6 class="alert-heading">iOS快捷指令API已就绪</h6>
+                                <h6 class="fw-bold">iOS快捷指令API已就绪</h6>
                                 <p class="mb-0">您可以使用以下信息配置iOS快捷指令来下载视频</p>
                             </div>
                         </div>
@@ -326,218 +313,112 @@
                     <!-- API配置信息 -->
                     <div class="mb-4">
                         <h6 class="mb-3">API配置信息</h6>
-
                         <div class="row g-3">
                             <div class="col-12">
-                                <label class="form-label">服务器地址</label>
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-server me-1 text-primary"></i>服务器地址
+                                </label>
                                 <div class="input-group">
-                                    <input type="text" class="form-control" id="serverUrl" readonly>
-                                    <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('serverUrl')">
+                                    <input type="text" class="form-control modern-input" id="serverUrl" readonly>
+                                    <button type="button" class="btn btn-outline-secondary modern-btn" onclick="copyToClipboard('serverUrl')">
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 </div>
                             </div>
-
                             <div class="col-12">
-                                <label class="form-label">下载API端点</label>
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-link me-1 text-success"></i>下载API端点
+                                </label>
                                 <div class="input-group">
-                                    <input type="text" class="form-control" id="downloadEndpoint" readonly>
-                                    <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('downloadEndpoint')">
+                                    <input type="text" class="form-control modern-input" id="downloadEndpoint" readonly>
+                                    <button type="button" class="btn btn-outline-secondary modern-btn" onclick="copyToClipboard('downloadEndpoint')">
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 </div>
                             </div>
-
                             <div class="col-12" id="apiKeySection2" style="display: none;">
-                                <label class="form-label">API密钥</label>
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-key me-1 text-warning"></i>API密钥
+                                </label>
                                 <div class="input-group">
-                                    <input type="text" class="form-control" id="apiKeyDisplay" readonly>
-                                    <button type="button" class="btn btn-outline-secondary" onclick="copyToClipboard('apiKeyDisplay')">
+                                    <input type="text" class="form-control modern-input" id="apiKeyDisplay" readonly>
+                                    <button type="button" class="btn btn-outline-secondary modern-btn" onclick="copyToClipboard('apiKeyDisplay')">
                                         <i class="bi bi-clipboard"></i>
                                     </button>
                                 </div>
-                                <div class="form-text">在快捷指令中使用此API密钥进行认证</div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>在快捷指令中使用此API密钥进行认证
+                                </div>
                             </div>
-
                             <div class="col-12" id="apiKeyWarning2">
-                                <div class="alert alert-warning">
-                                    <i class="bi bi-exclamation-triangle me-2"></i>
-                                    请先在"安全设置"中启用API访问并生成API密钥
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 快捷指令模板 -->
-                    <div class="border-top pt-4 mb-4">
-                        <h6 class="mb-3">快捷指令配置模板</h6>
-
-                        <div class="row g-3">
-                            <!-- 基础下载模板 -->
-                            <div class="col-md-6">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h6 class="card-title">
-                                            <i class="bi bi-download me-2"></i>基础下载快捷指令
-                                        </h6>
-                                        <p class="card-text small text-muted">
-                                            从剪贴板获取URL并下载视频到文件应用
-                                        </p>
-
-                                        <div class="bg-light rounded p-3 mb-3">
-                                            <div class="small">
-                                                <div>1. 获取剪贴板</div>
-                                                <div>2. 获取URL内容 (POST)</div>
-                                                <div class="ms-3 text-primary">URL: /api/shortcuts/download</div>
-                                                <div class="ms-3">JSON: {"url": "[剪贴板]", "api_key": "your_key"}</div>
-                                                <div>3. 等待下载完成</div>
-                                                <div>4. 保存文件到iCloud Drive</div>
-                                            </div>
-                                        </div>
-
-                                        <button type="button" class="btn btn-primary btn-sm" onclick="downloadShortcutTemplate('basic')">
-                                            <i class="bi bi-download me-2"></i>下载配置文件
-                                        </button>
+                                <div class="modern-card p-3" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                    <div class="text-white">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        请先在"安全设置"中启用API访问并生成API密钥
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- 高级下载模板 -->
-                            <div class="col-md-6">
-                                <div class="card h-100">
-                                    <div class="card-body">
-                                        <h6 class="card-title">
-                                            <i class="bi bi-gear me-2"></i>高级下载快捷指令
-                                        </h6>
-                                        <p class="card-text small text-muted">
-                                            支持质量选择、进度显示和错误处理
-                                        </p>
-
-                                        <div class="bg-light rounded p-3 mb-3">
-                                            <div class="small">
-                                                <div>1. 获取剪贴板内容</div>
-                                                <div>2. 选择视频质量 (最高/中等/低)</div>
-                                                <div>3. 选择下载类型 (视频/音频)</div>
-                                                <div>4. 发送下载请求</div>
-                                                <div>5. 显示进度通知</div>
-                                                <div>6. 下载完成后保存文件</div>
-                                            </div>
-                                        </div>
-
-                                        <button type="button" class="btn btn-primary btn-sm" onclick="downloadShortcutTemplate('advanced')">
-                                            <i class="bi bi-download me-2"></i>下载配置文件
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 使用说明 -->
-                    <div class="border-top pt-4">
-                        <h6 class="mb-3">使用说明</h6>
-
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <div class="d-flex">
-                                    <span class="badge bg-primary rounded-circle me-3 mt-1" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">1</span>
-                                    <div>
-                                        <h6 class="mb-1">配置API访问</h6>
-                                        <p class="text-muted small mb-0">在"安全设置"中启用API访问并生成API密钥</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="d-flex">
-                                    <span class="badge bg-primary rounded-circle me-3 mt-1" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">2</span>
-                                    <div>
-                                        <h6 class="mb-1">创建快捷指令</h6>
-                                        <p class="text-muted small mb-0">在iOS"快捷指令"应用中创建新的快捷指令</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="d-flex">
-                                    <span class="badge bg-primary rounded-circle me-3 mt-1" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">3</span>
-                                    <div>
-                                        <h6 class="mb-1">配置API调用</h6>
-                                        <p class="text-muted small mb-0">使用上面的API端点和密钥配置HTTP请求</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-md-6">
-                                <div class="d-flex">
-                                    <span class="badge bg-primary rounded-circle me-3 mt-1" style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">4</span>
-                                    <div>
-                                        <h6 class="mb-1">测试使用</h6>
-                                        <p class="text-muted small mb-0">复制视频链接到剪贴板，运行快捷指令测试</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="alert alert-info mt-3">
-                            <i class="bi bi-info-circle me-2"></i>
-                            详细配置教程请参考项目文档中的"iOS快捷指令集成指南"
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- 高级功能 -->
-        <div class="tab-pane fade" id="advanced" role="tabpanel">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-lightning me-2"></i>高级功能
+            <!-- 高级功能 -->
+            <div class="settings-panel" id="advanced">
+                <div class="modern-card p-4">
+                    <h5 class="mb-3 fw-bold">
+                        <i class="bi bi-lightning me-2 text-primary"></i>高级功能
                     </h5>
 
-                    <!-- yt-dlp管理 -->
-                    <div class="mb-4">
-                        <h6>yt-dlp 管理</h6>
-                        <div class="alert alert-info">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>当前版本</strong>
-                                    <div class="small" id="ytdlpVersion">检测中...</div>
+                    <!-- 引擎管理 - 紧凑方块布局 -->
+                    <div class="row g-2 mb-4">
+                        <!-- yt-dlp管理 -->
+                        <div class="col-md-6">
+                            <div class="modern-card p-3" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); min-height: 200px; display: flex; flex-direction: column; justify-content: space-between;">
+                                <div class="text-center text-white">
+                                    <h6 class="mb-2 fw-bold">
+                                        <i class="bi bi-youtube me-2"></i>yt-dlp 管理
+                                    </h6>
+                                    <div class="mb-2">
+                                        <strong>当前版本</strong>
+                                        <div class="small" id="ytdlpVersion">检测中...</div>
+                                    </div>
                                 </div>
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="checkYtdlpInfo">
-                                        <i class="bi bi-info-circle"></i> 检查信息
+                                <div class="d-grid gap-1">
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="checkYtdlpInfo">
+                                        <i class="bi bi-info-circle me-1"></i>检查信息
                                     </button>
-                                    <button type="button" class="btn btn-primary btn-sm" id="updateYtdlp">
-                                        <i class="bi bi-download"></i> 更新yt-dlp
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="updateYtdlp">
+                                        <i class="bi bi-download me-1"></i>更新
                                     </button>
-                                    <button type="button" class="btn btn-warning btn-sm" id="installYtdlp">
-                                        <i class="bi bi-box"></i> 重新安装
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="installYtdlp">
+                                        <i class="bi bi-box me-1"></i>重装
                                     </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- PyTubeFix管理 -->
-                    <div class="mb-4">
-                        <h6>PyTubeFix 管理</h6>
-                        <div class="alert alert-success">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>当前版本</strong>
-                                    <div class="small" id="pytubefixVersion">检测中...</div>
+                        <!-- PyTubeFix管理 -->
+                        <div class="col-md-6">
+                            <div class="modern-card p-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); min-height: 200px; display: flex; flex-direction: column; justify-content: space-between;">
+                                <div class="text-center text-white">
+                                    <h6 class="mb-2 fw-bold">
+                                        <i class="bi bi-play-circle me-2"></i>PyTubeFix 管理
+                                    </h6>
+                                    <div class="mb-2">
+                                        <strong>当前版本</strong>
+                                        <div class="small" id="pytubefixVersion">检测中...</div>
+                                    </div>
                                 </div>
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="checkPytubefixInfo">
-                                        <i class="bi bi-info-circle"></i> 检查信息
+                                <div class="d-grid gap-1">
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="checkPytubefixInfo">
+                                        <i class="bi bi-info-circle me-1"></i>检查信息
                                     </button>
-                                    <button type="button" class="btn btn-success btn-sm" id="updatePytubefix">
-                                        <i class="bi bi-download"></i> 更新PyTubeFix
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="updatePytubefix">
+                                        <i class="bi bi-download me-1"></i>更新
                                     </button>
-                                    <button type="button" class="btn btn-warning btn-sm" id="installPytubefix">
-                                        <i class="bi bi-box"></i> 重新安装
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="installPytubefix">
+                                        <i class="bi bi-box me-1"></i>重装
                                     </button>
                                 </div>
                             </div>
@@ -547,17 +428,17 @@
                     <!-- 统一引擎管理 -->
                     <div class="mb-4">
                         <h6>引擎管理</h6>
-                        <div class="alert alert-warning">
-                            <div class="d-flex justify-content-between align-items-center">
+                        <div class="modern-card p-4" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                            <div class="d-flex justify-content-between align-items-center text-white">
                                 <div>
                                     <strong>双引擎系统</strong>
                                     <div class="small">yt-dlp + PyTubeFix 双引擎冗余下载</div>
                                 </div>
                                 <div class="btn-group">
-                                    <button type="button" class="btn btn-outline-info btn-sm" id="checkAllEngines">
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="checkAllEngines">
                                         <i class="bi bi-speedometer2"></i> 检查状态
                                     </button>
-                                    <button type="button" class="btn btn-warning btn-sm" id="updateAllEngines">
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="updateAllEngines">
                                         <i class="bi bi-arrow-repeat"></i> 一键更新所有
                                     </button>
                                 </div>
@@ -570,7 +451,7 @@
                         <h6>系统信息</h6>
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <div class="card bg-light">
+                                <div class="card" style="background-color: var(--bg-tertiary); border-color: var(--border-color);">
                                     <div class="card-body">
                                         <h6 class="card-title">存储空间</h6>
                                         <div id="storageInfo">
@@ -586,9 +467,8 @@
                                     </div>
                                 </div>
                             </div>
-
                             <div class="col-md-6">
-                                <div class="card bg-light">
+                                <div class="card" style="background-color: var(--bg-tertiary); border-color: var(--border-color);">
                                     <div class="card-body">
                                         <h6 class="card-title">运行状态</h6>
                                         <div id="systemStatus">
@@ -655,7 +535,7 @@
                                     <div class="col-md-6 mb-3">
                                         <label for="proxyPassword" class="form-label">密码 <span class="text-muted">(可选)</span></label>
                                         <input type="password" class="form-control" id="proxyPassword"
-                                               placeholder="代理认证密码">
+                                               placeholder="代理认证密码" autocomplete="new-password">
                                     </div>
                                 </div>
 
@@ -697,13 +577,11 @@
                 </div>
             </div>
         </div>
-
     </div>
-
+        </div>
+    </div>
 </div>
-{% endblock %}
 
-{% block extra_scripts %}
 <script>
 class SettingsApp {
     constructor() {
@@ -747,6 +625,38 @@ class SettingsApp {
         this.loadSettings();
         this.checkSystemInfo();
         this.updateShortcutInfo();
+        this.initTabs();
+    }
+
+    initTabs() {
+        const tabs = document.querySelectorAll('.settings-tab');
+        const panels = document.querySelectorAll('.settings-panel');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const target = this.getAttribute('data-target');
+
+                // 重置所有选项卡样式
+                tabs.forEach(t => {
+                    t.classList.remove('active');
+                    t.style.background = 'none';
+                    t.style.color = 'var(--text-secondary)';
+                    t.style.borderBottom = 'none';
+                });
+
+                // 隐藏所有面板
+                panels.forEach(p => p.classList.remove('active'));
+
+                // 激活当前选项卡
+                this.classList.add('active');
+                this.style.background = 'var(--bg-primary)';
+                this.style.color = '#0d6efd';
+                this.style.borderBottom = '2px solid #0d6efd';
+
+                // 显示对应面板
+                document.getElementById(target).classList.add('active');
+            });
+        });
     }
 
     bindEvents() {
@@ -966,32 +876,6 @@ class SettingsApp {
         showNotification('新密钥已生成', 'success');
     }
 
-    async generateApiKey() {
-        try {
-            const response = await apiRequest('/api/settings/api-key/generate', {
-                method: 'POST'
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    this.settings.security.api_key = data.api_key;
-                    this.settings.security.api_enabled = true;
-                    document.getElementById('apiKey').value = data.api_key;
-                    document.getElementById('apiEnabled').checked = true;
-                    this.toggleApiKeySection(true);
-                    this.updateShortcutInfo();
-                    showNotification(data.message || '新API密钥已生成', 'success');
-                }
-            } else {
-                const data = await response.json();
-                showNotification(data.error || 'API密钥生成失败', 'danger');
-            }
-        } catch (error) {
-            showNotification('网络错误', 'danger');
-        }
-    }
-
     generateRandomString(length) {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = '';
@@ -1147,6 +1031,32 @@ class SettingsApp {
         }
     }
 
+    async generateApiKey() {
+        try {
+            const response = await apiRequest('/api/settings/api-key/generate', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    this.settings.security.api_key = data.api_key;
+                    this.settings.security.api_enabled = true;
+                    document.getElementById('apiKey').value = data.api_key;
+                    document.getElementById('apiEnabled').checked = true;
+                    this.toggleApiKeySection(true);
+                    this.updateShortcutInfo();
+                    showNotification(data.message || '新API密钥已生成', 'success');
+                }
+            } else {
+                const data = await response.json();
+                showNotification(data.error || 'API密钥生成失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
     async saveApiSettings() {
         const formData = {
             api_key: document.getElementById('apiEnabled').checked ? document.getElementById('apiKey').value : ''
@@ -1173,35 +1083,73 @@ class SettingsApp {
         }
     }
 
-    async saveProxySettings() {
-        const formData = {
-            enabled: document.getElementById('proxyEnabled').checked,
-            proxy_type: document.getElementById('proxyType').value,
-            host: document.getElementById('proxyHost').value.trim(),
-            port: parseInt(document.getElementById('proxyPort').value) || null,
-            username: document.getElementById('proxyUsername').value.trim(),
-            password: document.getElementById('proxyPassword').value
-        };
+    updateShortcutInfo() {
+        const serverUrl = window.location.origin;
+        const downloadEndpoint = serverUrl + '/api/shortcuts/download';
 
-        try {
-            const response = await apiRequest('/api/settings/proxy', {
-                method: 'POST',
-                body: JSON.stringify(formData)
-            });
+        document.getElementById('serverUrl').value = serverUrl;
+        document.getElementById('downloadEndpoint').value = downloadEndpoint;
 
-            if (response.ok) {
-                const data = await response.json();
-                showNotification(data.message || '代理设置保存成功', 'success');
-                this.settings.proxy = formData;
-            } else {
-                const data = await response.json();
-                showNotification(data.error || '保存失败', 'danger');
-            }
-        } catch (error) {
-            showNotification('网络错误', 'danger');
+        // 更新API密钥显示
+        if (this.settings.security.api_enabled && this.settings.security.api_key) {
+            document.getElementById('apiKeyDisplay').value = this.settings.security.api_key;
+            document.getElementById('apiKeySection2').style.display = 'block';
+            document.getElementById('apiKeyWarning2').style.display = 'none';
+        } else {
+            document.getElementById('apiKeySection2').style.display = 'none';
+            document.getElementById('apiKeyWarning2').style.display = 'block';
         }
     }
 
+    async checkSystemInfo() {
+        try {
+            const response = await apiRequest('/api/system/info');
+            if (response.ok) {
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('usedSpace').textContent = this.formatSize(data.storage?.used || 0);
+                    document.getElementById('freeSpace').textContent = this.formatSize(data.storage?.free || 0);
+                    document.getElementById('uptime').textContent = this.formatUptime(data.uptime || 0);
+                    document.getElementById('activeDownloads').textContent = data.active_downloads || 0;
+                } else {
+                    // 显示错误状态
+                    document.getElementById('usedSpace').textContent = '获取失败';
+                    document.getElementById('freeSpace').textContent = '获取失败';
+                    document.getElementById('uptime').textContent = '获取失败';
+                    document.getElementById('activeDownloads').textContent = '0';
+                }
+            }
+        } catch (error) {
+            console.error('获取系统信息失败:', error);
+            // 显示错误状态
+            document.getElementById('usedSpace').textContent = '网络错误';
+            document.getElementById('freeSpace').textContent = '网络错误';
+            document.getElementById('uptime').textContent = '网络错误';
+            document.getElementById('activeDownloads').textContent = '0';
+        }
+    }
+
+    formatSize(bytes) {
+        if (!bytes) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    formatUptime(seconds) {
+        if (!seconds) return '0秒';
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+
+        if (days > 0) return `${days}天 ${hours}小时`;
+        if (hours > 0) return `${hours}小时 ${minutes}分钟`;
+        return `${minutes}分钟`;
+    }
+
+    // 简化的引擎管理方法
     async checkYtdlpInfo() {
         try {
             const response = await apiRequest('/api/system/ytdlp/info');
@@ -1363,32 +1311,32 @@ class SettingsApp {
         }
     }
 
-    async checkSystemInfo() {
+    async saveProxySettings() {
+        const formData = {
+            enabled: document.getElementById('proxyEnabled').checked,
+            proxy_type: document.getElementById('proxyType').value,
+            host: document.getElementById('proxyHost').value.trim(),
+            port: parseInt(document.getElementById('proxyPort').value) || null,
+            username: document.getElementById('proxyUsername').value.trim(),
+            password: document.getElementById('proxyPassword').value
+        };
+
         try {
-            const response = await apiRequest('/api/system/info');
+            const response = await apiRequest('/api/settings/proxy', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+
             if (response.ok) {
                 const data = await response.json();
-
-                if (data.success) {
-                    document.getElementById('usedSpace').textContent = this.formatSize(data.storage?.used || 0);
-                    document.getElementById('freeSpace').textContent = this.formatSize(data.storage?.free || 0);
-                    document.getElementById('uptime').textContent = this.formatUptime(data.uptime || 0);
-                    document.getElementById('activeDownloads').textContent = data.active_downloads || 0;
-                } else {
-                    // 显示错误状态
-                    document.getElementById('usedSpace').textContent = '获取失败';
-                    document.getElementById('freeSpace').textContent = '获取失败';
-                    document.getElementById('uptime').textContent = '获取失败';
-                    document.getElementById('activeDownloads').textContent = '0';
-                }
+                showNotification(data.message || '代理设置保存成功', 'success');
+                this.settings.proxy = formData;
+            } else {
+                const data = await response.json();
+                showNotification(data.error || '保存失败', 'danger');
             }
         } catch (error) {
-            console.error('获取系统信息失败:', error);
-            // 显示错误状态
-            document.getElementById('usedSpace').textContent = '网络错误';
-            document.getElementById('freeSpace').textContent = '网络错误';
-            document.getElementById('uptime').textContent = '网络错误';
-            document.getElementById('activeDownloads').textContent = '0';
+            showNotification('网络错误', 'danger');
         }
     }
 
@@ -1440,44 +1388,6 @@ class SettingsApp {
             }
         } catch (error) {
             showNotification('网络错误', 'danger');
-        }
-    }
-
-    formatSize(bytes) {
-        if (!bytes) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    formatUptime(seconds) {
-        if (!seconds) return '0秒';
-        const days = Math.floor(seconds / 86400);
-        const hours = Math.floor((seconds % 86400) / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-
-        if (days > 0) return `${days}天 ${hours}小时`;
-        if (hours > 0) return `${hours}小时 ${minutes}分钟`;
-        return `${minutes}分钟`;
-    }
-
-    // iOS快捷指令相关方法
-    updateShortcutInfo() {
-        const serverUrl = window.location.origin;
-        const downloadEndpoint = serverUrl + '/api/shortcuts/download';
-
-        document.getElementById('serverUrl').value = serverUrl;
-        document.getElementById('downloadEndpoint').value = downloadEndpoint;
-
-        // 更新API密钥显示
-        if (this.settings.security.api_enabled && this.settings.security.api_key) {
-            document.getElementById('apiKeyDisplay').value = this.settings.security.api_key;
-            document.getElementById('apiKeySection2').style.display = 'block';
-            document.getElementById('apiKeyWarning2').style.display = 'none';
-        } else {
-            document.getElementById('apiKeySection2').style.display = 'none';
-            document.getElementById('apiKeyWarning2').style.display = 'block';
         }
     }
 }
@@ -1536,84 +1446,6 @@ async function copyToClipboard(elementId) {
         document.execCommand('copy');
         showNotification('已复制到剪贴板', 'success');
     }
-}
-
-function downloadShortcutTemplate(type) {
-    const serverUrl = window.location.origin;
-    const apiKey = document.getElementById('apiKey').value;
-
-    if (!apiKey) {
-        showNotification('请先生成API密钥', 'danger');
-        return;
-    }
-
-    let template;
-
-    if (type === 'basic') {
-        template = {
-            name: "YT-DLP基础下载",
-            description: "从剪贴板获取URL并下载视频到文件应用",
-            server_url: serverUrl,
-            api_key: apiKey,
-            endpoints: {
-                download: `${serverUrl}/api/shortcuts/download`,
-                status: `${serverUrl}/api/shortcuts/status/{download_id}`,
-                file: `${serverUrl}/api/shortcuts/file/{filename}`
-            },
-            instructions: [
-                "1. 在iOS快捷指令应用中创建新快捷指令",
-                "2. 添加'获取剪贴板'操作",
-                "3. 添加'获取URL内容'操作，方法设为POST",
-                "4. URL设为: " + serverUrl + "/api/shortcuts/download",
-                "5. 请求体设为JSON格式: {\"url\": \"[剪贴板内容]\", \"api_key\": \"" + apiKey + "\"}",
-                "6. 添加循环检查下载状态",
-                "7. 下载完成后保存文件"
-            ]
-        };
-    } else if (type === 'advanced') {
-        template = {
-            name: "YT-DLP高级下载",
-            description: "支持质量选择和进度显示的高级下载",
-            server_url: serverUrl,
-            api_key: apiKey,
-            endpoints: {
-                download: `${serverUrl}/api/shortcuts/download`,
-                status: `${serverUrl}/api/shortcuts/status/{download_id}`,
-                file: `${serverUrl}/api/shortcuts/file/{filename}`
-            },
-            features: [
-                "质量选择 (最高/中等/低)",
-                "音频/视频选择",
-                "下载进度显示",
-                "错误处理",
-                "自动保存到文件应用"
-            ],
-            instructions: [
-                "1. 获取剪贴板内容",
-                "2. 显示菜单选择视频质量",
-                "3. 询问是否只下载音频",
-                "4. 发送下载请求到API",
-                "5. 循环检查下载状态并显示进度",
-                "6. 下载完成后自动保存文件",
-                "7. 显示完成通知"
-            ]
-        };
-    }
-
-    // 创建并下载配置文件
-    const blob = new Blob([JSON.stringify(template, null, 2)], {
-        type: 'application/json'
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ytdlp-${type}-shortcut-config.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    showNotification(`${type === 'basic' ? '基础' : '高级'}快捷指令配置已下载`, 'success');
 }
 
 // 初始化应用

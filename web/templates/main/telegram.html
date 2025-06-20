@@ -1,102 +1,139 @@
-{% extends "base.html" %}
+{% extends "base_modern.html" %}
 
-{% block title %}Telegram配置 - YT-DLP Web{% endblock %}
+{% block title %}Telegram配置中心 - YT-DLP Web{% endblock %}
 
 {% block content %}
 <div class="container-fluid" id="telegramApp">
     
-    <!-- 页面标题 -->
+    <!-- 🎨 现代化页面标题 -->
     <div class="row mb-4">
         <div class="col">
-            <h1 class="h2 mb-1">Telegram配置</h1>
-            <p class="text-muted">配置Telegram机器人推送和自动下载功能</p>
-        </div>
-    </div>
-    
-    <!-- 配置状态卡片 -->
-    <div class="row mb-4">
-        <div class="col">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-activity me-2"></i>连接状态
-                        </h5>
-                        <button type="button" class="btn btn-outline-secondary" id="testConnectionBtn">
-                            <i class="bi bi-wifi me-2"></i>测试连接
-                        </button>
-                    </div>
-                    
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="d-flex align-items-center p-3 bg-light rounded">
-                                <i class="bi bi-chat-dots me-3 fs-5"></i>
-                                <span class="me-auto">Bot API</span>
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-clock text-muted" id="botApiIcon"></i>
-                                    <span class="ms-2 small text-muted" id="botApiStatus">未检测</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="d-flex align-items-center p-3 bg-light rounded">
-                                <i class="bi bi-upload me-3 fs-5"></i>
-                                <span class="me-auto">Pyrogram</span>
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-clock text-muted" id="pyrogramIcon"></i>
-                                    <span class="ms-2 small text-muted" id="pyrogramStatus">未检测</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="text-center animate-fade-in-up">
+                <h1 class="display-5 fw-bold text-gradient mb-3">
+                    <i class="bi bi-telegram me-3"></i>Telegram配置中心
+                </h1>
+                <p class="lead text-muted mb-3">
+                    配置Telegram机器人推送和自动下载功能，享受智能化视频下载体验
+                </p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-primary); color: white;">
+                        <i class="bi bi-robot me-1"></i>智能机器人
+                    </span>
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-success); color: white;">
+                        <i class="bi bi-bell me-1"></i>实时推送
+                    </span>
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-warning); color: white;">
+                        <i class="bi bi-download me-1"></i>自动下载
+                    </span>
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-danger); color: white;">
+                        <i class="bi bi-cloud me-1"></i>大文件支持
+                    </span>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- 基础配置 -->
+    <!-- 🔗 现代化配置状态卡片 -->
     <div class="row mb-4">
-        <div class="col">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-gear me-2"></i>基础配置
+        <div class="col-lg-8 mx-auto">
+            <div class="modern-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-activity me-2 text-primary"></i>连接状态
                     </h5>
+                    <button type="button" class="btn btn-outline-primary modern-btn" id="testConnectionBtn">
+                        <i class="bi bi-wifi me-2"></i>测试连接
+                    </button>
+                </div>
                     
-                    <form id="telegramForm">
-                        <!-- 启用开关 -->
-                        <div class="row mb-4">
-                            <div class="col">
-                                <div class="d-flex justify-content-between align-items-center p-3 border rounded">
-                                    <div>
-                                        <h6 class="mb-1">启用Telegram功能</h6>
-                                        <small class="text-muted">开启后可以接收推送通知和使用机器人下载</small>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" id="telegramEnabled">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <div class="modern-card p-4 h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <div class="d-flex align-items-center text-white">
+                                <i class="bi bi-chat-dots me-3 fs-4"></i>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1 fw-bold">Bot API</h6>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-clock opacity-75" id="botApiIcon"></i>
+                                        <span class="ms-2 small opacity-75" id="botApiStatus">未检测</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="modern-card p-4 h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            <div class="d-flex align-items-center text-white">
+                                <i class="bi bi-upload me-3 fs-4"></i>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1 fw-bold">Pyrogram</h6>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-clock opacity-75" id="pyrogramIcon"></i>
+                                        <span class="ms-2 small opacity-75" id="pyrogramStatus">未检测</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ⚙️ 现代化基础配置 -->
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="modern-card p-4">
+                <h5 class="mb-3 fw-bold">
+                    <i class="bi bi-gear me-2 text-primary"></i>基础配置
+                </h5>
+                    
+                    <form id="telegramForm">
+                    <!-- 🔘 现代化启用开关 -->
+                    <div class="row mb-4">
+                        <div class="col">
+                            <div class="modern-card p-4" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                <div class="d-flex justify-content-between align-items-center text-white">
+                                    <div>
+                                        <h6 class="mb-2 fw-bold">启用Telegram功能</h6>
+                                        <p class="mb-0 opacity-75">开启后可以接收推送通知和使用机器人下载</p>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="telegramEnabled"
+                                               style="transform: scale(1.5);">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                         
                         <!-- Bot配置 -->
                         <div id="botConfig" style="display: none;">
-                            <div class="row g-3 mb-4">
-                                <div class="col-md-6">
-                                    <label for="botToken" class="form-label">Bot Token</label>
-                                    <input type="text" class="form-control" id="botToken" 
-                                           placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
-                                    <div class="form-text">从 @BotFather 获取的机器人令牌</div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <label for="chatId" class="form-label">Chat ID</label>
-                                    <input type="text" class="form-control" id="chatId" 
-                                           placeholder="-1001234567890">
-                                    <div class="form-text">接收消息的聊天ID，可以是个人或群组</div>
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-6">
+                                <label for="botToken" class="form-label fw-bold">
+                                    <i class="bi bi-key me-1 text-primary"></i>Bot Token
+                                </label>
+                                <input type="text" class="form-control modern-input" id="botToken"
+                                       placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>从 @BotFather 获取的机器人令牌
                                 </div>
                             </div>
+
+                            <div class="col-md-6">
+                                <label for="chatId" class="form-label fw-bold">
+                                    <i class="bi bi-chat me-1 text-success"></i>Chat ID
+                                </label>
+                                <input type="text" class="form-control modern-input" id="chatId"
+                                       placeholder="-1001234567890">
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>接收消息的聊天ID，可以是个人或群组
+                                </div>
+                            </div>
+                        </div>
                             
                             <!-- Pyrogram配置 -->
                             <div class="border-top pt-4 mb-4">
@@ -104,38 +141,46 @@
                                     <i class="bi bi-upload me-2"></i>Pyrogram配置 (大文件支持)
                                 </h6>
                                 
-                                <div class="alert alert-info">
-                                    <div class="d-flex">
+                                <div class="modern-card p-4" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                                    <div class="d-flex text-white">
                                         <i class="bi bi-info-circle me-2 mt-1"></i>
                                         <div>
                                             <strong>配置Pyrogram以发送50MB以上的大文件</strong>
-                                            <p class="mb-0 mt-1">需要从 <a href="https://my.telegram.org" target="_blank" class="alert-link">my.telegram.org</a> 获取API凭据</p>
+                                            <p class="mb-0 mt-1">需要从 <a href="https://my.telegram.org" target="_blank" class="text-white text-decoration-underline">my.telegram.org</a> 获取API凭据</p>
                                         </div>
                                     </div>
                                 </div>
                                 
                                 <div class="row g-3 mb-3">
                                     <div class="col-md-6">
-                                        <label for="apiId" class="form-label">API ID</label>
-                                        <input type="number" class="form-control" id="apiId" placeholder="12345678">
-                                        <div class="form-text">纯数字，例如：12345678</div>
+                                        <label for="apiId" class="form-label fw-bold">
+                                            <i class="bi bi-hash me-1 text-info"></i>API ID
+                                        </label>
+                                        <input type="number" class="form-control modern-input" id="apiId" placeholder="12345678">
+                                        <div class="form-text">
+                                            <i class="bi bi-info-circle me-1"></i>纯数字，例如：12345678
+                                        </div>
                                     </div>
-                                    
+
                                     <div class="col-md-6">
-                                        <label for="apiHash" class="form-label">API Hash</label>
-                                        <input type="text" class="form-control" id="apiHash" 
+                                        <label for="apiHash" class="form-label fw-bold">
+                                            <i class="bi bi-key me-1 text-warning"></i>API Hash
+                                        </label>
+                                        <input type="text" class="form-control modern-input" id="apiHash"
                                                placeholder="abcdef1234567890abcdef1234567890">
-                                        <div class="form-text">32位字符串</div>
+                                        <div class="form-text">
+                                            <i class="bi bi-info-circle me-1"></i>32位字符串
+                                        </div>
                                     </div>
                                 </div>
                                 
-                                <div class="alert alert-warning">
-                                    <div class="d-flex">
+                                <div class="modern-card p-4" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                    <div class="d-flex text-white">
                                         <i class="bi bi-question-circle me-2 mt-1"></i>
                                         <div>
                                             <strong>如何获取API凭据？</strong>
                                             <ol class="mb-0 mt-1 small">
-                                                <li>访问 <a href="https://my.telegram.org" target="_blank" class="alert-link">my.telegram.org</a></li>
+                                                <li>访问 <a href="https://my.telegram.org" target="_blank" class="text-white text-decoration-underline">my.telegram.org</a></li>
                                                 <li>用手机号登录（与Telegram账号相同）</li>
                                                 <li>点击 "API development tools"</li>
                                                 <li>创建应用，获取API ID和API Hash</li>
@@ -148,20 +193,28 @@
                             <!-- 推送模式 -->
                             <div class="row g-3 mb-4">
                                 <div class="col-md-6">
-                                    <label for="pushMode" class="form-label">推送模式</label>
-                                    <select class="form-select" id="pushMode">
-                                        <option value="notification">仅通知消息</option>
-                                        <option value="file" selected>智能推送 (推荐)</option>
-                                        <option value="both">通知+文件</option>
+                                    <label for="pushMode" class="form-label fw-bold">
+                                        <i class="bi bi-send me-1 text-primary"></i>推送模式
+                                    </label>
+                                    <select class="form-select modern-input" id="pushMode">
+                                        <option value="notification">📢 仅通知消息</option>
+                                        <option value="file" selected>🎯 智能推送 (推荐)</option>
+                                        <option value="both">📁 通知+文件</option>
                                     </select>
-                                    <div class="form-text">智能推送：小文件(&lt;50MB)直接发送，大文件发送通知</div>
+                                    <div class="form-text">
+                                        <i class="bi bi-lightbulb me-1"></i>智能推送：小文件(&lt;50MB)直接发送，大文件发送通知
+                                    </div>
                                 </div>
-                                
+
                                 <div class="col-md-6">
-                                    <label for="fileSizeLimit" class="form-label">文件大小限制 (MB)</label>
-                                    <input type="number" class="form-control" id="fileSizeLimit" 
+                                    <label for="fileSizeLimit" class="form-label fw-bold">
+                                        <i class="bi bi-file-earmark me-1 text-success"></i>文件大小限制 (MB)
+                                    </label>
+                                    <input type="number" class="form-control modern-input" id="fileSizeLimit"
                                            value="50" min="1" max="2000">
-                                    <div class="form-text">超过此大小的文件需要Pyrogram支持</div>
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i>超过此大小的文件需要Pyrogram支持
+                                    </div>
                                 </div>
                             </div>
                             
@@ -173,11 +226,13 @@
 
                                 <div class="row g-3 mb-3">
                                     <div class="col-12">
-                                        <label for="webhookUrl" class="form-label">Webhook URL</label>
+                                        <label for="webhookUrl" class="form-label fw-bold">
+                                            <i class="bi bi-link me-1 text-primary"></i>Webhook URL
+                                        </label>
                                         <div class="input-group">
-                                            <input type="url" class="form-control" id="webhookUrl"
+                                            <input type="url" class="form-control modern-input" id="webhookUrl"
                                                    placeholder="留空使用默认地址">
-                                            <button type="button" class="btn btn-outline-secondary" id="generateWebhookUrl">
+                                            <button type="button" class="btn btn-outline-secondary modern-btn" id="generateWebhookUrl">
                                                 <i class="bi bi-arrow-clockwise"></i> 自动生成
                                             </button>
                                         </div>
@@ -187,8 +242,8 @@
                                     </div>
                                 </div>
 
-                                <div class="alert alert-info">
-                                    <div class="d-flex">
+                                <div class="modern-card p-4" style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);">
+                                    <div class="d-flex text-white">
                                         <i class="bi bi-info-circle me-2 mt-1"></i>
                                         <div>
                                             <strong>Webhook 设置说明</strong>
@@ -203,15 +258,15 @@
                                     </div>
                                 </div>
 
-                                <div class="alert alert-warning">
-                                    <div class="d-flex">
+                                <div class="modern-card p-4" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                    <div class="d-flex text-white">
                                         <i class="bi bi-exclamation-triangle me-2 mt-1"></i>
                                         <div>
                                             <strong>常见问题解决</strong>
                                             <ul class="mb-0 mt-1 small">
-                                                <li><strong>机器人不响应:</strong> 检查Webhook URL是否包含完整路径 <code>/telegram/webhook</code></li>
+                                                <li><strong>机器人不响应:</strong> 检查Webhook URL是否包含完整路径 <code class="bg-white bg-opacity-25 text-white px-1 rounded">/telegram/webhook</code></li>
                                                 <li><strong>400 Bad Request:</strong> 通常是URL格式问题或不支持HTTPS</li>
-                                                <li><strong>解决方案1:</strong> 确保Webhook URL格式正确，如: <code>https://your-domain.com/telegram/webhook</code></li>
+                                                <li><strong>解决方案1:</strong> 确保Webhook URL格式正确，如: <code class="bg-white bg-opacity-25 text-white px-1 rounded">https://your-domain.com/telegram/webhook</code></li>
                                                 <li><strong>解决方案2:</strong> 使用下方的Cloudflare Workers代理（推荐）</li>
                                                 <li><strong>解决方案3:</strong> 删除Webhook，机器人仍可正常工作(轮询模式)</li>
                                             </ul>
@@ -219,14 +274,14 @@
                                     </div>
                                 </div>
 
-                                <div class="alert alert-danger">
-                                    <div class="d-flex">
+                                <div class="modern-card p-4" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                                    <div class="d-flex text-white">
                                         <i class="bi bi-exclamation-circle me-2 mt-1"></i>
                                         <div>
                                             <strong>⚠️ 重要提醒</strong>
                                             <p class="mb-1 small">如果机器人不响应消息，请检查以下几点：</p>
                                             <ol class="mb-0 mt-1 small">
-                                                <li><strong>Webhook URL必须包含完整路径：</strong> <code>https://your-domain.com/telegram/webhook</code></li>
+                                                <li><strong>Webhook URL必须包含完整路径：</strong> <code class="bg-white bg-opacity-25 text-white px-1 rounded">https://your-domain.com/telegram/webhook</code></li>
                                                 <li><strong>URL必须可以从外网访问</strong></li>
                                                 <li><strong>如果不确定，建议先删除Webhook使用轮询模式</strong></li>
                                             </ol>
@@ -235,44 +290,52 @@
                                 </div>
 
                                 <!-- Cloudflare Workers 代理工具 -->
-                                <div class="card mt-4">
-                                    <div class="card-header">
-                                        <h5 class="mb-0">
+                                <div class="modern-card mt-4 p-0">
+                                    <div class="p-4 border-bottom border-light border-opacity-25">
+                                        <h5 class="mb-0 text-white">
                                             <i class="bi bi-cloud me-2"></i>
                                             Cloudflare Workers HTTPS代理生成器
                                         </h5>
                                     </div>
-                                    <div class="card-body">
-                                        <div class="alert alert-info">
-                                            <i class="bi bi-info-circle me-2"></i>
-                                            <strong>免费解决HTTPS问题！</strong> 使用Cloudflare Workers创建免费的HTTPS代理，无需SSL证书。
+                                    <div class="p-4">
+                                        <div class="modern-card p-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                            <div class="text-white">
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                <strong>免费解决HTTPS问题！</strong> 使用Cloudflare Workers创建免费的HTTPS代理，无需SSL证书。
+                                            </div>
                                         </div>
 
                                         <div class="row">
                                             <div class="col-md-6">
-                                                <label class="form-label">服务器地址</label>
-                                                <input type="text" class="form-control" id="proxyTargetHost"
+                                                <label class="form-label fw-bold">
+                                                    <i class="bi bi-server me-1 text-primary"></i>服务器地址
+                                                </label>
+                                                <input type="text" class="form-control modern-input" id="proxyTargetHost"
                                                        placeholder="例如: 192.168.1.100 或 your-domain.com">
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label">端口</label>
-                                                <input type="number" class="form-control" id="proxyTargetPort"
+                                                <label class="form-label fw-bold">
+                                                    <i class="bi bi-ethernet me-1 text-success"></i>端口
+                                                </label>
+                                                <input type="number" class="form-control modern-input" id="proxyTargetPort"
                                                        value="8080" min="1" max="65535">
                                             </div>
                                             <div class="col-md-3">
-                                                <label class="form-label">协议</label>
-                                                <select class="form-select" id="proxyTargetProtocol">
-                                                    <option value="http">HTTP</option>
-                                                    <option value="https">HTTPS</option>
+                                                <label class="form-label fw-bold">
+                                                    <i class="bi bi-shield-lock me-1 text-warning"></i>协议
+                                                </label>
+                                                <select class="form-select modern-input" id="proxyTargetProtocol">
+                                                    <option value="http">🔓 HTTP</option>
+                                                    <option value="https">🔒 HTTPS</option>
                                                 </select>
                                             </div>
                                         </div>
 
                                         <div class="mt-3">
-                                            <button class="btn btn-primary" id="generateWorkerCodeBtn">
+                                            <button class="btn btn-primary modern-btn" id="generateWorkerCodeBtn">
                                                 <i class="bi bi-code-square me-2"></i>生成代理代码
                                             </button>
-                                            <button class="btn btn-info ms-2" id="showWorkerTutorialBtn">
+                                            <button class="btn btn-info modern-btn ms-2" id="showWorkerTutorialBtn">
                                                 <i class="bi bi-book me-2"></i>查看教程
                                             </button>
                                         </div>
@@ -288,9 +351,11 @@
                                                 </button>
                                             </div>
                                             <div class="mt-2">
-                                                <div class="alert alert-success">
-                                                    <strong>部署完成后，你的Webhook URL将是：</strong><br>
-                                                    <code id="generatedWebhookUrl">https://your-worker.your-subdomain.workers.dev/telegram/webhook</code>
+                                                <div class="modern-card p-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                                    <div class="text-white">
+                                                        <strong>部署完成后，你的Webhook URL将是：</strong><br>
+                                                        <code class="bg-white bg-opacity-25 text-white px-1 rounded" id="generatedWebhookUrl">https://your-worker.your-subdomain.workers.dev/telegram/webhook</code>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -298,13 +363,13 @@
                                 </div>
 
                                 <div class="d-flex gap-2 mb-3">
-                                    <button type="button" class="btn btn-outline-primary" id="setupWebhookBtn">
+                                    <button type="button" class="btn btn-outline-primary modern-btn" id="setupWebhookBtn">
                                         <i class="bi bi-cloud-upload me-2"></i>设置 Webhook
                                     </button>
-                                    <button type="button" class="btn btn-outline-secondary" id="deleteWebhookBtn">
+                                    <button type="button" class="btn btn-outline-secondary modern-btn" id="deleteWebhookBtn">
                                         <i class="bi bi-trash me-2"></i>删除 Webhook
                                     </button>
-                                    <button type="button" class="btn btn-outline-info" id="getWebhookInfoBtn">
+                                    <button type="button" class="btn btn-outline-info modern-btn" id="getWebhookInfoBtn">
                                         <i class="bi bi-info-circle me-2"></i>查看状态
                                     </button>
                                 </div>
@@ -314,16 +379,18 @@
                             <div class="mb-4">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="autoDownload" checked>
-                                    <label class="form-check-label" for="autoDownload">
+                                    <label class="form-check-label fw-bold" for="autoDownload">
+                                        <i class="bi bi-robot me-1 text-success"></i>
                                         启用机器人自动下载 (发送链接给机器人自动下载)
                                     </label>
                                 </div>
                             </div>
                         </div>
                         
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-lg me-2"></i>保存配置
-                        </button>
+                    <button type="submit" class="btn btn-primary modern-btn py-3 px-5"
+                            style="background: var(--gradient-primary); border: none; font-size: 1.1rem;">
+                        <i class="bi bi-check-lg me-2"></i>保存配置
+                    </button>
                     </form>
                 </div>
             </div>
@@ -332,49 +399,55 @@
     
     <!-- 机器人使用说明 -->
     <div class="row" id="usageInstructions" style="display: none;">
-        <div class="col">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-question-circle me-2"></i>使用说明
+        <div class="col-lg-8 mx-auto">
+            <div class="modern-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-question-circle me-2 text-primary"></i>使用说明
                     </h5>
+                </div>
                     
                     <div class="row g-4">
                         <div class="col-md-4">
-                            <div class="alert alert-primary">
-                                <h6 class="alert-heading">如何使用机器人下载</h6>
-                                <ol class="mb-0 small">
-                                    <li>将机器人添加到您的聊天中</li>
-                                    <li>直接发送视频链接给机器人</li>
-                                    <li>机器人会自动开始下载</li>
-                                    <li>下载完成后自动发送文件</li>
-                                </ol>
+                            <div class="modern-card p-4" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);">
+                                <div class="text-white">
+                                    <h6 class="fw-bold">如何使用机器人下载</h6>
+                                    <ol class="mb-0 small">
+                                        <li>将机器人添加到您的聊天中</li>
+                                        <li>直接发送视频链接给机器人</li>
+                                        <li>机器人会自动开始下载</li>
+                                        <li>下载完成后自动发送文件</li>
+                                    </ol>
+                                </div>
                             </div>
                         </div>
                         
                         <div class="col-md-4">
-                            <div class="alert alert-warning">
-                                <h6 class="alert-heading">支持的网站</h6>
-                                <p class="mb-0 small">
-                                    支持所有yt-dlp兼容的网站，包括YouTube、Bilibili、Twitter等1000+网站
-                                </p>
+                            <div class="modern-card p-4" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                <div class="text-white">
+                                    <h6 class="fw-bold">支持的网站</h6>
+                                    <p class="mb-0 small">
+                                        支持所有yt-dlp兼容的网站，包括YouTube、Bilibili、Twitter等1000+网站
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         
                         <div class="col-md-4">
-                            <div class="alert alert-success">
-                                <h6 class="alert-heading">命令支持</h6>
-                                <div class="small">
-                                    <p class="mb-1"><code>/start</code> - 查看帮助信息</p>
-                                    <p class="mb-1"><code>/status</code> - 查看系统状态</p>
-                                    <p class="mb-1"><code>/downloads</code> - 查看下载列表</p>
-                                    <p class="mb-1"><code>/files</code> - 查看文件列表</p>
-                                    <p class="mb-0"><code>/debug</code> - 查看调试信息</p>
+                            <div class="modern-card p-4" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                <div class="text-white">
+                                    <h6 class="fw-bold">命令支持</h6>
+                                    <div class="small">
+                                        <p class="mb-1"><code class="bg-white bg-opacity-25 text-white px-1 rounded">/start</code> - 查看帮助信息</p>
+                                        <p class="mb-1"><code class="bg-white bg-opacity-25 text-white px-1 rounded">/status</code> - 查看系统状态</p>
+                                        <p class="mb-1"><code class="bg-white bg-opacity-25 text-white px-1 rounded">/downloads</code> - 查看下载列表</p>
+                                        <p class="mb-1"><code class="bg-white bg-opacity-25 text-white px-1 rounded">/files</code> - 查看文件列表</p>
+                                        <p class="mb-0"><code class="bg-white bg-opacity-25 text-white px-1 rounded">/debug</code> - 查看调试信息</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
             </div>
         </div>
     </div>
@@ -445,14 +518,16 @@
                     </div>
                 </div>
 
-                <div class="alert alert-warning mt-3">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    <strong>重要提醒：</strong> 请确保你的服务器地址和端口正确，并且可以从外网访问。如果使用内网IP，需要配置端口转发或使用动态域名。
+                <div class="modern-card p-3 mt-3" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                    <div class="text-white">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>重要提醒：</strong> 请确保你的服务器地址和端口正确，并且可以从外网访问。如果使用内网IP，需要配置端口转发或使用动态域名。
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
-                <a href="https://dash.cloudflare.com" target="_blank" class="btn btn-primary">
+                <button type="button" class="btn btn-secondary modern-btn" data-bs-dismiss="modal">关闭</button>
+                <a href="https://dash.cloudflare.com" target="_blank" class="btn btn-primary modern-btn">
                     <i class="bi bi-box-arrow-up-right me-2"></i>打开Cloudflare控制台
                 </a>
             </div>

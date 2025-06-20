@@ -1,52 +1,75 @@
-{% extends "base.html" %}
+{% extends "base_modern.html" %}
 
-{% block title %}Cookies 管理 - YT-DLP Web{% endblock %}
+{% block title %}Cookies 管理中心 - YT-DLP Web{% endblock %}
 
 {% block content %}
 <div class="container-fluid" id="cookiesApp">
     
-    <!-- 页面标题 -->
-    <div class="row mb-4">
-        <div class="col">
-            <h1 class="h2 mb-1">Cookies 管理</h1>
-            <p class="text-muted">管理网站Cookies以获得最佳下载体验</p>
+    <!-- 🎨 现代化页面标题 -->
+    <div class="row mb-3">
+        <div class="col-lg-8 mx-auto">
+            <div class="text-center animate-fade-in-up">
+                <h1 class="display-5 fw-bold text-gradient mb-2">
+                    <i class="bi bi-cookie me-3"></i>Cookies 管理中心
+                </h1>
+                <p class="lead text-muted mb-3">
+                    管理网站Cookies以获得最佳下载体验和访问权限
+                </p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-primary); color: white;">
+                        <i class="bi bi-upload me-1"></i>文件上传
+                    </span>
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-success); color: white;">
+                        <i class="bi bi-check-circle me-1"></i>格式验证
+                    </span>
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-warning); color: white;">
+                        <i class="bi bi-shield me-1"></i>安全存储
+                    </span>
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-danger); color: white;">
+                        <i class="bi bi-tools me-1"></i>自动修复
+                    </span>
+                </div>
+            </div>
         </div>
     </div>
     
-    <!-- 上传Cookies -->
-    <div class="row mb-4">
-        <div class="col">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-upload me-2"></i>上传Cookies文件
-                    </h5>
+    <!-- 📤 现代化上传Cookies -->
+    <div class="row mb-3">
+        <div class="col-lg-8 mx-auto">
+            <div class="modern-card p-4">
+                <h5 class="mb-3 fw-bold">
+                    <i class="bi bi-upload me-2 text-primary"></i>上传Cookies文件
+                </h5>
                     
                     <form id="cookiesForm">
-                        <div class="row g-3 mb-3">
-                            <!-- 网站选择 -->
-                            <div class="col-md-6">
-                                <label for="website" class="form-label">目标网站</label>
-                                <select class="form-select" id="website">
-                                    <option value="">选择网站</option>
-                                    <option value="youtube">YouTube</option>
-                                    <option value="bilibili">Bilibili</option>
-                                    <option value="twitter">Twitter/X</option>
-                                    <option value="instagram">Instagram</option>
-                                    <option value="tiktok">TikTok</option>
-                                    <option value="custom">自定义</option>
-                                </select>
-                            </div>
-                            
-                            <!-- 自定义网站名 -->
-                            <div class="col-md-6" id="customWebsiteDiv" style="display: none;">
-                                <label for="customWebsite" class="form-label">自定义网站名</label>
-                                <input type="text" class="form-control" id="customWebsite" placeholder="例如: example.com">
-                            </div>
+                        <div class="row g-3 mb-2">
+                        <!-- 🌐 网站选择 -->
+                        <div class="col-md-6">
+                            <label for="website" class="form-label fw-bold">
+                                <i class="bi bi-globe me-1 text-primary"></i>目标网站
+                            </label>
+                            <select class="form-select modern-input" id="website">
+                                <option value="">🌐 选择网站</option>
+                                <option value="youtube">📺 YouTube</option>
+                                <option value="bilibili">🎬 Bilibili</option>
+                                <option value="twitter">🐦 Twitter/X</option>
+                                <option value="instagram">📷 Instagram</option>
+                                <option value="tiktok">🎵 TikTok</option>
+                                <option value="custom">⚙️ 自定义</option>
+                            </select>
+                        </div>
+
+                        <!-- 🔧 自定义网站名 -->
+                        <div class="col-md-6" id="customWebsiteDiv" style="display: none;">
+                            <label for="customWebsite" class="form-label fw-bold">
+                                <i class="bi bi-pencil me-1 text-success"></i>自定义网站名
+                            </label>
+                            <input type="text" class="form-control modern-input" id="customWebsite" placeholder="例如: example.com">
+                        </div>
                         </div>
                         
                         <!-- 上传方式选择 -->
-                        <div class="mb-3">
+                        <div class="mb-2">
                             <label class="form-label">上传方式</label>
                             <div class="d-flex gap-3">
                                 <div class="form-check">
@@ -61,7 +84,7 @@
                         </div>
                         
                         <!-- 文件上传 -->
-                        <div id="fileUploadDiv" class="mb-3">
+                        <div id="fileUploadDiv" class="mb-2">
                             <label for="cookiesFile" class="form-label">Cookies文件</label>
                             <div class="border border-2 border-dashed rounded p-4 text-center" style="min-height: 200px;">
                                 <input type="file" class="form-control d-none" id="cookiesFile" accept=".txt,.json">
@@ -89,7 +112,7 @@
                         </div>
                         
                         <!-- 文本粘贴 -->
-                        <div id="textUploadDiv" class="mb-3" style="display: none;">
+                        <div id="textUploadDiv" class="mb-2" style="display: none;">
                             <label for="cookiesContent" class="form-label">Cookies内容</label>
                             <textarea class="form-control" id="cookiesContent" rows="10" 
                                       placeholder="粘贴Cookies内容...&#10;&#10;支持以下格式:&#10;1. Netscape格式 (浏览器导出)&#10;2. JSON格式 (开发者工具)&#10;3. 键值对格式 (name=value)"></textarea>
@@ -103,39 +126,39 @@
                         </div>
                         
                         <!-- 格式说明 -->
-                        <div class="alert alert-info">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h6 class="alert-heading mb-0">支持的格式</h6>
-                                <button type="button" class="btn btn-sm btn-outline-info" id="toggleExamples">
+                        <div class="modern-card p-4" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                            <div class="d-flex justify-content-between align-items-center text-white">
+                                <h6 class="mb-0 fw-bold">支持的格式</h6>
+                                <button type="button" class="btn btn-sm btn-outline-light" id="toggleExamples">
                                     查看示例
                                 </button>
                             </div>
-                            <ul class="mb-0 mt-2">
+                            <ul class="mb-0 mt-2 text-white">
                                 <li><strong>Netscape格式</strong>: 浏览器导出的标准格式</li>
                                 <li><strong>JSON格式</strong>: 开发者工具导出的格式</li>
                                 <li><strong>键值对格式</strong>: 简单的 name=value 格式</li>
                                 <li><strong>自动检测</strong>: 系统会自动识别格式并转换</li>
                             </ul>
-                            
+
                             <!-- 格式示例 -->
                             <div id="formatExamples" class="mt-3" style="display: none;">
                                 <div class="row g-3">
                                     <div class="col-md-4">
-                                        <h6>Netscape格式:</h6>
-                                        <pre class="small bg-light p-2 rounded"># Netscape HTTP Cookie File
+                                        <h6 class="text-white">Netscape格式:</h6>
+                                        <pre class="small bg-white bg-opacity-25 text-white p-2 rounded"># Netscape HTTP Cookie File
 .youtube.com	TRUE	/	FALSE	1234567890	session_token	abc123</pre>
                                     </div>
                                     <div class="col-md-4">
-                                        <h6>JSON格式:</h6>
-                                        <pre class="small bg-light p-2 rounded">[{
+                                        <h6 class="text-white">JSON格式:</h6>
+                                        <pre class="small bg-white bg-opacity-25 text-white p-2 rounded">[{
   "name": "session_token",
   "value": "abc123",
   "domain": ".youtube.com"
 }]</pre>
                                     </div>
                                     <div class="col-md-4">
-                                        <h6>键值对格式:</h6>
-                                        <pre class="small bg-light p-2 rounded">session_token=abc123
+                                        <h6 class="text-white">键值对格式:</h6>
+                                        <pre class="small bg-white bg-opacity-25 text-white p-2 rounded">session_token=abc123
 secure_token=def456
 user_id=12345</pre>
                                     </div>
@@ -143,40 +166,40 @@ user_id=12345</pre>
                             </div>
                         </div>
                         
-                        <!-- 操作按钮 -->
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-outline-secondary" id="validateBtn">
-                                <i class="bi bi-check-circle me-2"></i>验证格式
-                            </button>
-                            <button type="submit" class="btn btn-primary" id="uploadBtn">
-                                <i class="bi bi-upload me-2"></i>上传Cookies
-                            </button>
-                        </div>
+                    <!-- 🎛️ 操作按钮 -->
+                    <div class="d-flex gap-3 flex-wrap">
+                        <button type="button" class="btn btn-outline-success modern-btn" id="validateBtn">
+                            <i class="bi bi-check-circle me-2"></i>验证格式
+                        </button>
+                        <button type="submit" class="btn btn-primary modern-btn py-3 px-5"
+                                style="background: var(--gradient-primary); border: none; font-size: 1.1rem;">
+                            <i class="bi bi-upload me-2"></i>上传Cookies
+                        </button>
+                    </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- 已保存的Cookies -->
+    <!-- 💾 现代化已保存的Cookies -->
     <div class="row">
-        <div class="col">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-database me-2"></i>已保存的Cookies
-                            <span class="badge bg-secondary ms-2" id="cookiesCount">0</span>
-                        </h5>
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-outline-secondary" id="refreshBtn">
-                                <i class="bi bi-arrow-clockwise"></i> 刷新
-                            </button>
-                            <button type="button" class="btn btn-outline-warning" id="fixBtn">
-                                <i class="bi bi-tools"></i> 修复格式
-                            </button>
-                        </div>
+        <div class="col-lg-8 mx-auto">
+            <div class="modern-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-database me-2 text-primary"></i>已保存的Cookies
+                        <span class="badge rounded-pill ms-2" style="background: var(--gradient-secondary); color: white;" id="cookiesCount">0</span>
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary modern-btn" id="refreshBtn">
+                            <i class="bi bi-arrow-clockwise me-1"></i>刷新
+                        </button>
+                        <button type="button" class="btn btn-outline-warning modern-btn" id="fixBtn">
+                            <i class="bi bi-tools me-1"></i>修复格式
+                        </button>
                     </div>
+                </div>
                     
                     <!-- 空状态 -->
                     <div id="emptyState" class="text-center py-5">
