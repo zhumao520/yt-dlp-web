@@ -616,3 +616,43 @@ def generate_emergency_cookies(platform):
             'success': False,
             'error': str(e)
         }), 500
+
+
+@cookies_bp.route('/api/download/<website>', methods=['GET'])
+@auth_required
+def download_cookies(website):
+    """下载指定网站的Cookies文件"""
+    try:
+        cookies_manager = get_cookies_manager()
+        result = cookies_manager.export_cookies(website, 'netscape')
+
+        if result['success']:
+            from flask import Response
+            import io
+
+            # 创建文件内容
+            cookies_content = result['data']
+
+            # 创建响应
+            output = io.StringIO()
+            output.write(cookies_content)
+            output.seek(0)
+
+            response = Response(
+                output.getvalue(),
+                mimetype='text/plain',
+                headers={
+                    'Content-Disposition': f'attachment; filename={website}_cookies.txt'
+                }
+            )
+
+            return response
+        else:
+            return jsonify(result), 404
+
+    except Exception as e:
+        logger.error(f"❌ 下载Cookies失败: {e}")
+        return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
+
+

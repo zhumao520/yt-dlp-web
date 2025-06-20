@@ -688,20 +688,17 @@ class CoreDownloadManager:
             proxy_config = db.get_proxy_config()
 
             if proxy_config and proxy_config.get('enabled'):
-                proxy_url = f"{proxy_config.get('proxy_type', 'http')}://"
-                if proxy_config.get('username'):
-                    proxy_url += f"{proxy_config['username']}"
-                    if proxy_config.get('password'):
-                        proxy_url += f":{proxy_config['password']}"
-                    proxy_url += "@"
-                proxy_url += f"{proxy_config.get('host')}:{proxy_config.get('port')}"
+                # 使用统一的代理转换工具
+                from core.proxy_converter import ProxyConverter
+                proxy_url = ProxyConverter.build_proxy_url(proxy_config)
 
                 # 测试代理连接
-                if self._test_proxy_connection(proxy_url):
+                test_result = ProxyConverter.test_proxy_connection(proxy_config, timeout=3)
+                if test_result['success']:
                     logger.info(f"✅ 使用数据库代理配置: {proxy_config.get('proxy_type')}://{proxy_config.get('host')}:{proxy_config.get('port')}")
                     return proxy_url
                 else:
-                    logger.warning(f"⚠️ 代理连接失败，跳过代理: {proxy_config.get('host')}:{proxy_config.get('port')}")
+                    logger.warning(f"⚠️ 代理连接失败，跳过代理: {proxy_config.get('host')}:{proxy_config.get('port')} - {test_result['message']}")
                     return None
 
             # 其次尝试从配置文件获取
@@ -727,38 +724,7 @@ class CoreDownloadManager:
             logger.debug(f"🔍 获取代理配置失败: {e}")
             return None
 
-    def _test_proxy_connection(self, proxy_url: str) -> bool:
-        """测试代理连接是否可用"""
-        try:
-            import urllib.request
-            import socket
 
-            # 设置短超时时间进行快速测试
-            original_timeout = socket.getdefaulttimeout()
-            socket.setdefaulttimeout(3)  # 3秒超时
-
-            try:
-                proxy_handler = urllib.request.ProxyHandler({
-                    'http': proxy_url,
-                    'https': proxy_url
-                })
-                opener = urllib.request.build_opener(proxy_handler)
-
-                # 测试连接到一个简单的HTTP服务
-                request = urllib.request.Request('http://httpbin.org/ip')
-                response = opener.open(request, timeout=3)
-
-                if response.getcode() == 200:
-                    return True
-                else:
-                    return False
-
-            finally:
-                socket.setdefaulttimeout(original_timeout)
-
-        except Exception as e:
-            logger.debug(f"🔍 代理连接测试失败: {e}")
-            return False
 
     def _save_to_database(self, download_id: str, url: str):
         """保存到数据库"""
@@ -801,6 +767,27 @@ class CoreDownloadManager:
 
             # 更新数据库
             self._update_database_status(download_id, status, **kwargs)
+
+            # 发送状态变更事件
+            if status == 'completed':
+                # 发送下载完成事件
+                with self.lock:
+                    download_info = self.downloads.get(download_id, {})
+
+                self._emit_event('DOWNLOAD_COMPLETED', {
+                    'download_id': download_id,
+                    'file_path': kwargs.get('file_path'),
+                    'title': download_info.get('title', 'Unknown'),
+                    'file_size': kwargs.get('file_size')
+                })
+                logger.info(f"📡 发送下载完成事件: {download_id}")
+            elif status in ['downloading', 'retrying']:
+                # 发送进度事件
+                self._emit_event('DOWNLOAD_PROGRESS', {
+                    'download_id': download_id,
+                    'status': status,
+                    'progress': progress or 0
+                })
 
         except Exception as e:
             logger.error(f"❌ 更新下载状态失败: {e}")

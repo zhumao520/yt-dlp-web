@@ -420,6 +420,27 @@ class DownloadManagerV2:
             # 更新数据库
             self._update_database_status(download_id, status, **kwargs)
 
+            # 发送状态变更事件
+            if status == 'completed':
+                # 发送下载完成事件
+                with self.lock:
+                    download_info = self.downloads.get(download_id, {})
+
+                self._emit_event('DOWNLOAD_COMPLETED', {
+                    'download_id': download_id,
+                    'file_path': kwargs.get('file_path'),
+                    'title': download_info.get('title', 'Unknown'),
+                    'file_size': kwargs.get('file_size')
+                })
+                logger.info(f"📡 发送下载完成事件: {download_id}")
+            elif status in ['downloading', 'retrying']:
+                # 发送进度事件
+                self._emit_event('DOWNLOAD_PROGRESS', {
+                    'download_id': download_id,
+                    'status': status,
+                    'progress': progress or 0
+                })
+
         except Exception as e:
             logger.error(f"❌ 更新下载状态失败: {e}")
 

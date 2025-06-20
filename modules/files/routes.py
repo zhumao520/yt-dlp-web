@@ -143,7 +143,7 @@ def list_files():
     try:
         from core.config import get_config
         
-        download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+        download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
         
         if not download_dir.exists():
             return jsonify({'files': []})

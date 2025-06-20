@@ -24,6 +24,10 @@ class BotAPIUploader(BaseUploader):
         self.base_url = f"https://api.telegram.org/bot{self.bot_token}"
         self._progress_message_id = None
 
+        # 获取代理配置 - 使用统一的代理转换工具
+        from core.proxy_converter import ProxyConverter
+        self.proxies = ProxyConverter.get_requests_proxy("Telegram-BotAPI")
+
     def is_available(self) -> bool:
         """检查 Bot API 上传器是否可用"""
         return bool(self.bot_token and self.chat_id)
@@ -41,7 +45,7 @@ class BotAPIUploader(BaseUploader):
             if parse_mode:
                 data['parse_mode'] = parse_mode
             
-            response = requests.post(url, json=data, timeout=30)
+            response = requests.post(url, json=data, timeout=30, proxies=self.proxies)
             response.raise_for_status()
             
             result = response.json()
@@ -147,8 +151,8 @@ class BotAPIUploader(BaseUploader):
                     'media': media
                 }
                 
-                response = requests.post(url, data={'chat_id': self.chat_id, 'media': str(media)}, 
-                                       files=files_data, timeout=300)
+                response = requests.post(url, data={'chat_id': self.chat_id, 'media': str(media)},
+                                       files=files_data, timeout=300, proxies=self.proxies)
                 response.raise_for_status()
                 
                 result = response.json()
@@ -193,7 +197,7 @@ class BotAPIUploader(BaseUploader):
                         'duration': int(metadata.get('duration', 0))
                     }
                     
-                    response = requests.post(url, files=files, data=data, timeout=300)
+                    response = requests.post(url, files=files, data=data, timeout=300, proxies=self.proxies)
                     response.raise_for_status()
                     
                     result = response.json()
@@ -225,7 +229,7 @@ class BotAPIUploader(BaseUploader):
                     'duration': int(metadata.get('duration', 0))
                 }
                 
-                response = requests.post(url, files=files, data=data, timeout=300)
+                response = requests.post(url, files=files, data=data, timeout=300, proxies=self.proxies)
                 response.raise_for_status()
                 
                 result = response.json()
@@ -252,7 +256,7 @@ class BotAPIUploader(BaseUploader):
                     'caption': caption or ''
                 }
                 
-                response = requests.post(url, files=files, data=data, timeout=300)
+                response = requests.post(url, files=files, data=data, timeout=300, proxies=self.proxies)
                 response.raise_for_status()
                 
                 result = response.json()
@@ -279,7 +283,7 @@ class BotAPIUploader(BaseUploader):
                     'caption': caption or ''
                 }
                 
-                response = requests.post(url, files=files, data=data, timeout=300)
+                response = requests.post(url, files=files, data=data, timeout=300, proxies=self.proxies)
                 response.raise_for_status()
                 
                 result = response.json()
@@ -327,7 +331,7 @@ class BotAPIUploader(BaseUploader):
                     'message_id': self._progress_message_id,
                     'text': text
                 }
-                requests.post(url, json=data, timeout=10)
+                requests.post(url, json=data, timeout=10, proxies=self.proxies)
             else:
                 # 发送新的进度消息
                 url = f"{self.base_url}/sendMessage"
@@ -335,7 +339,7 @@ class BotAPIUploader(BaseUploader):
                     'chat_id': self.chat_id,
                     'text': text
                 }
-                response = requests.post(url, json=data, timeout=10)
+                response = requests.post(url, json=data, timeout=10, proxies=self.proxies)
                 if response.status_code == 200:
                     result = response.json()
                     if result.get('ok'):

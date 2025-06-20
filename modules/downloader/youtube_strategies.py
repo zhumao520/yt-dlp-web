@@ -513,8 +513,17 @@ class YouTubeStrategies:
         quality = options.get('quality', 'best')
         if quality == 'best':
             format_selector = 'best[height<=1080]/best[height<=720]/best'
-        else:
+        elif quality == 'high':
+            format_selector = 'best[height<=1080]/best[height<=720]/best'
+        elif quality == 'medium':
+            format_selector = 'best[height<=720]/best[height<=480]/best'
+        elif quality == 'low':
+            format_selector = 'best[height<=480]/best[height<=360]/best'
+        elif quality.isdigit():
             format_selector = f'best[height<={quality}]/best'
+        else:
+            # 对于未知质量参数，使用安全的默认值
+            format_selector = 'best[height<=720]/best'
 
         opts = {
             'format': format_selector,

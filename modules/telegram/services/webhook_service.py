@@ -5,7 +5,7 @@ Telegram Webhook服务 - 处理webhook相关逻辑
 
 import logging
 import requests
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,8 @@ class TelegramWebhookService:
     
     def __init__(self):
         pass
-    
+
+
     def setup_webhook(self, bot_token: str, webhook_url: str) -> Tuple[bool, str]:
         """设置Telegram Webhook"""
         try:
@@ -31,8 +32,12 @@ class TelegramWebhookService:
             telegram_api_url = f"https://api.telegram.org/bot{bot_token}/setWebhook"
             webhook_data = {'url': webhook_url}
             
+            # 获取代理配置 - 使用统一的代理转换工具
+            from core.proxy_converter import ProxyConverter
+            proxies = ProxyConverter.get_requests_proxy("Telegram-Webhook")
+
             logger.info(f"🔄 正在设置Webhook: {webhook_url}")
-            response = requests.post(telegram_api_url, json=webhook_data, timeout=30)
+            response = requests.post(telegram_api_url, json=webhook_data, timeout=30, proxies=proxies)
             
             # 详细记录响应
             logger.info(f"📡 Telegram API响应状态: {response.status_code}")
@@ -67,8 +72,12 @@ class TelegramWebhookService:
         """删除Telegram Webhook"""
         try:
             telegram_api_url = f"https://api.telegram.org/bot{bot_token}/deleteWebhook"
-            
-            response = requests.post(telegram_api_url, timeout=30)
+
+            # 获取代理配置
+            from core.proxy_converter import ProxyConverter
+            proxies = ProxyConverter.get_requests_proxy("Telegram-Webhook")
+
+            response = requests.post(telegram_api_url, timeout=30, proxies=proxies)
             response.raise_for_status()
             
             result = response.json()
@@ -89,8 +98,12 @@ class TelegramWebhookService:
         """获取Telegram Webhook信息"""
         try:
             telegram_api_url = f"https://api.telegram.org/bot{bot_token}/getWebhookInfo"
-            
-            response = requests.get(telegram_api_url, timeout=30)
+
+            # 获取代理配置
+            from core.proxy_converter import ProxyConverter
+            proxies = ProxyConverter.get_requests_proxy("Telegram-Webhook")
+
+            response = requests.get(telegram_api_url, timeout=30, proxies=proxies)
             response.raise_for_status()
             
             result = response.json()
@@ -132,8 +145,12 @@ class TelegramWebhookService:
     def test_webhook_connectivity(self, webhook_url: str) -> Tuple[bool, str]:
         """测试Webhook连通性"""
         try:
+            # 获取代理配置
+            from core.proxy_converter import ProxyConverter
+            proxies = ProxyConverter.get_requests_proxy("Telegram-Webhook")
+
             # 发送测试请求
-            response = requests.get(webhook_url, timeout=10)
+            response = requests.get(webhook_url, timeout=10, proxies=proxies)
             
             if response.status_code == 200:
                 return True, 'Webhook URL可访问'

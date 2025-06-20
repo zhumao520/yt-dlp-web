@@ -266,25 +266,20 @@ def _register_security_headers(app: Flask):
         # 内容类型选项
         response.headers['X-Content-Type-Options'] = 'nosniff'
 
-        # XSS保护
-        response.headers['X-XSS-Protection'] = '1; mode=block'
-
-        # 点击劫持保护
-        response.headers['X-Frame-Options'] = 'DENY'
-
-        # 内容安全策略（宽松配置，允许CDN资源）
+        # 现代化内容安全策略（替代X-Frame-Options）
         csp = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline' 'unsafe-eval' "
             "https://cdn.jsdelivr.net https://cdn.plyr.io https://unpkg.com; "
             "style-src 'self' 'unsafe-inline' "
-            "https://cdn.jsdelivr.net https://cdn.plyr.io https://unpkg.com; "
+            "https://cdn.jsdelivr.net https://cdn.plyr.io https://unpkg.com https://fonts.googleapis.com; "
             "img-src 'self' data: https:; "
             "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com data:; "
             "connect-src 'self' https:; "
             "media-src 'self' blob:; "
             "object-src 'none'; "
-            "base-uri 'self'"
+            "base-uri 'self'; "
+            "frame-ancestors 'none'"  # 替代X-Frame-Options
         )
         response.headers['Content-Security-Policy'] = csp
 
@@ -296,6 +291,16 @@ def _register_security_headers(app: Flask):
             "geolocation=(), microphone=(), camera=(), "
             "payment=(), usb=(), magnetometer=(), gyroscope=()"
         )
+
+        # 缓存控制（使用Cache-Control而不是Expires）
+        if response.mimetype == 'text/html':
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        elif response.mimetype.startswith('text/css') or response.mimetype.startswith('application/javascript'):
+            response.headers['Cache-Control'] = 'public, max-age=31536000'  # 静态资源缓存1年
+
+        # 设置正确的字符集
+        if response.mimetype == 'text/html':
+            response.headers['Content-Type'] = 'text/html; charset=utf-8'
 
         return response
 

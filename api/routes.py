@@ -1028,16 +1028,11 @@ def api_save_proxy_settings():
         success = db.save_proxy_config(proxy_config)
 
         if success:
-            # 更新运行时配置
+            # 更新运行时配置 - 使用统一的代理转换工具
             from core.config import set_config
             if proxy_config["enabled"] and proxy_config["host"]:
-                proxy_url = f"{proxy_config['proxy_type']}://"
-                if proxy_config["username"]:
-                    proxy_url += f"{proxy_config['username']}"
-                    if proxy_config["password"]:
-                        proxy_url += f":{proxy_config['password']}"
-                    proxy_url += "@"
-                proxy_url += f"{proxy_config['host']}:{proxy_config['port']}"
+                from core.proxy_converter import ProxyConverter
+                proxy_url = ProxyConverter.build_proxy_url(proxy_config)
                 set_config("downloader.proxy", proxy_url)
             else:
                 set_config("downloader.proxy", None)
@@ -1055,7 +1050,7 @@ def api_save_proxy_settings():
 @api_bp.route('/settings/proxy/test', methods=['POST'])
 @auth_required
 def api_test_proxy():
-    """测试代理连接"""
+    """测试代理连接 - 使用统一的代理转换工具"""
     try:
         data = request.get_json()
         logger.info(f"🔍 收到代理测试请求: {data}")
@@ -1071,83 +1066,24 @@ def api_test_proxy():
             logger.error(f"❌ 代理测试缺少必需字段: {missing_fields}")
             return jsonify({"error": f"缺少必需字段: {', '.join(missing_fields)}"}), 400
 
-        import requests
-        import time
+        # 使用统一的代理转换工具进行测试
+        from core.proxy_converter import ProxyConverter
 
-        # 构建代理URL
-        proxy_type = data.get('proxy_type', 'http')
-        host = data.get('host', '').strip()
-        port = data.get('port')
-        username = data.get('username', '').strip()
-        password = data.get('password', '').strip()
+        result = ProxyConverter.test_proxy_connection(data, timeout=10)
 
-        # 验证端口
-        try:
-            port = int(port)
-            if not (1 <= port <= 65535):
-                raise ValueError("端口超出范围")
-        except (ValueError, TypeError):
-            logger.error(f"❌ 无效的端口号: {port}")
-            return jsonify({"error": "端口号必须是1-65535之间的数字"}), 400
-
-        # 构建代理URL
-        proxy_url = f"{proxy_type}://"
-        if username:
-            proxy_url += username
-            if password:
-                proxy_url += f":{password}"
-            proxy_url += "@"
-        proxy_url += f"{host}:{port}"
-
-        logger.info(f"🔗 测试代理URL: {proxy_type}://{host}:{port} (用户名: {'是' if username else '否'})")
-
-        # 测试代理连接
-        proxies = {
-            'http': proxy_url,
-            'https': proxy_url
-        }
-
-        test_url = "http://httpbin.org/ip"
-        logger.info(f"🧪 开始测试代理连接: {test_url}")
-        start_time = time.time()
-
-        response = requests.get(test_url, proxies=proxies, timeout=10)
-        response_time = round((time.time() - start_time) * 1000)
-
-        if response.status_code == 200:
-            result = response.json()
-            logger.info(f"✅ 代理测试成功: IP={result.get('origin')}, 响应时间={response_time}ms")
+        if result['success']:
             return jsonify({
                 "success": True,
-                "message": "代理连接测试成功",
-                "ip": result.get("origin", "未知"),
-                "response_time": f"{response_time}ms"
+                "message": result['message'],
+                "ip": result['ip'],
+                "response_time": result['response_time']
             })
         else:
-            logger.error(f"❌ 代理测试失败: 状态码={response.status_code}")
             return jsonify({
                 "success": False,
-                "error": f"代理测试失败，状态码: {response.status_code}"
+                "error": result['message']
             }), 400
 
-    except requests.exceptions.Timeout:
-        logger.error("❌ 代理连接超时")
-        return jsonify({
-            "success": False,
-            "error": "代理连接超时（10秒）"
-        }), 400
-    except requests.exceptions.ConnectionError as e:
-        logger.error(f"❌ 代理连接错误: {e}")
-        return jsonify({
-            "success": False,
-            "error": f"无法连接到代理服务器: {str(e)}"
-        }), 400
-    except requests.exceptions.ProxyError as e:
-        logger.error(f"❌ 代理错误: {e}")
-        return jsonify({
-            "success": False,
-            "error": f"代理服务器错误: {str(e)}"
-        }), 400
     except Exception as e:
         logger.error(f"❌ 测试代理失败: {e}")
         import traceback
@@ -1763,6 +1699,52 @@ def api_shortcuts_info():
     except Exception as e:
         logger.error(f"❌ 获取服务信息失败: {e}")
         return jsonify({"error": "获取信息失败"}), 500
+
+
+# ==================== 下载管理API兼容路由 ====================
+
+@api_bp.route('/download/<download_id>/cancel', methods=['POST'])
+@auth_required
+def api_cancel_download_alt(download_id):
+    """取消下载 - 首页兼容路由"""
+    try:
+        from modules.downloader.manager import get_download_manager
+        download_manager = get_download_manager()
+
+        success = download_manager.cancel_download(download_id)
+        if not success:
+            return jsonify({'error': '无法取消下载'}), 400
+
+        return jsonify({
+            'success': True,
+            'message': '下载已取消'
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 取消下载失败: {e}")
+        return jsonify({'error': '取消失败'}), 500
+
+
+@api_bp.route('/download/cancel/<download_id>', methods=['POST'])
+@auth_required
+def api_cancel_download_alt2(download_id):
+    """取消下载 - 历史页面兼容路由"""
+    try:
+        from modules.downloader.manager import get_download_manager
+        download_manager = get_download_manager()
+
+        success = download_manager.cancel_download(download_id)
+        if not success:
+            return jsonify({'error': '无法取消下载'}), 400
+
+        return jsonify({
+            'success': True,
+            'message': '下载已取消'
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 取消下载失败: {e}")
+        return jsonify({'error': '取消失败'}), 500
 
 
 def _verify_api_key(api_key: str) -> bool:

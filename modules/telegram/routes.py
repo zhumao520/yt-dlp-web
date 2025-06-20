@@ -344,11 +344,21 @@ def _handle_command(command, config):
             # 获取文件列表 - 增强版本
             from core.config import get_config
             from pathlib import Path
+            import os
 
-            download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+            download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
+
+            # 添加调试信息
+            debug_info = f"""🔍 **调试信息**:
+📂 配置路径: `{get_config('downloader.output_dir', 'data/downloads')}`
+📂 实际路径: `{download_dir.absolute()}`
+📂 路径存在: `{download_dir.exists()}`
+📂 当前工作目录: `{os.getcwd()}`
+
+"""
 
             if not download_dir.exists():
-                files_text = "📁 **文件管理**\n\n下载文件夹不存在"
+                files_text = f"📁 **文件管理**\n\n❌ 下载文件夹不存在\n\n{debug_info}"
             else:
                 try:
                     files = []
@@ -370,7 +380,7 @@ def _handle_command(command, config):
                     recent_files = files[:8]
 
                     if not recent_files:
-                        files_text = "📁 **文件管理**\n\n暂无下载文件"
+                        files_text = f"📁 **文件管理**\n\n暂无下载文件\n\n{debug_info}"
                     else:
                         total_size_mb = total_size / (1024 * 1024)
                         files_text = f"📁 **文件管理** (共{len(files)}个文件，{total_size_mb:.1f} MB)\n\n"
@@ -422,7 +432,55 @@ def _handle_command(command, config):
 **环境变量**:
 SERVER_URL = `{os.getenv('SERVER_URL', '未设置')}`
 
-**psutil检查**:"""
+**Telegram配置**:"""
+
+            # 检查Telegram配置
+            try:
+                from modules.telegram.services.config_service import TelegramConfigService
+                telegram_config = TelegramConfigService()
+                config_data = telegram_config.get_config()
+
+                if config_data:
+                    debug_text += f"""
+✅ Telegram已配置
+• 启用状态: {config_data.get('enabled', False)}
+• Bot Token: {'已设置' if config_data.get('bot_token') else '未设置'}
+• Chat ID: {'已设置' if config_data.get('chat_id') else '未设置'}
+• 推送模式: {config_data.get('push_mode', 'file')}
+• 文件大小限制: {config_data.get('file_size_limit', 50)}MB"""
+                else:
+                    debug_text += "\n❌ Telegram配置未找到"
+            except Exception as e:
+                debug_text += f"\n❌ 获取Telegram配置失败: {e}"
+
+            debug_text += "\n\n**事件监听器检查**:"
+
+            # 检查事件监听器
+            try:
+                from core.events import event_bus
+                listeners = event_bus._listeners
+
+                download_completed_listeners = listeners.get('download.completed', [])
+                debug_text += f"""
+• DOWNLOAD_COMPLETED监听器: {len(download_completed_listeners)} 个
+• 监听器函数: {[func.__name__ for func in download_completed_listeners]}
+• 总事件类型: {len(listeners)} 个"""
+
+                # 检查Telegram通知器状态
+                from modules.telegram.notifier import get_telegram_notifier
+                notifier = get_telegram_notifier()
+                if notifier:
+                    debug_text += f"""
+• Telegram通知器: 已创建
+• 通知器启用: {notifier.is_enabled()}
+• 上传器可用: {bool(notifier.uploader)}"""
+                else:
+                    debug_text += "\n• Telegram通知器: 未创建"
+
+            except Exception as e:
+                debug_text += f"\n❌ 检查事件监听器失败: {e}"
+
+            debug_text += "\n\n**psutil检查**:"
 
             try:
                 import psutil
@@ -536,7 +594,7 @@ scheme = `{request.scheme}`"""
             # 查找文件
             from core.config import get_config
             from pathlib import Path
-            download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+            download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
 
             if not download_dir.exists():
                 notifier.send_message("❌ 下载文件夹不存在")
@@ -618,7 +676,7 @@ scheme = `{request.scheme}`"""
             # 查找文件
             from core.config import get_config
             from pathlib import Path
-            download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+            download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
 
             if not download_dir.exists():
                 notifier.send_message("❌ 下载文件夹不存在")
@@ -677,7 +735,7 @@ scheme = `{request.scheme}`"""
             from pathlib import Path
             import time
 
-            download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+            download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
 
             if not download_dir.exists():
                 notifier.send_message("❌ 下载文件夹不存在")

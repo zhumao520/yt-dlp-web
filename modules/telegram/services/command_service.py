@@ -105,7 +105,7 @@ class TelegramCommandService:
         try:
             from ....core.config import get_config
             
-            download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+            download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
             
             if not download_dir.exists():
                 return "📁 **文件列表**\n\n下载文件夹不存在"
