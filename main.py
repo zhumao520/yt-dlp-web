@@ -132,24 +132,7 @@ def main():
         sys.exit(1)
 
 
-# 为测试提供app实例
-app = None
-
-def get_app():
-    """获取应用实例（用于测试）"""
-    global app
-    if app is None:
-        # 简化的应用创建（用于测试）
-        from core import create_app
-        app = create_app()
-    return app
-
-# 直接导出app实例（用于测试）
-try:
-    app = get_app()
-except Exception as e:
-    logger.warning(f"⚠️ 应用实例创建失败: {e}")
-    app = None
+# 应用实例创建已移至 core/app.py，避免重复
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,102 @@
+# YT-DLP Web 配置文件
+# 此文件包含所有可配置的选项，您可以根据需要修改
+
+# ==================== 应用基础配置 ====================
+app:
+  name: "YT-DLP Web"
+  version: "2.0.0"
+  host: "0.0.0.0"                    # 监听地址，0.0.0.0表示监听所有接口
+  port: 8080                         # 监听端口
+  debug: false                       # 调试模式，生产环境请设为false
+  secret_key: "change-this-secret-key-in-production"  # 会话密钥，请修改为随机字符串
+
+# ==================== 数据库配置 ====================
+database:
+  url: "sqlite:///data/app.db"       # 数据库连接URL
+  echo: false                        # 是否输出SQL语句
+
+# ==================== 认证配置 ====================
+auth:
+  session_timeout: 86400             # 会话超时时间（秒），默认24小时
+  default_username: "admin"          # 默认管理员用户名
+  default_password: "admin123"       # 默认管理员密码，首次启动后请修改
+
+# ==================== 下载器配置 ====================
+downloader:
+  output_dir: "data/downloads"       # 下载文件保存目录
+  temp_dir: "/app/temp"              # 临时文件目录
+  max_concurrent: 3                  # 最大并发下载数
+  timeout: 300                       # 下载超时时间（秒）
+  auto_cleanup: false                # 是否启用自动清理 (已禁用)
+  cleanup_interval: 3600             # 清理检查间隔（秒），默认1小时
+  max_file_age: 86400                # 文件最大保留时间（秒），默认24小时
+  file_retention_hours: 168          # 文件保留时间（小时）- 7天
+  max_storage_mb: 5000               # 最大存储空间（MB）
+  keep_recent_files: 20              # 保留最近文件数量
+
+# ==================== Telegram配置 ====================
+telegram:
+  enabled: false                     # 是否启用Telegram功能
+  bot_token: ""                      # Telegram Bot Token
+  chat_id: ""                        # Telegram Chat ID
+  api_id: null                       # Telegram API ID（可选，用于Pyrogram）
+  api_hash: ""                       # Telegram API Hash（可选，用于Pyrogram）
+  push_mode: "file"                  # 推送模式：file（文件）、notification（通知）、both（两者）
+  file_size_limit: 50                # 文件大小限制（MB）
+  auto_download: true                # 是否自动下载Telegram发送的链接
+  webhook_url: ""                    # Webhook URL（可选）
+
+# ==================== YT-DLP配置 ====================
+ytdlp:
+  auto_update: true                  # 是否自动更新yt-dlp
+  source: "github"                   # 更新源：github、pypi、local
+  version: "latest"                  # 版本：latest或具体版本号
+  extract_flat: false                # 是否只提取播放列表信息
+  format: "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best"  # 默认格式选择器
+
+# ==================== 代理配置 ====================
+proxy:
+  enabled: false                     # 是否启用代理
+  proxy_type: "http"                 # 代理类型：http、socks5
+  host: ""                           # 代理服务器地址
+  port: null                         # 代理服务器端口
+  username: ""                       # 代理用户名（可选）
+  password: ""                       # 代理密码（可选）
+
+# ==================== 日志配置 ====================
+logging:
+  level: "INFO"                      # 日志级别：DEBUG、INFO、WARNING、ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "data/logs/app.log"          # 日志文件路径
+  max_size: 10485760                 # 日志文件最大大小（字节），默认10MB
+  backup_count: 5                    # 保留的日志文件数量
+
+# ==================== 功能开关 ====================
+features:
+  ai_analysis: false                 # AI分析功能（预留）
+  cloud_storage: false               # 云存储功能（预留）
+  multi_user: false                  # 多用户功能（预留）
+  monitoring: false                  # 监控功能（预留）
+  plugins: false                     # 插件系统（预留）
+
+# ==================== 安全配置 ====================
+security:
+  api_enabled: false                 # 是否启用API密钥认证
+  api_key: ""                        # API密钥
+  cors_enabled: false                # 是否启用CORS
+  allowed_origins: []                # 允许的来源域名
+
+# ==================== 网络配置 ====================
+network:
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  max_retries: 3                     # 最大重试次数
+  retry_delay: 1                     # 重试延迟（秒）
+  connect_timeout: 30                # 连接超时（秒）
+  read_timeout: 60                   # 读取超时（秒）
+
+# ==================== 存储配置 ====================
+storage:
+  cleanup_enabled: true              # 是否启用存储清理
+  cleanup_schedule: "0 2 * * *"      # 清理计划（Cron表达式），默认每天凌晨2点
+  max_disk_usage: 80                 # 最大磁盘使用率（百分比）
+  min_free_space: 1024               # 最小剩余空间（MB）
