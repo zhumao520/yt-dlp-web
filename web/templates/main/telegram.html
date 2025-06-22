@@ -897,7 +897,7 @@ class TelegramApp {
         }
 
         try {
-            const response = await apiRequest('/telegram/api/setup-webhook', {
+            const response = await apiRequest('/api/telegram/setup-webhook', {
                 method: 'POST',
                 body: JSON.stringify({
                     webhook_url: this.config.webhook_url || null
@@ -925,7 +925,7 @@ class TelegramApp {
         if (!confirm('确定要删除 Webhook 吗？这将停止机器人接收消息。')) return;
 
         try {
-            const response = await apiRequest('/telegram/api/delete-webhook', {
+            const response = await apiRequest('/api/telegram/delete-webhook', {
                 method: 'POST'
             });
 
@@ -947,7 +947,7 @@ class TelegramApp {
         }
 
         try {
-            const response = await apiRequest('/telegram/api/webhook-info');
+            const response = await apiRequest('/api/telegram/webhook-info');
 
             if (response.ok) {
                 const data = await response.json();

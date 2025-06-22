@@ -82,6 +82,18 @@ class YouTubeStrategies:
 
                     if result:
                         logger.info(f"✅ 引擎成功: {engine_name}")
+
+                        # 检查是否需要音频转换
+                        if self._needs_audio_conversion(options):
+                            converted_path = self._convert_to_audio(result, options)
+                            if converted_path:
+                                # 删除原始文件
+                                try:
+                                    Path(result).unlink()
+                                except:
+                                    pass
+                                result = converted_path
+
                         return result
                     else:
                         logger.warning(f"❌ 引擎失败: {engine_name}")
@@ -268,31 +280,12 @@ class YouTubeStrategies:
         return output_dir
     
     def _get_proxy_config(self) -> Optional[str]:
-        """获取代理配置"""
+        """获取代理配置 - 使用统一的代理转换器"""
         try:
-            # 首先尝试从运行时配置获取
-            from core.config import get_config
-            proxy = get_config('downloader.proxy', None)
-            if proxy:
-                return proxy
-
-            # 如果运行时配置没有，从数据库获取
-            from core.database import get_database
-            db = get_database()
-            proxy_config = db.get_proxy_config()
-
-            if proxy_config and proxy_config.get('enabled'):
-                proxy_url = f"{proxy_config.get('proxy_type', 'http')}://"
-                if proxy_config.get('username'):
-                    proxy_url += f"{proxy_config['username']}"
-                    if proxy_config.get('password'):
-                        proxy_url += f":{proxy_config['password']}"
-                    proxy_url += "@"
-                proxy_url += f"{proxy_config.get('host')}:{proxy_config.get('port')}"
-                return proxy_url
-
-            return None
-        except ImportError:
+            from core.proxy_converter import ProxyConverter
+            return ProxyConverter.get_ytdlp_proxy("YouTubeStrategies")
+        except Exception as e:
+            logger.debug(f"🔍 获取代理配置失败: {e}")
             return None
 
     def _get_ffmpeg_path(self) -> Optional[str]:
@@ -333,45 +326,10 @@ class YouTubeStrategies:
             return None
 
     def _get_pytubefix_proxy_config(self) -> Optional[str]:
-        """获取PyTubeFix专用的代理配置（HTTP代理）"""
+        """获取PyTubeFix专用的代理配置 - 使用统一的代理转换器"""
         try:
-            # 尝试从数据库获取
-            try:
-                from core.database import get_database
-                db = get_database()
-                proxy_config = db.get_proxy_config()
-
-                if proxy_config and proxy_config.get('enabled'):
-                    host = proxy_config.get('host')
-
-                    # 为PyTubeFix尝试HTTP代理端口
-                    if host == '192.168.2.222':  # 用户的代理服务器
-                        # 使用用户提到的HTTP代理端口
-                        http_proxy = f"http://{host}:1190"
-                        logger.info(f"✅ 为PyTubeFix使用HTTP代理: {http_proxy}")
-                        return http_proxy
-
-                    # 其他情况，尝试转换为HTTP代理
-                    proxy_type = proxy_config.get('proxy_type', 'http')
-                    if proxy_type == 'socks5':
-                        # 尝试使用HTTP端口
-                        http_proxy = f"http://{host}:1190"
-                        return http_proxy
-                    else:
-                        # 已经是HTTP代理
-                        proxy_url = f"http://"
-                        if proxy_config.get('username'):
-                            proxy_url += f"{proxy_config['username']}"
-                            if proxy_config.get('password'):
-                                proxy_url += f":{proxy_config['password']}"
-                            proxy_url += "@"
-                        proxy_url += f"{host}:{proxy_config.get('port')}"
-                        return proxy_url
-            except ImportError:
-                pass
-
-            return None
-
+            from core.proxy_converter import ProxyConverter
+            return ProxyConverter.get_pytubefix_proxy("YouTubeStrategies-PyTubeFix")
         except Exception as e:
             logger.debug(f"🔍 获取PyTubeFix代理配置失败: {e}")
             return None
@@ -425,34 +383,12 @@ class YouTubeStrategies:
     def _get_po_token(self) -> Optional[str]:
         """获取YouTube PO Token"""
         try:
-            # 尝试从数据库获取PO Token配置
-            try:
-                from core.database import get_database
-                db = get_database()
-                # 假设有一个获取PO Token的方法
-                po_token_config = db.execute_query(
-                    'SELECT value FROM settings WHERE key = ?',
-                    ('youtube_po_token',)
-                )
-                if po_token_config and po_token_config[0]['value']:
-                    return po_token_config[0]['value']
-            except:
-                pass
+            # 使用统一的PO Token管理器
+            from core.po_token_manager import get_po_token_config
+            config = get_po_token_config("YouTubeStrategy")
 
-            # 尝试从环境变量获取
-            import os
-            po_token = os.getenv('YOUTUBE_PO_TOKEN')
-            if po_token:
-                return po_token
-
-            # 尝试从配置文件获取
-            try:
-                from core.config import get_config
-                po_token = get_config('youtube.po_token', None)
-                if po_token:
-                    return po_token
-            except:
-                pass
+            if config['po_token_available']:
+                return config['po_token']
 
             return None
 
@@ -512,9 +448,9 @@ class YouTubeStrategies:
         # 智能格式选择，优先使用兼容性好的格式
         quality = options.get('quality', 'best')
         if quality == 'best':
-            format_selector = 'best[height<=1080]/best[height<=720]/best'
+            format_selector = 'best[height<=2160]/best[height<=1440]/best[height<=1080]/best'
         elif quality == 'high':
-            format_selector = 'best[height<=1080]/best[height<=720]/best'
+            format_selector = 'best[height<=2160]/best[height<=1440]/best[height<=1080]/best'
         elif quality == 'medium':
             format_selector = 'best[height<=720]/best[height<=480]/best'
         elif quality == 'low':
@@ -522,8 +458,8 @@ class YouTubeStrategies:
         elif quality.isdigit():
             format_selector = f'best[height<={quality}]/best'
         else:
-            # 对于未知质量参数，使用安全的默认值
-            format_selector = 'best[height<=720]/best'
+            # 对于未知质量参数，使用高质量的默认值
+            format_selector = 'best[height<=2160]/best[height<=1080]/best'
 
         opts = {
             'format': format_selector,
@@ -727,35 +663,28 @@ class YouTubeStrategies:
                 else:  # mp3 或其他
                     format_selector = 'bestaudio[ext=mp3]/bestaudio'
 
+                # 只下载音频，不进行转换（后续用FFmpeg处理）
                 opts.update({
                     'format': format_selector,
-                    'extractaudio': True,
-                    'audioformat': audio_format,
-                    'audioquality': self._get_audio_bitrate(audio_format, audio_quality),
+                    'merge_output_format': None,  # 禁用合并为MP4
+                    'writesubtitles': False,      # 禁用字幕下载
+                    'writeautomaticsub': False,   # 禁用自动字幕
                 })
-
-                # 如果需要转换格式，设置后处理器
-                if audio_format != 'best':
-                    opts['postprocessors'] = [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': audio_format,
-                        'preferredquality': self._get_audio_bitrate(audio_format, audio_quality),
-                    }]
             else:
-                # 默认音频设置
+                # 默认音频设置 - 只下载音频，不转换
                 opts.update({
                     'format': 'bestaudio/best',
-                    'extractaudio': True,
-                    'audioformat': 'mp3',
-                    'audioquality': '192',
+                    'merge_output_format': None,  # 禁用合并为MP4
+                    'writesubtitles': False,      # 禁用字幕下载
+                    'writeautomaticsub': False,   # 禁用自动字幕
                 })
         else:
-            # 传统的仅音频下载
+            # 传统的仅音频下载 - 只下载音频，不转换
             opts.update({
                 'format': 'bestaudio/best',
-                'extractaudio': True,
-                'audioformat': 'mp3',
-                'audioquality': '192',
+                'merge_output_format': None,  # 禁用合并为MP4
+                'writesubtitles': False,      # 禁用字幕下载
+                'writeautomaticsub': False,   # 禁用自动字幕
             })
 
         # 添加代理
@@ -804,6 +733,57 @@ class YouTubeStrategies:
             return True
 
         return False
+
+    def _needs_audio_conversion(self, options: Dict[str, Any]) -> bool:
+        """判断是否需要音频转换"""
+        quality = options.get('quality', 'best')
+        audio_only = options.get('audio_only', False)
+        return audio_only or quality.startswith('audio_')
+
+    def _convert_to_audio(self, input_path: str, options: Dict[str, Any]) -> Optional[str]:
+        """转换为音频格式"""
+        try:
+            quality = options.get('quality', 'best')
+
+            # 解析音频格式和质量
+            if quality.startswith('audio_'):
+                parts = quality.split('_')
+                if len(parts) >= 3:
+                    audio_format = parts[1]  # mp3, aac, flac
+                    audio_quality = parts[2]  # high, medium, low
+                else:
+                    audio_format = 'mp3'
+                    audio_quality = 'medium'
+            else:
+                # 默认音频格式
+                audio_format = 'mp3'
+                audio_quality = 'medium'
+
+            # 生成输出文件路径
+            input_file = Path(input_path)
+            output_path = str(input_file.parent / f"{input_file.stem}.{audio_format}")
+
+            # 使用FFmpeg工具转换
+            from modules.downloader.ffmpeg_tools import FFmpegTools
+            ffmpeg_tools = FFmpegTools()
+
+            success = ffmpeg_tools.extract_audio(
+                input_path=input_path,
+                output_path=output_path,
+                format=audio_format,
+                quality=audio_quality
+            )
+
+            if success and Path(output_path).exists():
+                logger.info(f"✅ 音频转换成功: {audio_format} ({audio_quality})")
+                return output_path
+            else:
+                logger.error(f"❌ 音频转换失败")
+                return None
+
+        except Exception as e:
+            logger.error(f"❌ 音频转换异常: {e}")
+            return None
 
     def _get_mobile_opts(self, download_id: str, url: str, options: Dict[str, Any]) -> Dict[str, Any]:
         """移动客户端下载选项"""

@@ -68,11 +68,7 @@ def history():
     return render_template('main/history.html')
 
 
-@main_bp.route('/cookies')
-@auth_required
-def cookies():
-    """Cookies管理页面"""
-    return render_template('main/cookies.html')
+
 
 
 @main_bp.route('/telegram')

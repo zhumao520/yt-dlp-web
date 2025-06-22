@@ -689,10 +689,22 @@
                             <i class="bi bi-telegram me-1"></i>Telegram
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.cookies') }}">
-                            <i class="bi bi-youtube me-1"></i>Cookies
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-cookie me-1"></i>Cookies
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/cookies">
+                                <i class="bi bi-cookie me-2"></i>Cookies管理
+                            </a></li>
+                            <li><a class="dropdown-item" href="/cookies#auth-config">
+                                <i class="bi bi-key me-2"></i>认证配置
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/cookies/auth-guide" target="_blank">
+                                <i class="bi bi-book me-2"></i>获取指南
+                            </a></li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('main.settings') }}">

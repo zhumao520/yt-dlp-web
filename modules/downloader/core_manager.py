@@ -680,46 +680,10 @@ class CoreDownloadManager:
             return None
 
     def _get_proxy_config(self) -> Optional[str]:
-        """获取代理配置 - 增强版，支持代理健康检查"""
+        """获取代理配置 - 使用统一的代理转换器"""
         try:
-            # 首先尝试从数据库获取代理配置
-            from core.database import get_database
-            db = get_database()
-            proxy_config = db.get_proxy_config()
-
-            if proxy_config and proxy_config.get('enabled'):
-                # 使用统一的代理转换工具
-                from core.proxy_converter import ProxyConverter
-                proxy_url = ProxyConverter.build_proxy_url(proxy_config)
-
-                # 测试代理连接
-                test_result = ProxyConverter.test_proxy_connection(proxy_config, timeout=3)
-                if test_result['success']:
-                    logger.info(f"✅ 使用数据库代理配置: {proxy_config.get('proxy_type')}://{proxy_config.get('host')}:{proxy_config.get('port')}")
-                    return proxy_url
-                else:
-                    logger.warning(f"⚠️ 代理连接失败，跳过代理: {proxy_config.get('host')}:{proxy_config.get('port')} - {test_result['message']}")
-                    return None
-
-            # 其次尝试从配置文件获取
-            from core.config import get_config
-            config = get_config()
-            proxy_config = config.get('proxy', {})
-
-            if proxy_config.get('enabled', False):
-                proxy_type = proxy_config.get('type', 'http')
-                proxy_host = proxy_config.get('host', '')
-                proxy_port = proxy_config.get('port', '')
-
-                if proxy_host and proxy_port:
-                    proxy_url = f"{proxy_type}://{proxy_host}:{proxy_port}"
-                    if self._test_proxy_connection(proxy_url):
-                        logger.info(f"✅ 使用配置文件代理: {proxy_url}")
-                        return proxy_url
-                    else:
-                        logger.warning(f"⚠️ 配置文件代理连接失败，跳过代理: {proxy_host}:{proxy_port}")
-
-            return None
+            from core.proxy_converter import ProxyConverter
+            return ProxyConverter.get_ytdlp_proxy("CoreManager")
         except Exception as e:
             logger.debug(f"🔍 获取代理配置失败: {e}")
             return None

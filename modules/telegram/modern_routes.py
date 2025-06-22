@@ -377,30 +377,4 @@ def get_modern_telegram_router() -> ModernTelegramRouter:
     return _modern_router_instance
 
 
-@telegram_bp.route('/webhook', methods=['POST'])
-def telegram_webhook():
-    """Telegram Webhook处理"""
-    try:
-        from core.database import get_database
-
-        # 获取请求数据
-        update = request.get_json()
-        if not update:
-            return jsonify({'status': 'error', 'message': 'No data received'}), 400
-
-        # 获取Telegram配置
-        db = get_database()
-        telegram_config = db.get_telegram_config()
-
-        if not telegram_config or not telegram_config.get('enabled'):
-            return jsonify({'status': 'disabled', 'message': 'Telegram not enabled'}), 200
-
-        # 处理消息
-        router = get_modern_telegram_router()
-        result = router.process_telegram_message(update, telegram_config)
-
-        return jsonify({'status': 'success', 'result': result}), 200
-
-    except Exception as e:
-        logger.error(f"❌ Telegram webhook处理失败: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+# Webhook路由已在 routes.py 中定义，避免重复

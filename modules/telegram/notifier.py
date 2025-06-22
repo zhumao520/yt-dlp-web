@@ -392,14 +392,28 @@ def handle_download_started(data):
         download_manager = get_download_manager()
         download_info = download_manager.get_download(download_id)
 
-        if download_info:
+        # 安全地处理下载信息
+        title = 'Unknown'
+        if download_info and isinstance(download_info, dict):
+            title = download_info.get('title', 'Unknown')
+
             with notifier._lock:
                 notifier._active_downloads[download_id] = {
-                    'title': download_info.get('title', 'Unknown'),
+                    'title': title,
                     'url': url,
                     'last_progress': 0,
                     'start_time': time.time(),
                     'source': options.get('source', 'web')  # 记录下载来源
+                }
+        else:
+            # 如果没有下载信息，创建基础跟踪记录
+            with notifier._lock:
+                notifier._active_downloads[download_id] = {
+                    'title': 'Unknown',
+                    'url': url,
+                    'last_progress': 0,
+                    'start_time': time.time(),
+                    'source': options.get('source', 'web')
                 }
 
         # 根据下载来源发送不同的开始通知
@@ -409,7 +423,6 @@ def handle_download_started(data):
         else:
             logger.info(f"📡 Web 下载开始跟踪: {download_id}")
             # 为 Web 下载发送开始通知
-            title = download_info.get('title', 'Unknown') if download_info else 'Unknown'
             start_message = f"📥 **开始下载**\n\n📹 **{title[:50]}**\n🔗 **来源**: Web 界面"
             notifier.send_message(start_message)
 
@@ -419,67 +432,9 @@ def handle_download_started(data):
 
 @on(Events.DOWNLOAD_PROGRESS)
 def handle_download_progress(data):
-    """处理下载进度事件 - 智能更新策略"""
-    try:
-        download_id = data.get('download_id')
-        status = data.get('status')
-        progress = data.get('progress', 0)
-
-        if not download_id:
-            return
-
-        # 提前检查 Telegram 是否启用
-        notifier = get_telegram_notifier()
-        if not notifier or not notifier.is_enabled():
-            return
-
-        # 检查是否是被跟踪的下载
-        with notifier._lock:
-            if download_id not in notifier._active_downloads:
-                return
-
-            download_info = notifier._active_downloads[download_id]
-            title = download_info.get('title', 'Unknown')[:30]
-            source = download_info.get('source', 'web')
-
-        # 智能进度更新策略 - 减少消息频率
-        should_update = False
-        last_progress = download_info.get('last_progress', 0)
-
-        if status == 'downloading':
-            # 每20%发送一次更新
-            if progress - last_progress >= 20 or last_progress == 0:
-                should_update = True
-        elif status in ['completed', 'failed', 'cancelled']:
-            should_update = True
-
-        if should_update:
-            # 生成现代化进度条
-            progress_bar = _generate_progress_bar(progress)
-
-            # 根据下载来源生成不同的消息
-            if status == 'downloading':
-                if source == 'telegram_webhook':
-                    message = f"📥 **下载中** ({progress}%)\n\n📹 **{title}**\n\n{progress_bar}\n\n💡 发送 `/cancel {download_id[:8]}` 可取消下载"
-                else:
-                    message = f"📥 **下载中** ({progress}%)\n\n📹 **{title}**\n\n{progress_bar}\n\n🌐 **来源**: Web 界面"
-            elif status == 'completed':
-                message = f"✅ **下载完成**\n\n📹 **{title}**\n\n{progress_bar}"
-            elif status == 'failed':
-                message = f"❌ **下载失败**\n\n📹 **{title}**"
-            elif status == 'cancelled':
-                message = f"🚫 **下载已取消**\n\n📹 **{title}**"
-            else:
-                return
-
-            notifier.update_progress_message(download_id, message)
-
-            # 更新记录的进度
-            with notifier._lock:
-                notifier._active_downloads[download_id]['last_progress'] = progress
-
-    except Exception as e:
-        logger.error(f"❌ 处理下载进度事件失败: {e}")
+    """处理下载进度事件 - 暂时禁用以减少日志噪音"""
+    # 暂时禁用进度通知，专注于m3u8下载功能
+    return
 
 
 @on(Events.DOWNLOAD_COMPLETED)

@@ -221,22 +221,38 @@
 
 {% block extra_styles %}
 <style>
-/* 修复表格白色边框 */
+/* 修复表格白色边框和背景 */
 .table {
     border-color: transparent !important;
     border: none !important;
+    background: transparent !important;
 }
 
 .table td, .table th {
     border-color: transparent !important;
     border: none !important;
+    background: transparent !important;
 }
 
 .table tbody tr {
     border-color: transparent !important;
+    background: transparent !important;
+}
+
+.table tbody tr td {
+    background: transparent !important;
+    color: white !important;
+}
+
+.table tbody tr .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
 }
 
 .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.table-hover tbody tr:hover td {
     background-color: rgba(255, 255, 255, 0.1) !important;
 }
 
@@ -374,7 +390,7 @@ class FilesApp {
         this.showLoading(true);
         
         try {
-            const response = await apiRequest('/files/list');
+            const response = await apiRequest('/api/files/list');
             if (response.ok) {
                 const data = await response.json();
                 this.files = data.files || [];
@@ -751,7 +767,7 @@ class FilesApp {
         if (!confirm(`确定要删除文件 "${filename}" 吗？`)) return;
         
         try {
-            const response = await apiRequest(`/files/delete/${encodeURIComponent(filename)}`, {
+            const response = await apiRequest(`/api/files/delete/${filename}`, {
                 method: 'DELETE'
             });
             
@@ -774,7 +790,7 @@ class FilesApp {
         if (!confirm(`确定要删除以下 ${this.selectedFiles.size} 个文件吗？\n\n${fileList}`)) return;
         
         const promises = Array.from(this.selectedFiles).map(filename => 
-            apiRequest(`/files/delete/${encodeURIComponent(filename)}`, { method: 'DELETE' })
+            apiRequest(`/api/files/delete/${filename}`, { method: 'DELETE' })
         );
         
         try {

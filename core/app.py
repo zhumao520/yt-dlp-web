@@ -211,6 +211,8 @@ def _register_blueprints(app: Flask):
         from modules.files.routes import files_bp
         app.register_blueprint(files_bp, url_prefix="/files")
 
+
+
         logger.info("✅ 蓝图注册完成")
 
     except Exception as e:

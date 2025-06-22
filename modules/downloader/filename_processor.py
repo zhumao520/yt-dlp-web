@@ -137,14 +137,15 @@ class FilenameProcessor:
             if not Path(clean_custom).suffix:
                 clean_custom = f"{clean_custom}{current_path.suffix}"
             
-            # 构建新路径
-            new_path = current_path.parent / clean_custom
-            
+            # 构建新路径，确保唯一性
+            target_path = current_path.parent / clean_custom
+            unique_path = self._get_unique_filename(target_path)
+
             # 重命名文件
             if current_path.exists():
-                current_path.rename(new_path)
-                logger.info(f"✅ 文件重命名: {current_path.name} -> {new_path.name}")
-                return str(new_path)
+                current_path.rename(unique_path)
+                logger.info(f"✅ 文件重命名: {current_path.name} -> {unique_path.name}")
+                return str(unique_path)
             else:
                 logger.warning(f"⚠️ 源文件不存在: {current_file}")
                 return current_file
@@ -287,27 +288,62 @@ class FilenameProcessor:
                         if file_type == 'video' and not main_file:
                             # 主视频文件
                             new_name = f"{base_filename}{file_path.suffix}"
-                            new_path = file_path.parent / new_name
+                            new_path = self._get_unique_filename(file_path.parent / new_name)
                             file_path.rename(new_path)
                             main_file = str(new_path)
-                            logger.info(f"✅ 主文件重命名: {file_path.name} -> {new_name}")
-                        
+                            logger.info(f"✅ 主文件重命名: {file_path.name} -> {new_path.name}")
+
                         else:
                             # 其他文件
                             new_name = self.generate_specific_filename(base_filename, file_path, file_type)
-                            new_path = file_path.parent / new_name
+                            new_path = self._get_unique_filename(file_path.parent / new_name)
                             file_path.rename(new_path)
-                            logger.info(f"✅ 文件重命名: {file_path.name} -> {new_name}")
+                            logger.info(f"✅ 文件重命名: {file_path.name} -> {new_path.name}")
                     
                     except Exception as e:
                         logger.error(f"❌ 重命名文件失败 {file_path}: {e}")
                         continue
             
             return main_file
-            
+
         except Exception as e:
             logger.error(f"❌ 批量重命名失败: {e}")
             return None
+
+    def _get_unique_filename(self, target_path: Path) -> Path:
+        """获取唯一的文件名，避免冲突"""
+        try:
+            if not target_path.exists():
+                return target_path
+
+            # 文件已存在，生成唯一名称
+            base_name = target_path.stem
+            extension = target_path.suffix
+            parent_dir = target_path.parent
+
+            counter = 1
+            while True:
+                new_name = f"{base_name}_{counter}{extension}"
+                new_path = parent_dir / new_name
+
+                if not new_path.exists():
+                    logger.info(f"🔄 文件名冲突，使用: {new_name}")
+                    return new_path
+
+                counter += 1
+
+                # 防止无限循环
+                if counter > 1000:
+                    import time
+                    timestamp = int(time.time())
+                    new_name = f"{base_name}_{timestamp}{extension}"
+                    new_path = parent_dir / new_name
+                    logger.warning(f"⚠️ 文件名冲突过多，使用时间戳: {new_name}")
+                    return new_path
+
+        except Exception as e:
+            logger.error(f"❌ 生成唯一文件名失败: {e}")
+            return target_path
     
     def get_safe_filename_length(self, directory: str) -> int:
         """获取安全的文件名长度限制"""

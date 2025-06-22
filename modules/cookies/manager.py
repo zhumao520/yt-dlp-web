@@ -248,8 +248,8 @@ class CookiesManager:
             logger.error(f"❌ 获取yt-dlp Cookies失败: {e}")
             return None
 
-    def save_oauth2_config(self, oauth2_token: str = '', visitor_data: str = '', po_token: str = '') -> Dict:
-        """保存 OAuth2 配置到数据库"""
+    def save_youtube_auth_config(self, oauth2_token: str = '', visitor_data: str = '', po_token: str = '') -> Dict:
+        """保存 YouTube 认证配置（PO Token、Visitor Data等）"""
         try:
             oauth2_file = self.cookies_dir / 'youtube_oauth2.json'
 
@@ -265,22 +265,22 @@ class CookiesManager:
             with open(oauth2_file, 'w', encoding='utf-8') as f:
                 json.dump(oauth2_data, f, indent=2, ensure_ascii=False)
 
-            logger.info(f"✅ OAuth2 配置保存成功")
+            logger.info(f"✅ YouTube 认证配置保存成功")
 
             return {
                 'success': True,
-                'message': 'OAuth2 配置保存成功',
+                'message': 'YouTube 认证配置保存成功',
                 'oauth2_available': bool(oauth2_token),
                 'visitor_data_available': bool(visitor_data),
                 'po_token_available': bool(po_token)
             }
 
         except Exception as e:
-            logger.error(f"❌ 保存 OAuth2 配置失败: {e}")
+            logger.error(f"❌ 保存 YouTube 认证配置失败: {e}")
             return {'success': False, 'error': str(e)}
 
-    def get_oauth2_config(self) -> Dict:
-        """获取 OAuth2 配置"""
+    def get_youtube_auth_config(self) -> Dict:
+        """获取 YouTube 认证配置"""
         try:
             oauth2_file = self.cookies_dir / 'youtube_oauth2.json'
 
@@ -314,25 +314,25 @@ class CookiesManager:
             }
 
         except Exception as e:
-            logger.error(f"❌ 获取 OAuth2 配置失败: {e}")
+            logger.error(f"❌ 获取 YouTube 认证配置失败: {e}")
             return {'success': False, 'error': str(e)}
 
-    def delete_oauth2_config(self) -> Dict:
-        """删除 OAuth2 配置"""
+    def delete_youtube_auth_config(self) -> Dict:
+        """删除 YouTube 认证配置"""
         try:
             oauth2_file = self.cookies_dir / 'youtube_oauth2.json'
 
             if oauth2_file.exists():
                 oauth2_file.unlink()
-                logger.info(f"✅ OAuth2 配置删除成功")
+                logger.info(f"✅ YouTube 认证配置删除成功")
 
             return {
                 'success': True,
-                'message': 'OAuth2 配置删除成功'
+                'message': 'YouTube 认证配置删除成功'
             }
 
         except Exception as e:
-            logger.error(f"❌ 删除 OAuth2 配置失败: {e}")
+            logger.error(f"❌ 删除 YouTube 认证配置失败: {e}")
             return {'success': False, 'error': str(e)}
 
     def generate_emergency_cookies(self, platform: str = 'youtube') -> Dict:

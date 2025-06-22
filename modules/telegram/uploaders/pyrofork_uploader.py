@@ -396,16 +396,26 @@ class PyroForkUploader(BaseUploader):
                 session_name = os.path.join(self._session_dir, "ytdlp_session")
                 logger.debug(f"🔧 创建 Pyrofork 客户端: {session_name}")
 
+                # 获取代理配置
+                proxy_config = self._get_proxy_config()
+
                 # 创建客户端配置
-                self.client = Client(
-                    name=session_name,
-                    api_id=self.api_id,
-                    api_hash=self.api_hash,
-                    bot_token=self.bot_token,
-                    workdir=self._session_dir,
-                    in_memory=True,  # 使用内存会话
-                    no_updates=True  # 禁用更新处理，减少资源占用
-                )
+                client_kwargs = {
+                    'name': session_name,
+                    'api_id': self.api_id,
+                    'api_hash': self.api_hash,
+                    'bot_token': self.bot_token,
+                    'workdir': self._session_dir,
+                    'in_memory': True,  # 使用内存会话
+                    'no_updates': True  # 禁用更新处理，减少资源占用
+                }
+
+                # 添加代理配置
+                if proxy_config:
+                    client_kwargs['proxy'] = proxy_config
+                    logger.info(f"✅ Pyrofork 使用代理: {proxy_config}")
+
+                self.client = Client(**client_kwargs)
 
             # 检查并建立连接
             if not self.client.is_connected:
@@ -464,6 +474,50 @@ class PyroForkUploader(BaseUploader):
         """重置客户端状态 - 用于错误恢复"""
         logger.debug("🔄 重置 Pyrofork 客户端状态")
         self.client = None
+
+    def _get_proxy_config(self) -> Optional[Dict[str, Any]]:
+        """获取代理配置 - 使用项目统一的代理转换器"""
+        try:
+            from core.proxy_converter import ProxyConverter
+
+            # 获取原始代理配置
+            proxy_config = ProxyConverter.get_proxy_config()
+            if not proxy_config:
+                return None
+
+            proxy_type = proxy_config.get('proxy_type', 'http')
+            host = proxy_config.get('host')
+            port = proxy_config.get('port')
+            username = proxy_config.get('username')
+            password = proxy_config.get('password')
+
+            if not host or not port:
+                return None
+
+            # 转换为Pyrogram需要的格式
+            if proxy_type == 'socks5':
+                return {
+                    'scheme': 'socks5',
+                    'hostname': host,
+                    'port': int(port),
+                    'username': username,
+                    'password': password
+                }
+            elif proxy_type in ['http', 'https']:
+                return {
+                    'scheme': 'http',
+                    'hostname': host,
+                    'port': int(port),
+                    'username': username,
+                    'password': password
+                }
+            else:
+                logger.warning(f"⚠️ PyroFork不支持的代理协议: {proxy_type}")
+                return None
+
+        except Exception as e:
+            logger.debug(f"🔍 PyroFork获取代理配置失败: {e}")
+            return None
 
     def _run_async(self, coro):
         """在新线程中运行异步操作 - 改进版本"""

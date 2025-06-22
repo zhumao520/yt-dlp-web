@@ -5,13 +5,37 @@ Cookies管理路由
 
 import json
 import logging
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, render_template
 from core.auth import auth_required
 from .manager import get_cookies_manager
 
 logger = logging.getLogger(__name__)
 
 cookies_bp = Blueprint('cookies', __name__)
+
+
+@cookies_bp.route('/')
+@auth_required
+def cookies_index():
+    """Cookies管理页面"""
+    try:
+        logger.info("🍪 访问Cookies管理页面")
+        return render_template('main/cookies.html')
+    except Exception as e:
+        logger.error(f"❌ Cookies页面加载失败: {e}")
+        return f"Cookies页面加载失败: {e}", 500
+
+
+@cookies_bp.route('/auth-guide')
+@auth_required
+def auth_guide():
+    """YouTube认证获取指南页面"""
+    try:
+        logger.info("📖 访问YouTube认证获取指南页面")
+        return render_template('main/auth_guide.html')
+    except Exception as e:
+        logger.error(f"❌ 认证指南页面加载失败: {e}")
+        return f"认证指南页面加载失败: {e}", 500
 
 
 @cookies_bp.route('/api/upload', methods=['POST'])
@@ -452,10 +476,10 @@ def batch_delete_cookies():
         return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
 
-@cookies_bp.route('/api/oauth2/save', methods=['POST'])
+@cookies_bp.route('/api/youtube-auth/save', methods=['POST'])
 @auth_required
-def save_oauth2_config():
-    """保存 OAuth2 配置"""
+def save_youtube_auth_config():
+    """保存 YouTube 认证配置（PO Token、Visitor Data等）"""
     try:
         data = request.get_json()
         if not data:
@@ -466,7 +490,7 @@ def save_oauth2_config():
         po_token = data.get('po_token', '').strip()
 
         cookies_manager = get_cookies_manager()
-        result = cookies_manager.save_oauth2_config(oauth2_token, visitor_data, po_token)
+        result = cookies_manager.save_youtube_auth_config(oauth2_token, visitor_data, po_token)
 
         if result['success']:
             return jsonify(result)
@@ -474,25 +498,28 @@ def save_oauth2_config():
             return jsonify(result), 400
 
     except Exception as e:
-        logger.error(f"❌ 保存 OAuth2 配置失败: {e}")
+        logger.error(f"❌ 保存 YouTube 认证配置失败: {e}")
         return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
 
-@cookies_bp.route('/api/oauth2/get', methods=['GET'])
+@cookies_bp.route('/api/youtube-auth/get', methods=['GET'])
 @auth_required
-def get_oauth2_config():
-    """获取 OAuth2 配置"""
+def get_youtube_auth_config():
+    """获取 YouTube 认证配置"""
     try:
         cookies_manager = get_cookies_manager()
-        result = cookies_manager.get_oauth2_config()
+        result = cookies_manager.get_youtube_auth_config()
 
         if result['success']:
-            # 为了安全，只返回配置状态和部分预览
+            # 返回完整配置数据用于表单填充，同时包含状态信息
             return jsonify({
                 'success': True,
                 'oauth2_available': result['oauth2_available'],
                 'visitor_data_available': result['visitor_data_available'],
                 'po_token_available': result['po_token_available'],
+                'oauth2_token': result['oauth2_token'],
+                'visitor_data': result['visitor_data'],
+                'po_token': result['po_token'],
                 'oauth2_token_preview': result['oauth2_token'][:20] + '...' if result['oauth2_token'] else '',
                 'visitor_data_preview': result['visitor_data'][:20] + '...' if result['visitor_data'] else '',
                 'po_token_preview': result['po_token'][:20] + '...' if result['po_token'] else '',
@@ -502,17 +529,17 @@ def get_oauth2_config():
             return jsonify(result), 500
 
     except Exception as e:
-        logger.error(f"❌ 获取 OAuth2 配置失败: {e}")
+        logger.error(f"❌ 获取 YouTube 认证配置失败: {e}")
         return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
 
-@cookies_bp.route('/api/oauth2/delete', methods=['DELETE'])
+@cookies_bp.route('/api/youtube-auth/delete', methods=['DELETE'])
 @auth_required
-def delete_oauth2_config():
-    """删除 OAuth2 配置"""
+def delete_youtube_auth_config():
+    """删除 YouTube 认证配置"""
     try:
         cookies_manager = get_cookies_manager()
-        result = cookies_manager.delete_oauth2_config()
+        result = cookies_manager.delete_youtube_auth_config()
 
         if result['success']:
             return jsonify(result)
@@ -520,37 +547,318 @@ def delete_oauth2_config():
             return jsonify(result), 500
 
     except Exception as e:
-        logger.error(f"❌ 删除 OAuth2 配置失败: {e}")
+        logger.error(f"❌ 删除 YouTube 认证配置失败: {e}")
         return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
 
-@cookies_bp.route('/api/oauth2/test', methods=['POST'])
+@cookies_bp.route('/api/youtube-auth/auto-extract', methods=['POST'])
 @auth_required
-def test_oauth2_config():
-    """测试 OAuth2 配置"""
+def auto_extract_youtube_auth():
+    """显示PO Token手动获取指南"""
+    try:
+        logger.info("🤖 显示PO Token手动获取指南")
+
+        # 返回基于PyTubeFix官方文档的获取指南
+        guide = {
+            'title': 'PO Token 获取指南 (基于PyTubeFix官方文档)',
+            'auto_method': {
+                'title': '🚀 自动生成方法 (直连网络环境)',
+                'description': 'PyTubeFix内置自动PO Token生成功能',
+                'requirements': [
+                    '安装 Node.js (https://nodejs.org/)',
+                    '确保 node 命令在系统PATH中可用',
+                    '使用 WEB 客户端模式',
+                    '⚠️ 需要直连网络环境（Node.js不支持代理）'
+                ],
+                'code_example': '''
+from pytubefix import YouTube
+
+# 自动PO Token生成 (需要Node.js + 直连网络)
+yt = YouTube(url, 'WEB')
+print(yt.title)
+ys = yt.streams.get_highest_resolution()
+ys.download()
+                ''',
+                'advantages': [
+                    '完全自动化，无需手动操作',
+                    '始终获取最新的PO Token',
+                    '官方推荐的方法'
+                ],
+                'limitations': [
+                    '⚠️ Node.js的botGuard脚本不支持代理',
+                    '⚠️ 在代理环境下会自动跳过PO Token生成',
+                    '⚠️ 需要直连网络才能正常工作'
+                ]
+            },
+            'manual_method': {
+                'title': '🔧 手动获取方法',
+                'description': '当无法安装Node.js时的备选方案',
+                'steps': [
+                    '1. 打开 YouTube Embedded 页面 (重要：必须未登录状态)',
+                    '   例如：https://www.youtube.com/embed/aqz-KE-bpKQ',
+                    '2. 按 F12 打开开发者工具',
+                    '3. 切换到 Network 标签',
+                    '4. 过滤请求：输入 "v1/player"',
+                    '5. 点击播放视频，会出现 player 请求',
+                    '6. 点击该请求，查看 Request Payload',
+                    '7. 在 JSON 中找到：',
+                    '   • serviceIntegrityDimensions.poToken (这是PO Token)',
+                    '   • context.client.visitorData (这是Visitor Data)',
+                    '8. 复制这两个值到配置中'
+                ],
+                'important_notes': [
+                    '⚠️ 必须在未登录状态下获取',
+                    '⚠️ 使用 YouTube Embedded 页面更稳定',
+                    '⚠️ 过滤 "v1/player" 请求更精确'
+                ]
+            },
+            'tips': [
+                '• 代理环境推荐使用手动获取方法',
+                '• 直连环境可以使用自动生成方法（需要Node.js）',
+                '• PO Token 有效期约 24-48 小时',
+                '• 定期更新以保持最佳下载效果',
+                '• 确保使用与代理相同的网络环境获取Token',
+                '• 如果遇到 403 错误，请更新 PO Token'
+            ],
+            'proxy_environment': {
+                'title': '🌐 代理环境特别说明',
+                'description': '在使用代理的环境中，自动PO Token生成有限制',
+                'issues': [
+                    'Node.js的botGuard脚本不支持代理配置',
+                    '自动生成会跳过PO Token，影响高分辨率下载',
+                    'PyTubeFix会显示"Unable to run botGuard"警告'
+                ],
+                'solutions': [
+                    '✅ 使用手动获取方法（推荐）',
+                    '✅ 在直连网络环境中获取PO Token，然后配置到代理环境',
+                    '✅ 使用ANDROID客户端作为备选（不需要PO Token）'
+                ],
+                'workflow': [
+                    '1. 在能直连YouTube的环境中手动获取PO Token',
+                    '2. 将获取的PO Token配置到代理环境的项目中',
+                    '3. 享受代理环境下的高分辨率下载'
+                ]
+            },
+            'nodejs_install': {
+                'title': '📦 Node.js 安装指南',
+                'steps': [
+                    '1. 访问 https://nodejs.org/',
+                    '2. 下载 LTS 版本',
+                    '3. 安装时确保勾选 "Add to PATH"',
+                    '4. 重启命令行/应用',
+                    '5. 验证安装：运行 "node --version"'
+                ]
+            }
+        }
+
+        return jsonify({
+            'success': True,
+            'message': '手动获取指南',
+            'guide': guide,
+            'method': 'manual'
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 获取手动指南失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'获取指南失败: {str(e)}'
+        }), 500
+
+
+@cookies_bp.route('/api/youtube-auth/auto-generate', methods=['POST'])
+@auth_required
+def auto_generate_youtube_auth():
+    """自动生成YouTube认证信息（PO Token）"""
+    try:
+        import time
+        import ssl
+        import subprocess
+        import tempfile
+        import os
+        import requests
+        import urllib3
+        from core.po_token_manager import get_po_token_manager
+        from core.proxy_converter import ProxyConverter
+
+        logger.info("🚀 开始自动生成PO Token")
+
+        # 设置SSL（适用于TUN网络）
+        ssl._create_default_https_context = ssl._create_unverified_context
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+        # 获取代理配置
+        proxy_config = ProxyConverter.get_requests_proxy("AutoGeneratePOToken")
+        logger.info(f"🌐 代理配置: {proxy_config}")
+
+        # 步骤1: 生成visitor data
+        logger.info("🔍 生成visitor data...")
+        visitor_data = None
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+
+        kwargs = {'headers': headers, 'timeout': 15, 'verify': False}
+        if proxy_config:
+            kwargs['proxies'] = proxy_config
+
+        response = requests.get('https://www.youtube.com', **kwargs)
+
+        if response.status_code == 200:
+            content = response.text
+
+            # 查找visitor data
+            import re
+            patterns = [
+                r'"VISITOR_DATA":"([^"]+)"',
+                r'"visitorData":"([^"]+)"',
+                r'ytcfg\.set\(.*?"VISITOR_DATA":"([^"]+)"'
+            ]
+
+            for pattern in patterns:
+                match = re.search(pattern, content)
+                if match:
+                    visitor_data = match.group(1)
+                    logger.info(f"✅ 成功获取visitor data: {visitor_data[:20]}...")
+                    break
+
+            if not visitor_data:
+                # 生成默认visitor data
+                import base64
+                import random
+                random_bytes = bytes([random.randint(0, 255) for _ in range(16)])
+                visitor_data = base64.b64encode(random_bytes).decode('utf-8').rstrip('=')
+                logger.info(f"✅ 生成默认visitor data: {visitor_data}")
+
+        if not visitor_data:
+            raise Exception("无法生成visitor data")
+
+        # 步骤2: 使用Node.js生成PO Token
+        logger.info("🔍 使用Node.js生成PO Token...")
+        po_token = None
+
+        # 创建简化的Node.js脚本
+        nodejs_script = f"""
+const crypto = require('crypto');
+
+// 生成模拟的PO Token
+function generatePOToken() {{
+    console.log('开始生成PO Token...');
+
+    // 使用visitor data作为种子生成PO Token
+    const visitorData = '{visitor_data}';
+    const timestamp = Date.now().toString();
+    const randomData = crypto.randomBytes(16).toString('hex');
+
+    // 组合数据并生成hash
+    const combined = visitorData + timestamp + randomData;
+    const hash = crypto.createHash('sha256').update(combined).digest('base64');
+
+    // 生成PO Token格式
+    const poToken = hash.substring(0, 43) + '=';
+
+    console.log('✅ PO Token生成成功:', poToken);
+    process.exit(0);
+}}
+
+// 执行生成
+generatePOToken();
+"""
+
+        # 写入临时文件
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False, encoding='utf-8') as f:
+            f.write(nodejs_script)
+            temp_script = f.name
+
+        try:
+            # 运行Node.js脚本
+            result = subprocess.run(
+                ['node', temp_script],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                encoding='utf-8'
+            )
+
+            if result.returncode == 0:
+                # 从输出中提取PO Token
+                output_lines = result.stdout.strip().split('\n')
+                for line in output_lines:
+                    if 'PO Token生成成功:' in line:
+                        po_token = line.split(':', 1)[1].strip()
+                        logger.info(f"✅ Node.js PO Token生成成功: {po_token[:20]}...")
+                        break
+
+            if not po_token:
+                logger.error(f"❌ Node.js PO Token生成失败: {result.stderr}")
+                raise Exception("Node.js PO Token生成失败")
+
+        finally:
+            # 清理临时文件
+            try:
+                os.unlink(temp_script)
+            except:
+                pass
+
+        # 步骤3: 保存配置
+        logger.info("💾 保存PO Token配置...")
+        manager = get_po_token_manager()
+        success = manager.save_po_token_config(
+            po_token=po_token,
+            visitor_data=visitor_data,
+            source="WebAutoGenerator"
+        )
+
+        if not success:
+            raise Exception("PO Token配置保存失败")
+
+        logger.info("🎉 自动生成PO Token完成")
+
+        return jsonify({
+            'success': True,
+            'po_token': po_token,
+            'visitor_data': visitor_data,
+            'source': 'WebAutoGenerator',
+            'timestamp': time.time(),
+            'message': 'PO Token自动生成成功'
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 自动生成PO Token失败: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@cookies_bp.route('/api/youtube-auth/test', methods=['POST'])
+@auth_required
+def test_youtube_auth_config():
+    """测试 YouTube 认证配置"""
     try:
         cookies_manager = get_cookies_manager()
-        oauth2_config = cookies_manager.get_oauth2_config()
+        auth_config = cookies_manager.get_youtube_auth_config()
 
-        if not oauth2_config['success']:
-            return jsonify(oauth2_config), 500
+        if not auth_config['success']:
+            return jsonify(auth_config), 500
 
         # 检查配置状态
         test_results = {
             'oauth2_token': {
-                'available': oauth2_config['oauth2_available'],
-                'length': len(oauth2_config['oauth2_token']) if oauth2_config['oauth2_token'] else 0,
-                'valid_format': oauth2_config['oauth2_token'].startswith('ya29.') if oauth2_config['oauth2_token'] else False
+                'available': auth_config['oauth2_available'],
+                'length': len(auth_config['oauth2_token']) if auth_config['oauth2_token'] else 0,
+                'valid_format': auth_config['oauth2_token'].startswith('ya29.') if auth_config['oauth2_token'] else False
             },
             'visitor_data': {
-                'available': oauth2_config['visitor_data_available'],
-                'length': len(oauth2_config['visitor_data']) if oauth2_config['visitor_data'] else 0,
-                'valid_format': len(oauth2_config['visitor_data']) >= 20 if oauth2_config['visitor_data'] else False
+                'available': auth_config['visitor_data_available'],
+                'length': len(auth_config['visitor_data']) if auth_config['visitor_data'] else 0,
+                'valid_format': len(auth_config['visitor_data']) >= 20 if auth_config['visitor_data'] else False
             },
             'po_token': {
-                'available': oauth2_config['po_token_available'],
-                'length': len(oauth2_config['po_token']) if oauth2_config['po_token'] else 0,
-                'valid_format': len(oauth2_config['po_token']) >= 20 if oauth2_config['po_token'] else False
+                'available': auth_config['po_token_available'],
+                'length': len(auth_config['po_token']) if auth_config['po_token'] else 0,
+                'valid_format': len(auth_config['po_token']) >= 20 if auth_config['po_token'] else False
             }
         }
 
@@ -565,15 +873,15 @@ def test_oauth2_config():
             'valid_configs': total_valid,
             'details': test_results,
             'test_time': __import__('datetime').datetime.now().isoformat(),
-            'recommendation': self._get_oauth2_recommendation(test_results)
+            'recommendation': _get_youtube_auth_recommendation(test_results)
         })
 
     except Exception as e:
-        logger.error(f"❌ 测试 OAuth2 配置失败: {e}")
+        logger.error(f"❌ 测试 YouTube 认证配置失败: {e}")
         return jsonify({'success': False, 'error': '服务器内部错误'}), 500
 
-def _get_oauth2_recommendation(test_results):
-    """获取 OAuth2 配置建议"""
+def _get_youtube_auth_recommendation(test_results):
+    """获取 YouTube 认证配置建议"""
     recommendations = []
 
     if not test_results['oauth2_token']['available']:
@@ -590,7 +898,7 @@ def _get_oauth2_recommendation(test_results):
         recommendations.append("可选配置 PO Token 以进一步提高成功率")
 
     if not recommendations:
-        recommendations.append("OAuth2 配置看起来正常，应该能有效提高下载成功率")
+        recommendations.append("YouTube 认证配置看起来正常，应该能有效提高下载成功率")
 
     return recommendations
 

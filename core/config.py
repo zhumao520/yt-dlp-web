@@ -93,7 +93,7 @@ class Config:
                 "source": "github",  # github, pypi, local
                 "version": "latest",
                 "extract_flat": False,
-                "format": "best[height<=720]",
+                "format": "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best",
             },
 
             "logging": {

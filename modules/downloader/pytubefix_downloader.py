@@ -15,65 +15,21 @@ class PyTubeFixDownloader:
     """PyTubeFix下载器"""
     
     def __init__(self, proxy: Optional[str] = None):
-        self.proxy = self._convert_proxy_format(proxy)
+        # 使用统一的代理转换器
+        from core.proxy_converter import ProxyConverter
+        if proxy:
+            # 如果传入了具体的代理URL，直接使用
+            self.proxy = proxy
+        else:
+            # 从数据库获取代理配置并转换为PyTubeFix格式
+            self.proxy = ProxyConverter.get_pytubefix_proxy("PyTubeFix")
+
         self.name = "PyTubeFix"
         self.version = self._get_version()
-        
-    def _convert_proxy_format(self, proxy: Optional[str]) -> Optional[str]:
-        """转换代理格式，PyTubeFix只支持HTTP代理"""
-        if not proxy:
-            return None
 
-        try:
-            # 如果是SOCKS5代理，尝试转换为HTTP代理
-            if proxy.startswith('socks5://'):
-                # 提取主机和端口
-                import re
-                match = re.match(r'socks5://(?:([^:]+):([^@]+)@)?([^:]+):(\d+)', proxy)
-                if match:
-                    username, password, host, port = match.groups()
-
-                    # 尝试多种HTTP代理端口策略
-                    http_ports_to_try = [
-                        '1190',  # 用户提到的HTTP代理端口
-                        str(int(port) + 4),  # SOCKS5端口+4的常见映射
-                        '8080',  # 常见HTTP代理端口
-                        '3128',  # 另一个常见HTTP代理端口
-                    ]
-
-                    logger.info(f"🔄 PyTubeFix尝试转换SOCKS5代理为HTTP代理")
-
-                    # 首先尝试用户配置的HTTP代理端口
-                    for http_port in http_ports_to_try:
-                        try:
-                            if username and password:
-                                http_proxy = f"http://{username}:{password}@{host}:{http_port}"
-                            else:
-                                http_proxy = f"http://{host}:{http_port}"
-
-                            logger.info(f"🔧 PyTubeFix尝试HTTP代理: {host}:{http_port}")
-                            return http_proxy
-                        except:
-                            continue
-
-                    # 如果都失败，尝试无代理模式
-                    logger.warning(f"⚠️ PyTubeFix无法找到可用的HTTP代理，尝试直连")
-                    return None
-
-            # 如果是HTTP代理，直接使用
-            elif proxy.startswith('http://') or proxy.startswith('https://'):
-                logger.info(f"✅ PyTubeFix使用HTTP代理: {proxy}")
-                return proxy
-
-            # 其他格式，尝试添加http://前缀
-            else:
-                http_proxy = f"http://{proxy}"
-                logger.info(f"✅ PyTubeFix使用HTTP代理: {http_proxy}")
-                return http_proxy
-
-        except Exception as e:
-            logger.error(f"❌ 代理格式转换失败: {e}")
-            return None
+        # 使用统一的PO Token管理器
+        from core.po_token_manager import get_po_token_manager
+        self.po_token_manager = get_po_token_manager()
 
     def _get_version(self) -> str:
         """获取PyTubeFix版本"""
@@ -82,6 +38,8 @@ class PyTubeFixDownloader:
             return getattr(pytubefix, '__version__', 'unknown')
         except ImportError:
             return 'not_installed'
+
+
 
     def _check_nodejs_available(self) -> bool:
         """检查nodejs是否可用"""
@@ -101,6 +59,28 @@ class PyTubeFixDownloader:
         except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
             logger.debug(f"❌ nodejs检测失败: {e}")
             return False
+
+    def _select_optimal_client(self, is_container: bool) -> tuple[str, str]:
+        """智能选择最优客户端"""
+        try:
+            # 使用统一的客户端选择逻辑
+            use_web, reason = self.po_token_manager.should_use_web_client(is_container)
+
+            if use_web:
+                return 'WEB', reason
+            else:
+                return 'ANDROID', reason
+
+            # 本地环境检查nodejs
+            nodejs_available = self._check_nodejs_available()
+            if nodejs_available:
+                return 'WEB', '本地环境+nodejs，支持PO Token'
+            else:
+                return 'ANDROID', '本地环境无nodejs，使用稳定模式'
+
+        except Exception as e:
+            logger.warning(f"⚠️ 客户端选择失败，使用默认: {e}")
+            return 'ANDROID', '默认稳定模式'
     
     def _extract_video_id(self, url: str) -> Optional[str]:
         """从URL中提取视频ID"""
@@ -212,12 +192,15 @@ class PyTubeFixDownloader:
                 yt_kwargs['proxies'] = {'http': self.proxy, 'https': self.proxy}
                 logger.debug(f"✅ PyTubeFix使用代理: {self.proxy}")
 
-            # 智能反机器人配置 - 使用PyTubeFix推荐的默认客户端
+            # 应用PO Token配置
+            yt_kwargs = self.po_token_manager.apply_to_pytubefix_kwargs(yt_kwargs, "PyTubeFix-Extract")
+
+            # 标准认证模式
             yt_kwargs.update({
-                # 不指定client，使用PyTubeFix默认的ANDROID_VR
-                'use_oauth': False,            # 禁用OAuth（避免账号风险）
-                'allow_oauth_cache': False,    # 禁用OAuth缓存
+                'use_oauth': False,
+                'allow_oauth_cache': False,
             })
+            logger.info("🤖 使用标准认证模式")
 
             # PyTubeFix反机器人检测配置
             import os
@@ -231,24 +214,11 @@ class PyTubeFixDownloader:
 
             logger.info(f"🔍 环境检测: 容器环境={is_container}")
 
-            # 智能反机器人策略
-            if is_container:
-                # 容器环境：使用ANDROID客户端（最稳定，无需JavaScript）
-                logger.info("🤖 容器环境使用PyTubeFix ANDROID客户端（无JS依赖）")
-                yt = YouTube(url, 'ANDROID', **yt_kwargs)
-            else:
-                # 本地环境：检查nodejs并选择策略
-                nodejs_available = self._check_nodejs_available()
-                logger.info(f"🔍 本地环境nodejs可用: {nodejs_available}")
+            # 智能客户端选择策略（优化版）
+            client_type, client_reason = self._select_optimal_client(is_container)
+            logger.info(f"🎯 选择客户端: {client_type} - {client_reason}")
 
-                if nodejs_available:
-                    # 策略1: 使用WEB客户端 + 自动PO Token生成
-                    logger.info("🚀 本地环境使用PyTubeFix WEB客户端 + 自动PO Token生成")
-                    yt = YouTube(url, 'WEB', **yt_kwargs)
-                else:
-                    # 策略2: 使用ANDROID客户端（最稳定）
-                    logger.info("🤖 本地环境使用PyTubeFix ANDROID客户端")
-                    yt = YouTube(url, 'ANDROID', **yt_kwargs)
+            yt = YouTube(url, client_type, **yt_kwargs)
             
             # 获取基本信息
             basic_info = {
@@ -377,11 +347,15 @@ class PyTubeFixDownloader:
                 yt_kwargs['proxies'] = {'http': self.proxy, 'https': self.proxy}
                 logger.debug(f"✅ PyTubeFix下载使用代理: {self.proxy}")
 
-            # 智能反机器人配置
+            # 应用PO Token配置（与提取方法保持一致）
+            yt_kwargs = self.po_token_manager.apply_to_pytubefix_kwargs(yt_kwargs, "PyTubeFix-Download")
+
+            # 标准认证模式
             yt_kwargs.update({
-                'use_oauth': False,            # 禁用OAuth（避免账号风险）
-                'allow_oauth_cache': False,    # 禁用OAuth缓存
+                'use_oauth': False,
+                'allow_oauth_cache': False,
             })
+            logger.info("🤖 下载使用标准认证模式")
 
             # PyTubeFix反机器人检测配置（与提取方法保持一致）
             import os
@@ -393,36 +367,19 @@ class PyTubeFixDownloader:
 
             logger.info(f"🔍 下载环境检测: 容器环境={is_container}")
 
-            # 智能反机器人策略
-            if is_container:
-                # 容器环境：使用ANDROID客户端（最稳定，无需JavaScript）
-                logger.info("🤖 容器环境下载使用PyTubeFix ANDROID客户端（无JS依赖）")
-                yt = YouTube(url, 'ANDROID', **yt_kwargs)
-            else:
-                # 本地环境：检查nodejs并选择策略
-                nodejs_available = self._check_nodejs_available()
-                logger.info(f"🔍 本地环境nodejs可用: {nodejs_available}")
+            # 智能客户端选择策略（与提取方法保持一致）
+            client_type, client_reason = self._select_optimal_client(is_container)
+            logger.info(f"🎯 下载选择客户端: {client_type} - {client_reason}")
 
-                if nodejs_available:
-                    # 策略1: 使用WEB客户端 + 自动PO Token生成
-                    logger.info("🚀 本地环境下载使用PyTubeFix WEB客户端 + 自动PO Token生成")
-                    yt = YouTube(url, 'WEB', **yt_kwargs)
-                else:
-                    # 策略2: 使用WEB客户端（避免交互式PO Token输入）
-                    logger.info("🤖 本地环境下载使用PyTubeFix WEB客户端（无交互模式）")
-                    yt = YouTube(url, 'WEB', **yt_kwargs)
+            yt = YouTube(url, client_type, **yt_kwargs)
             
-            # 选择最佳流
-            if quality == "best":
-                stream = yt.streams.get_highest_resolution()
-            elif quality == "worst":
-                stream = yt.streams.get_lowest_resolution()
-            else:
-                # 尝试获取指定质量
-                stream = yt.streams.filter(res=f"{quality}p").first()
-                if not stream:
-                    # 如果没有指定质量，获取最高质量
-                    stream = yt.streams.get_highest_resolution()
+            # 智能流选择（优化版）
+            stream = self._select_optimal_stream(yt, quality)
+
+            if not stream:
+                # 如果没有找到流，尝试降级策略
+                logger.warning(f"⚠️ 未找到质量 {quality} 的流，尝试降级策略")
+                stream = self._fallback_stream_selection(yt, quality)
             
             if not stream:
                 return {
@@ -459,14 +416,97 @@ class PyTubeFixDownloader:
                 'message': f'PyTubeFix同步下载失败: {str(e)}'
             }
     
+    def _select_optimal_stream(self, yt, quality: str):
+        """智能流选择"""
+        try:
+            # 质量映射表
+            quality_map = {
+                'best': lambda: yt.streams.get_highest_resolution(),
+                'worst': lambda: yt.streams.get_lowest_resolution(),
+                '4k': lambda: yt.streams.filter(res='2160p').first(),
+                '1440p': lambda: yt.streams.filter(res='1440p').first(),
+                '1080p': lambda: yt.streams.filter(res='1080p').first(),
+                '720p': lambda: yt.streams.filter(res='720p').first(),
+                '480p': lambda: yt.streams.filter(res='480p').first(),
+                '360p': lambda: yt.streams.filter(res='360p').first(),
+                '240p': lambda: yt.streams.filter(res='240p').first(),
+                '144p': lambda: yt.streams.filter(res='144p').first(),
+                'audio': lambda: yt.streams.get_audio_only(),
+            }
+
+            # 尝试直接匹配
+            if quality in quality_map:
+                stream = quality_map[quality]()
+                if stream:
+                    logger.info(f"✅ 找到匹配流: {quality} - {getattr(stream, 'resolution', 'audio')}")
+                    return stream
+
+            # 尝试数字+p格式 (如 "1080p", "720p")
+            if quality.endswith('p') and quality[:-1].isdigit():
+                stream = yt.streams.filter(res=quality).first()
+                if stream:
+                    logger.info(f"✅ 找到分辨率流: {quality}")
+                    return stream
+
+            # 尝试纯数字格式 (如 "1080", "720")
+            if quality.isdigit():
+                stream = yt.streams.filter(res=f"{quality}p").first()
+                if stream:
+                    logger.info(f"✅ 找到数字分辨率流: {quality}p")
+                    return stream
+
+            return None
+
+        except Exception as e:
+            logger.error(f"❌ 流选择失败: {e}")
+            return None
+
+    def _fallback_stream_selection(self, yt, original_quality: str):
+        """降级流选择策略"""
+        try:
+            # 降级策略：从高到低尝试
+            fallback_order = ['1080p', '720p', '480p', '360p', '240p', '144p']
+
+            logger.info(f"🔄 开始降级策略，原始质量: {original_quality}")
+
+            for fallback_quality in fallback_order:
+                stream = yt.streams.filter(res=fallback_quality).first()
+                if stream:
+                    logger.info(f"✅ 降级成功: {fallback_quality}")
+                    return stream
+
+            # 最后尝试获取任何可用的视频流
+            stream = yt.streams.get_highest_resolution()
+            if stream:
+                logger.info(f"✅ 使用最高可用质量: {getattr(stream, 'resolution', 'unknown')}")
+                return stream
+
+            # 如果还是没有，尝试音频流
+            stream = yt.streams.get_audio_only()
+            if stream:
+                logger.info("✅ 降级到音频流")
+                return stream
+
+            return None
+
+        except Exception as e:
+            logger.error(f"❌ 降级策略失败: {e}")
+            return None
+
     def get_info(self) -> Dict[str, Any]:
         """获取下载器信息"""
+        status_info = self.po_token_manager.get_status_info()
+
         return {
             'name': self.name,
             'version': self.version,
             'proxy': self.proxy,
+            'po_token_available': status_info['po_token_available'],
+            'visitor_data_available': status_info['visitor_data_available'],
+            'oauth2_available': status_info['oauth2_available'],
             'available': self.version != 'not_installed',
             'supports_youtube': True,
             'supports_other_sites': False,
-            'technical_route': 'web_parsing'
+            'technical_route': 'web_parsing',
+            'supported_qualities': ['4k', '1440p', '1080p', '720p', '480p', '360p', '240p', '144p', 'audio', 'best', 'worst']
         }

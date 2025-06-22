@@ -138,6 +138,10 @@ class VideoExtractor:
                 ydl_opts['proxy'] = proxy
                 logger.info(f"✅ yt-dlp使用代理: {proxy}")
 
+            # 应用PO Token配置 (只对YouTube有效)
+            from core.po_token_manager import apply_po_token_to_ytdlp
+            ydl_opts = apply_po_token_to_ytdlp(ydl_opts, url, "VideoExtractor")
+
             # 自动获取cookies配置
             cookies_path = self._get_cookies_for_site(url)
             if cookies_path:
@@ -170,91 +174,26 @@ class VideoExtractor:
             return None
     
     def _get_proxy_config(self) -> Optional[str]:
-        """获取代理配置"""
+        """获取代理配置 - 使用统一的代理转换器"""
         try:
-            # 首先尝试从运行时配置获取
-            try:
-                from core.config import get_config
-                proxy = get_config('downloader.proxy', None)
-                if proxy:
-                    return proxy
-            except ImportError:
-                pass
-
-            # 如果运行时配置没有，从数据库获取
-            try:
-                from core.database import get_database
-                db = get_database()
-                proxy_config = db.get_proxy_config()
-
-                if proxy_config and proxy_config.get('enabled'):
-                    proxy_url = f"{proxy_config.get('proxy_type', 'http')}://"
-                    if proxy_config.get('username'):
-                        proxy_url += f"{proxy_config['username']}"
-                        if proxy_config.get('password'):
-                            proxy_url += f":{proxy_config['password']}"
-                        proxy_url += "@"
-                    proxy_url += f"{proxy_config.get('host')}:{proxy_config.get('port')}"
-                    return proxy_url
-            except ImportError:
-                pass
-
-            return None
-
+            from core.proxy_converter import ProxyConverter
+            return ProxyConverter.get_ytdlp_proxy("VideoExtractor")
         except Exception as e:
             logger.debug(f"🔍 获取代理配置失败: {e}")
             return None
 
     def _get_pytubefix_proxy_config(self) -> Optional[str]:
-        """获取PyTubeFix专用的代理配置（HTTP代理）"""
+        """获取PyTubeFix专用的代理配置 - 使用统一的代理转换器"""
         try:
-            import os
-
-            # 检查是否在VPS环境（Docker容器）
-            is_vps = os.getenv('VPS_ENV') == '1' or os.path.exists('/.dockerenv')
-
-            # 无论是否在VPS环境，都尝试从数据库获取代理配置
-            try:
-                from core.database import get_database
-                db = get_database()
-                proxy_config = db.get_proxy_config()
-
-                if proxy_config and proxy_config.get('enabled'):
-                    host = proxy_config.get('host')
-                    port = proxy_config.get('port')
-
-                    # 为PyTubeFix构建代理
-                    if host and port:
-                        proxy_type = proxy_config.get('proxy_type', 'http')
-
-                        if proxy_type == 'socks5':
-                            # SOCKS5代理，PyTubeFix不直接支持，但可以尝试
-                            socks_proxy = f"socks5://{host}:{port}"
-                            logger.info(f"✅ 为PyTubeFix使用SOCKS5代理: {socks_proxy}")
-                            return socks_proxy
-                        else:
-                            # HTTP代理
-                            proxy_url = f"http://"
-                            if proxy_config.get('username'):
-                                proxy_url += f"{proxy_config['username']}"
-                                if proxy_config.get('password'):
-                                    proxy_url += f":{proxy_config['password']}"
-                                proxy_url += "@"
-                            proxy_url += f"{host}:{port}"
-                            logger.info(f"✅ 为PyTubeFix使用HTTP代理: {proxy_url}")
-                            return proxy_url
-            except ImportError:
-                pass
-
-            if is_vps:
-                logger.info("🌐 VPS环境：未配置代理，直接连接")
-            else:
-                logger.info("🌐 本地环境：未配置代理，直接连接")
-            return None
-
+            from core.proxy_converter import ProxyConverter
+            return ProxyConverter.get_pytubefix_proxy("VideoExtractor-PyTubeFix")
         except Exception as e:
             logger.debug(f"🔍 获取PyTubeFix代理配置失败: {e}")
             return None
+
+
+
+
     
     def get_available_extractors(self) -> List[str]:
         """获取可用的提取器列表"""

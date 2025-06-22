@@ -26,11 +26,12 @@ class DownloadCleanup:
         """启动自动清理"""
         if self.running:
             return
-            
+
         try:
-            from core.config import get_config
-            
-            auto_cleanup = get_config('downloader.auto_cleanup', True)
+            # 🔧 优先从数据库读取用户设置，然后才是配置文件
+            auto_cleanup = self._get_setting('downloader.auto_cleanup', True)
+            logger.info(f"🔧 清理器配置检查: auto_cleanup = {auto_cleanup} (来源: {'数据库' if self._has_db_setting('downloader.auto_cleanup') else '配置文件'})")
+
             if not auto_cleanup:
                 logger.info("🧹 自动清理已禁用")
                 return
@@ -86,21 +87,58 @@ class DownloadCleanup:
                 # 出错时等待5分钟再重试
                 self.stop_event.wait(300)
     
+    def _get_setting(self, key: str, default):
+        """优先从数据库获取设置，然后是配置文件"""
+        try:
+            from core.database import get_database
+            db = get_database()
+
+            # 先尝试从数据库获取
+            db_value = db.get_setting(key)
+            if db_value is not None:
+                # 转换数据类型
+                if isinstance(default, bool):
+                    return str(db_value).lower() in ('true', '1', 'yes', 'on')
+                elif isinstance(default, int):
+                    return int(db_value)
+                elif isinstance(default, float):
+                    return float(db_value)
+                else:
+                    return db_value
+
+            # 如果数据库没有，从配置文件获取
+            from core.config import get_config
+            return get_config(key, default)
+
+        except Exception as e:
+            logger.warning(f"⚠️ 获取设置失败 {key}: {e}")
+            # 出错时使用配置文件
+            from core.config import get_config
+            return get_config(key, default)
+
+    def _has_db_setting(self, key: str) -> bool:
+        """检查数据库中是否有该设置"""
+        try:
+            from core.database import get_database
+            db = get_database()
+            return db.get_setting(key) is not None
+        except:
+            return False
+
     def _perform_cleanup(self):
         """执行清理操作"""
         try:
-            from core.config import get_config
-            
-            output_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+            # 🔧 优先从数据库读取设置
+            output_dir = Path(self._get_setting('downloader.output_dir', '/app/downloads'))
             if not output_dir.exists():
                 return
-                
+
             logger.info("🧹 开始执行下载文件清理...")
-            
-            # 获取清理配置
-            file_retention_hours = get_config('downloader.file_retention_hours', 24)
-            max_storage_mb = get_config('downloader.max_storage_mb', 2048)
-            keep_recent_files = get_config('downloader.keep_recent_files', 20)
+
+            # 获取清理配置（优先数据库）
+            file_retention_hours = self._get_setting('downloader.file_retention_hours', 24)
+            max_storage_mb = self._get_setting('downloader.max_storage_mb', 2048)
+            keep_recent_files = self._get_setting('downloader.keep_recent_files', 20)
             
             # 获取所有下载文件
             files = self._get_download_files(output_dir)
@@ -111,42 +149,63 @@ class DownloadCleanup:
             
             # 按修改时间排序（最新的在前）
             files.sort(key=lambda f: f['modified'], reverse=True)
-            
+
             cleaned_count = 0
             cleaned_size = 0
-            
-            # 1. 基于时间的清理
+
+            logger.info(f"📊 清理前统计: {len(files)} 个文件")
+            logger.info(f"🔧 清理配置: 保留{keep_recent_files}个最近文件, {file_retention_hours}小时内文件, 最大{max_storage_mb}MB")
+
+            # 🛡️ 修复后的清理逻辑：优先保护最近文件
+
+            # 1. 首先保护最近的文件（无论多旧）
+            protected_files = files[:keep_recent_files]  # 最近N个文件永远不删除
+            candidate_files = files[keep_recent_files:]  # 可能被删除的文件
+
+            logger.info(f"🛡️ 保护最近 {len(protected_files)} 个文件")
+            logger.info(f"🔍 检查 {len(candidate_files)} 个候选文件")
+
+            # 2. 对候选文件应用时间规则
             cutoff_time = time.time() - (file_retention_hours * 3600)
-            for file_info in files[:]:
-                if file_info['modified'] < cutoff_time:
+            files_to_keep = []
+
+            for file_info in candidate_files:
+                if file_info['modified'] >= cutoff_time:
+                    # 在时间保护范围内，保留
+                    files_to_keep.append(file_info)
+                    logger.debug(f"⏰ 时间保护: {file_info['name']}")
+                else:
+                    # 超过时间限制，删除
                     if self._delete_file(file_info['path']):
                         cleaned_count += 1
                         cleaned_size += file_info['size']
-                        files.remove(file_info)
-            
-            # 2. 基于存储空间的清理
-            total_size_mb = sum(f['size'] for f in files) / (1024 * 1024)
+                        logger.info(f"🗑️ 时间清理: {file_info['name']} (超过{file_retention_hours}小时)")
+
+            # 3. 重新组合保留的文件
+            remaining_files = protected_files + files_to_keep
+
+            # 4. 基于存储空间的清理（只对非保护文件）
+            total_size_mb = sum(f['size'] for f in remaining_files) / (1024 * 1024)
             if total_size_mb > max_storage_mb:
-                # 删除最旧的文件直到满足存储限制
+                logger.info(f"💾 存储空间超限: {total_size_mb:.1f}MB > {max_storage_mb}MB")
+
+                # 只对非保护文件进行空间清理
                 target_size = max_storage_mb * 0.8 * 1024 * 1024  # 保留80%空间
-                current_size = sum(f['size'] for f in files)
-                
-                for file_info in reversed(files):  # 从最旧的开始删除
-                    if current_size <= target_size:
+                current_size = sum(f['size'] for f in remaining_files)
+                protected_size = sum(f['size'] for f in protected_files)
+
+                # 从非保护文件中删除（最旧的优先）
+                files_to_keep.sort(key=lambda f: f['modified'])  # 最旧的在前
+
+                for file_info in files_to_keep[:]:
+                    if current_size <= target_size or current_size <= protected_size:
                         break
                     if self._delete_file(file_info['path']):
                         cleaned_count += 1
                         cleaned_size += file_info['size']
                         current_size -= file_info['size']
-                        files.remove(file_info)
-            
-            # 3. 基于文件数量的清理
-            if len(files) > keep_recent_files:
-                files_to_delete = files[keep_recent_files:]
-                for file_info in files_to_delete:
-                    if self._delete_file(file_info['path']):
-                        cleaned_count += 1
-                        cleaned_size += file_info['size']
+                        files_to_keep.remove(file_info)
+                        logger.info(f"🗑️ 空间清理: {file_info['name']}")
             
             if cleaned_count > 0:
                 cleaned_size_mb = cleaned_size / (1024 * 1024)

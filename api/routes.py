@@ -84,125 +84,13 @@ def api_auth_status():
 
 # ==================== 下载相关API ====================
 
-@api_bp.route('/download/start', methods=['POST'])
-@auth_required
-def api_start_download():
-    """开始下载"""
-    try:
-        data = request.get_json()
-        if not data or "url" not in data:
-            return jsonify({"error": "需要提供URL"}), 400
-
-        url = data["url"].strip()
-        if not url:
-            return jsonify({"error": "URL不能为空"}), 400
-        
-        # 获取下载选项
-        options = {
-            "quality": data.get("quality", "medium"),
-            "audio_only": data.get("audio_only", False),
-            "format": data.get("format"),
-            "custom_filename": data.get("custom_filename", "").strip(),
-            "source": "web_api",
-            "web_callback": True,
-        }
-
-        # 使用统一的下载API
-        from modules.downloader.api import get_unified_download_api
-        api = get_unified_download_api()
-        result = api.create_download(url, options)
-
-        if not result['success']:
-            return jsonify({"error": result['error']}), 500
-
-        download_id = result['data']['download_id']
-        
-        return jsonify({
-            "success": True,
-            "message": "下载已开始",
-            "download_id": download_id,
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ API开始下载失败: {e}")
-        return jsonify({"error": "下载启动失败"}), 500
+# 下载API已移至 /download/ 蓝图，避免重复
 
 
-@api_bp.route('/download/status/<download_id>')
-@auth_required
-def api_download_status(download_id):
-    """获取下载状态"""
-    try:
-        from modules.downloader.manager import get_download_manager
-        download_manager = get_download_manager()
-        
-        download_info = download_manager.get_download(download_id)
-        if not download_info:
-            return jsonify({"error": "下载任务不存在"}), 404
-
-        response_data = {
-            "id": download_info["id"],
-            "url": download_info["url"],
-            "status": download_info["status"],
-            "progress": download_info["progress"],
-            "title": download_info["title"],
-            "created_at": download_info["created_at"].isoformat() if download_info["created_at"] else None,
-        }
-        
-        if download_info["status"] == "completed" and download_info["file_path"]:
-            response_data["file_info"] = {
-                "filename": download_info["file_path"].split("/")[-1],
-                "size": download_info["file_size"],
-            }
-
-        if download_info["status"] == "failed" and download_info["error_message"]:
-            response_data["error_message"] = download_info["error_message"]
-        
-        return jsonify(response_data)
-        
-    except Exception as e:
-        logger.error(f"❌ API获取下载状态失败: {e}")
-        return jsonify({"error": "获取状态失败"}), 500
+# 下载状态API已移至 /download/ 蓝图，避免重复
 
 
-@api_bp.route('/download/list')
-@auth_required
-def api_download_list():
-    """获取下载列表"""
-    try:
-        from modules.downloader.manager import get_download_manager
-        download_manager = get_download_manager()
-        
-        downloads = download_manager.get_all_downloads()
-        
-        response_data = []
-        for download in downloads:
-            item = {
-                "id": download["id"],
-                "url": download["url"],
-                "status": download["status"],
-                "progress": download["progress"],
-                "title": download["title"],
-                "created_at": download["created_at"].isoformat() if download["created_at"] else None,
-            }
-
-            if download["status"] == "completed" and download["file_path"]:
-                item["filename"] = download["file_path"].split("/")[-1]
-                item["file_size"] = download["file_size"]
-
-            response_data.append(item)
-        
-        response_data.sort(key=lambda x: x["created_at"] or "", reverse=True)
-
-        return jsonify({
-            "success": True,
-            "downloads": response_data,
-            "total": len(response_data),
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ API获取下载列表失败: {e}")
-        return jsonify({"error": "获取列表失败"}), 500
+# 下载列表API已移至 /download/ 蓝图，避免重复
 
 
 @api_bp.route('/video/info', methods=['POST'])
@@ -602,28 +490,7 @@ def api_system_optimize():
         return jsonify({"error": f"系统优化失败: {str(e)}"}), 500
 
 
-@api_bp.route('/debug/users')
-def api_debug_users():
-    """调试用户信息（无需认证，仅用于调试）"""
-    try:
-        from core.database import get_database
-        import os
-
-        db = get_database()
-        users = db.execute_query('SELECT username, is_admin, created_at FROM users')
-
-        debug_info = {
-            "users": users,
-            "env_admin_username": os.getenv('ADMIN_USERNAME', 'not_set'),
-            "env_admin_password_set": bool(os.getenv('ADMIN_PASSWORD')),
-            "total_users": len(users)
-        }
-
-        return jsonify(debug_info)
-
-    except Exception as e:
-        logger.error(f"❌ 用户调试失败: {e}")
-        return jsonify({"error": str(e)}), 500
+# 调试端点已删除，生产环境不需要
 
 
 @api_bp.route('/admin/reset-password', methods=['POST'])
@@ -1127,13 +994,14 @@ def api_get_download_settings():
 
         # 质量映射（后端到前端）
         format_to_quality = {
+            "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best": "best",
             "best": "best",
             "best[height<=720]": "medium",
             "worst": "low"
         }
 
-        current_format = get_config("ytdlp.format", "best[height<=720]")
-        current_quality = format_to_quality.get(current_format, "medium")
+        current_format = get_config("ytdlp.format", "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best")
+        current_quality = format_to_quality.get(current_format, "best")
 
         settings = {
             "output_dir": get_config("downloader.output_dir", "/app/downloads"),
@@ -1171,7 +1039,7 @@ def api_save_download_settings():
 
         # 映射前端字段到后端配置
         quality_mapping = {
-            "best": "best",
+            "best": "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best",
             "medium": "best[height<=720]",
             "low": "worst"
         }
@@ -1186,7 +1054,7 @@ def api_save_download_settings():
             ("downloader.cleanup_interval", str(data.get("cleanup_interval", 1))),
             ("downloader.max_storage_mb", str(data.get("max_storage_mb", 2048))),
             ("downloader.keep_recent_files", str(data.get("keep_recent_files", 20))),
-            ("ytdlp.format", quality_mapping.get(data.get("default_quality", "medium"), "best[height<=720]"))
+            ("ytdlp.format", quality_mapping.get(data.get("default_quality", "best"), "bestvideo[height<=2160]+bestaudio/best[height<=2160]/best"))
         ]
 
         for key, value in settings_to_save:
@@ -1747,6 +1615,303 @@ def api_cancel_download_alt2(download_id):
         return jsonify({'error': '取消失败'}), 500
 
 
+@api_bp.route('/download/<download_id>/retry', methods=['POST'])
+@auth_required
+def api_retry_download(download_id):
+    """重试下载 - 支持续传"""
+    try:
+        from modules.downloader.manager import get_download_manager
+        download_manager = get_download_manager()
+
+        # 获取原下载信息
+        download = download_manager.get_download(download_id)
+        if not download:
+            return jsonify({"error": "下载记录不存在"}), 404
+
+        # 检查下载状态
+        if download['status'] in ['downloading', 'pending']:
+            return jsonify({"error": "下载正在进行中，无需重试"}), 400
+
+        logger.info(f"🔄 手动重试下载: {download_id} - {download['url']}")
+
+        # 重新开始下载（yt-dlp会自动检测并续传）
+        new_download_id = download_manager.create_download(
+            download['url'],
+            download.get('options', {})
+        )
+
+        if new_download_id:
+            return jsonify({
+                "success": True,
+                "message": "下载已重新开始，将自动续传",
+                "new_download_id": new_download_id,
+                "original_url": download['url']
+            })
+        else:
+            return jsonify({"error": "重试失败"}), 500
+
+    except Exception as e:
+        logger.error(f"❌ 重试下载失败: {e}")
+        return jsonify({"error": f"重试失败: {str(e)}"}), 500
+
+
+@api_bp.route('/download/<download_id>/resume', methods=['POST'])
+@auth_required
+def api_resume_download(download_id):
+    """恢复下载 - 专门用于续传"""
+    try:
+        from modules.downloader.manager import get_download_manager
+        from pathlib import Path
+        download_manager = get_download_manager()
+
+        # 获取原下载信息
+        download = download_manager.get_download(download_id)
+        if not download:
+            return jsonify({"error": "下载记录不存在"}), 404
+
+        # 只允许恢复失败或取消的下载
+        if download['status'] not in ['failed', 'cancelled']:
+            return jsonify({"error": f"当前状态 '{download['status']}' 不支持恢复"}), 400
+
+        # 检查是否有部分下载的文件
+        output_dir = Path(download_manager.output_dir)
+        partial_files = list(output_dir.glob(f'{download_id}.*'))
+
+        logger.info(f"▶️ 恢复下载: {download_id} - {download['url']}")
+        logger.info(f"🔍 找到部分文件: {[f.name for f in partial_files]}")
+
+        # 使用相同的下载ID恢复（保持历史记录）
+        download_manager._update_download_status(download_id, 'pending', progress=0)
+
+        # 重新提交下载任务
+        download_manager.executor.submit(download_manager._execute_download, download_id)
+
+        return jsonify({
+            "success": True,
+            "message": "下载已恢复，将从断点继续",
+            "download_id": download_id,
+            "url": download['url'],
+            "partial_files": [f.name for f in partial_files]
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 恢复下载失败: {e}")
+        return jsonify({"error": f"恢复失败: {str(e)}"}), 500
+
+
+@api_bp.route('/download/test-resume', methods=['POST'])
+@auth_required
+def api_test_resume():
+    """测试续传功能"""
+    try:
+        data = request.get_json()
+        url = data.get('url')
+
+        if not url:
+            return jsonify({"error": "需要提供URL"}), 400
+
+        from modules.downloader.manager import get_download_manager
+        from pathlib import Path
+        import yt_dlp
+
+        download_manager = get_download_manager()
+        output_dir = Path(download_manager.output_dir)
+
+        # 生成测试下载ID
+        test_id = f"test-resume-{int(time.time())}"
+
+        # 测试yt-dlp续传配置
+        ydl_opts = {
+            'outtmpl': str(output_dir / f'{test_id}.%(ext)s'),
+            'continue_dl': True,
+            'nooverwrites': True,
+            'retries': 3,
+            'fragment_retries': 5,
+            'skip_unavailable_fragments': False,
+            'no_warnings': False,
+            'ignoreerrors': False,
+        }
+
+        # 检查是否为m3u8链接
+        is_hls = url.lower().endswith('.m3u8') or 'm3u8' in url.lower()
+        if is_hls:
+            ydl_opts['format'] = '0'  # 对m3u8使用简单格式
+
+        logger.info(f"🧪 测试续传配置: {test_id} - {url}")
+
+        # 创建下载任务
+        download_id = download_manager.create_download(url, {
+            'test_resume': True,
+            'test_id': test_id
+        })
+
+        return jsonify({
+            "success": True,
+            "message": "续传测试已开始",
+            "download_id": download_id,
+            "test_id": test_id,
+            "is_hls": is_hls,
+            "config": ydl_opts
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 续传测试失败: {e}")
+        return jsonify({"error": f"测试失败: {str(e)}"}), 500
+
+
+@api_bp.route('/download/<download_id>', methods=['DELETE'])
+@auth_required
+def api_delete_download_record(download_id):
+    """删除下载记录"""
+    try:
+        from core.database import get_database
+
+        db = get_database()
+
+        # 检查记录是否存在
+        existing = db.execute_query('''
+            SELECT id, status, file_path FROM downloads WHERE id = ?
+        ''', (download_id,))
+
+        if not existing:
+            return jsonify({'error': '下载记录不存在'}), 404
+
+        record = existing[0]
+
+        # 如果是正在下载的任务，先取消
+        if record['status'] in ['pending', 'downloading']:
+            try:
+                from modules.downloader.manager import get_download_manager
+                download_manager = get_download_manager()
+                download_manager.cancel_download(download_id)
+            except Exception as e:
+                logger.warning(f"⚠️ 取消下载任务失败: {e}")
+
+        # 删除关联的文件（可选）
+        try:
+            delete_file = request.json.get('delete_file', False) if request.is_json and request.json else False
+        except:
+            delete_file = False
+        if delete_file and record.get('file_path'):
+            try:
+                from pathlib import Path
+                from core.config import get_config
+
+                download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
+                file_path = Path(record['file_path'])
+
+                # 如果是相对路径，转换为绝对路径
+                if not file_path.is_absolute():
+                    file_path = download_dir / file_path.name
+
+                if file_path.exists() and str(file_path.resolve()).startswith(str(download_dir.resolve())):
+                    file_path.unlink()
+                    logger.info(f"删除关联文件: {file_path.name}")
+            except Exception as e:
+                logger.warning(f"⚠️ 删除关联文件失败: {e}")
+
+        # 从数据库删除记录
+        db.execute_update('DELETE FROM downloads WHERE id = ?', (download_id,))
+
+        logger.info(f"删除下载记录: {download_id}")
+
+        return jsonify({
+            'success': True,
+            'message': '下载记录已删除'
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 删除下载记录失败: {e}")
+        return jsonify({'error': '删除记录失败'}), 500
+
+
+@api_bp.route('/download/history/clear', methods=['POST'])
+@auth_required
+def api_clear_download_history():
+    """清空下载历史记录"""
+    try:
+        from core.database import get_database
+
+        db = get_database()
+
+        # 获取请求参数
+        data = request.get_json() if request.is_json else {}
+        delete_files = data.get('delete_files', False)
+        keep_active = data.get('keep_active', True)  # 默认保留正在进行的下载
+
+        # 构建删除条件
+        if keep_active:
+            # 只删除已完成、失败或取消的记录
+            condition = "WHERE status NOT IN ('pending', 'downloading')"
+            params = ()
+        else:
+            # 删除所有记录（先取消正在进行的下载）
+            active_downloads = db.execute_query('''
+                SELECT id FROM downloads WHERE status IN ('pending', 'downloading')
+            ''')
+
+            if active_downloads:
+                try:
+                    from modules.downloader.manager import get_download_manager
+                    download_manager = get_download_manager()
+                    for download in active_downloads:
+                        download_manager.cancel_download(download['id'])
+                except Exception as e:
+                    logger.warning(f"⚠️ 取消活跃下载失败: {e}")
+
+            condition = ""
+            params = ()
+
+        # 如果需要删除文件，先获取文件路径
+        if delete_files:
+            try:
+                file_records = db.execute_query(f'''
+                    SELECT file_path FROM downloads
+                    {condition} AND file_path IS NOT NULL
+                ''', params)
+
+                if file_records:
+                    from pathlib import Path
+                    from core.config import get_config
+
+                    download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
+                    deleted_files = 0
+
+                    for record in file_records:
+                        try:
+                            file_path = Path(record['file_path'])
+
+                            # 如果是相对路径，转换为绝对路径
+                            if not file_path.is_absolute():
+                                file_path = download_dir / file_path.name
+
+                            if file_path.exists() and str(file_path.resolve()).startswith(str(download_dir.resolve())):
+                                file_path.unlink()
+                                deleted_files += 1
+                        except Exception as e:
+                            logger.warning(f"⚠️ 删除文件失败: {e}")
+
+                    logger.info(f"删除了 {deleted_files} 个关联文件")
+            except Exception as e:
+                logger.warning(f"⚠️ 删除关联文件失败: {e}")
+
+        # 删除数据库记录
+        result = db.execute_update(f'DELETE FROM downloads {condition}', params)
+        deleted_count = result if isinstance(result, int) else 0
+
+        logger.info(f"清空下载历史: 删除了 {deleted_count} 条记录")
+
+        return jsonify({
+            'success': True,
+            'message': f'已清空 {deleted_count} 条下载记录',
+            'deleted_count': deleted_count
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 清空下载历史失败: {e}")
+        return jsonify({'error': '清空历史失败'}), 500
+
+
 def _verify_api_key(api_key: str) -> bool:
     """验证API密钥"""
     try:
@@ -1780,3 +1945,150 @@ def _extract_video_info(url: str):
     except Exception as e:
         logger.error(f"❌ 提取视频信息失败: {e}")
         return None
+
+
+# ==================== 文件管理API ====================
+
+# 文件列表API已移至 /files/ 蓝图，避免重复
+
+
+@api_bp.route('/files/list')
+@auth_required
+def api_files_list():
+    """获取文件列表 - API统一入口"""
+    try:
+        from core.config import get_config
+        from pathlib import Path
+
+        download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
+
+        if not download_dir.exists():
+            return jsonify({'files': []})
+
+        files = []
+        for file_path in download_dir.iterdir():
+            if file_path.is_file():
+                stat = file_path.stat()
+                files.append({
+                    'name': file_path.name,
+                    'size': stat.st_size,
+                    'modified': stat.st_mtime,
+                    'download_url': f'/files/download/{file_path.name}'
+                })
+
+        # 按修改时间倒序排列
+        files.sort(key=lambda x: x['modified'], reverse=True)
+
+        return jsonify({'files': files})
+
+    except Exception as e:
+        logger.error(f"❌ 获取文件列表失败: {e}")
+        return jsonify({'error': '获取文件列表失败'}), 500
+
+
+@api_bp.route('/download/list')
+@auth_required
+def api_download_list():
+    """获取下载列表 - API统一入口"""
+    try:
+        from modules.downloader.manager import get_download_manager
+        download_manager = get_download_manager()
+
+        downloads = download_manager.get_all_downloads()
+
+        # 格式化返回数据
+        response_data = []
+        for download in downloads:
+            item = {
+                'id': download['id'],
+                'url': download['url'],
+                'status': download['status'],
+                'progress': download['progress'],
+                'title': download['title'],
+                'created_at': download['created_at'].isoformat() if download['created_at'] else None
+            }
+
+            if download['status'] == 'completed' and download['file_path']:
+                item['filename'] = download['file_path'].split('/')[-1] if download['file_path'] else None
+                item['file_size'] = download['file_size']
+
+            response_data.append(item)
+
+        # 按创建时间倒序排列
+        response_data.sort(key=lambda x: x['created_at'] or '', reverse=True)
+
+        return jsonify({
+            'success': True,
+            'downloads': response_data,
+            'total': len(response_data)
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 获取下载列表失败: {e}")
+        return jsonify({'error': '获取列表失败'}), 500
+
+
+@api_bp.route('/files/delete/<filename>', methods=['DELETE'])
+@auth_required
+def api_files_delete(filename):
+    """删除文件 - API统一入口"""
+    try:
+        from core.config import get_config
+        from pathlib import Path
+
+        download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
+        file_path = download_dir / filename
+
+        # 安全检查
+        if not str(file_path.resolve()).startswith(str(download_dir.resolve())):
+            return jsonify({'error': '文件访问被拒绝'}), 403
+
+        if not file_path.exists():
+            return jsonify({'error': '文件不存在'}), 404
+
+        file_path.unlink()
+        logger.info(f"删除文件: {filename}")
+
+        return jsonify({'success': True, 'message': '文件删除成功'})
+
+    except Exception as e:
+        logger.error(f"❌ 删除文件失败: {e}")
+        return jsonify({"error": "删除文件失败"}), 500
+
+
+# ==================== Telegram Webhook API ====================
+
+@api_bp.route('/telegram/setup-webhook', methods=['POST'])
+@auth_required
+def api_telegram_setup_webhook():
+    """设置Telegram Webhook - API统一入口"""
+    try:
+        from modules.telegram.routes import setup_webhook
+        return setup_webhook()
+    except Exception as e:
+        logger.error(f"❌ 设置Telegram Webhook失败: {e}")
+        return jsonify({"error": "设置Webhook失败"}), 500
+
+
+@api_bp.route('/telegram/delete-webhook', methods=['POST'])
+@auth_required
+def api_telegram_delete_webhook():
+    """删除Telegram Webhook - API统一入口"""
+    try:
+        from modules.telegram.routes import delete_webhook
+        return delete_webhook()
+    except Exception as e:
+        logger.error(f"❌ 删除Telegram Webhook失败: {e}")
+        return jsonify({"error": "删除Webhook失败"}), 500
+
+
+@api_bp.route('/telegram/webhook-info', methods=['GET'])
+@auth_required
+def api_telegram_webhook_info():
+    """获取Telegram Webhook信息 - API统一入口"""
+    try:
+        from modules.telegram.routes import get_webhook_info
+        return get_webhook_info()
+    except Exception as e:
+        logger.error(f"❌ 获取Telegram Webhook信息失败: {e}")
+        return jsonify({"error": "获取Webhook信息失败"}), 500

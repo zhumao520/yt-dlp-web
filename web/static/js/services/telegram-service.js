@@ -173,7 +173,7 @@ class TelegramService extends BaseService {
      */
     async setupWebhook(webhookUrl = null) {
         try {
-            const result = await this.apiRequest('/telegram/api/setup-webhook', {
+            const result = await this.apiRequest('/api/telegram/setup-webhook', {
                 method: 'POST',
                 body: JSON.stringify({
                     webhook_url: webhookUrl
@@ -190,7 +190,7 @@ class TelegramService extends BaseService {
 
     async deleteWebhook() {
         try {
-            const result = await this.apiRequest('/telegram/api/delete-webhook', {
+            const result = await this.apiRequest('/api/telegram/delete-webhook', {
                 method: 'POST'
             });
 
@@ -204,7 +204,7 @@ class TelegramService extends BaseService {
 
     async getWebhookInfo() {
         try {
-            const result = await this.apiRequest('/telegram/api/webhook-info');
+            const result = await this.apiRequest('/api/telegram/webhook-info');
             return result.webhook_info;
         } catch (error) {
             this.handleError(error, '获取Webhook信息');
