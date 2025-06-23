@@ -7,8 +7,9 @@ Flask-CORS>=6.0.0
 # 认证和安全
 PyJWT>=2.10.1
 
-# HTTP请求
+# HTTP请求和代理支持
 requests>=2.32.3
+PySocks>=1.7.1
 
 # 异步HTTP和代理支持 (暂未使用)
 aiohttp>=3.9.0
@@ -38,6 +39,6 @@ gunicorn>=23.0.0
 python-dotenv>=1.0.1  
 
 # 开发工具 (可选)
-pytest>=8.2.2
-black>=24.4.2
-flake8>=7.2.0
+# pytest>=8.2.2
+# black>=24.4.2
+# flake8>=7.2.0
