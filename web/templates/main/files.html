@@ -185,34 +185,244 @@
     
 </div>
 
-<!-- 简洁视频播放器模态框 -->
+<!-- 现代化视频播放器模态框 -->
 <div class="modal fade" id="videoModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content bg-dark">
-            <div class="modal-header border-0">
-                <h5 class="modal-title text-white" id="videoTitle">视频播放</h5>
+    <div class="modal-dialog modal-fullscreen modal-dialog-centered">
+        <div class="modal-content modern-video-player">
+            <div class="modal-header border-0 p-3">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-play-circle me-2 text-white fs-4"></i>
+                    <h5 class="modal-title text-white fw-bold mb-0" id="videoTitle">视频播放器</h5>
+                </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body p-0">
-                <video id="videoPlayer"
-                       controls
-                       crossorigin
-                       playsinline
-                       style="width: 100%; height: 70vh; background: #000;">
-                    您的浏览器不支持视频播放
-                </video>
-            </div>
-            <div class="modal-footer border-0">
-                <div class="d-flex justify-content-between w-100 align-items-center">
-                    <div class="text-white">
-                        <small id="videoInfo"></small>
-                    </div>
-                    <div>
-                        <button type="button" class="btn btn-outline-light btn-sm" id="downloadVideoBtn">
-                            <i class="bi bi-download"></i> 下载
-                        </button>
+            <div class="modal-body p-0 position-relative">
+                <!-- 视频播放区域 -->
+                <div class="video-container">
+                    <video id="videoPlayer"
+                           controls
+                           crossorigin
+                           playsinline
+                           class="main-video">
+                        您的浏览器不支持视频播放
+                    </video>
+
+                    <!-- 视频信息覆盖层 -->
+                    <div class="video-overlay" id="videoOverlay">
+                        <div class="video-info-panel">
+                            <div class="video-poster" id="videoPoster">
+                                <i class="bi bi-play-circle display-1 text-white"></i>
+                            </div>
+                            <div class="video-details">
+                                <h4 class="text-white fw-bold mb-2" id="videoFileName">视频文件</h4>
+                                <p class="text-white-50 mb-3" id="videoFileInfo">正在加载...</p>
+                                <div class="video-stats">
+                                    <span class="badge bg-primary me-2" id="videoResolution">分辨率</span>
+                                    <span class="badge bg-success me-2" id="videoDuration">时长</span>
+                                    <span class="badge bg-info" id="videoSize">大小</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <!-- 自定义控制栏 -->
+                <div class="custom-video-controls" id="customControls">
+                    <div class="controls-background"></div>
+                    <div class="controls-content">
+                        <!-- 进度条 -->
+                        <div class="video-progress-container mb-3">
+                            <div class="d-flex justify-content-between text-white small mb-2">
+                                <span id="videoCurrentTime">0:00</span>
+                                <span id="videoTotalTime">0:00</span>
+                            </div>
+                            <div class="video-progress" id="videoProgressContainer">
+                                <div class="progress-bg"></div>
+                                <div class="progress-fill" id="videoProgressFill"></div>
+                                <div class="progress-handle" id="videoProgressHandle"></div>
+                            </div>
+                        </div>
+
+                        <!-- 控制按钮 -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center gap-3">
+                                <!-- 播放控制 -->
+                                <button class="video-control-btn" id="videoPlayPauseBtn" title="播放/暂停">
+                                    <i class="bi bi-play-fill" id="videoPlayIcon"></i>
+                                </button>
+
+                                <!-- 音量控制 -->
+                                <div class="volume-control d-flex align-items-center gap-2">
+                                    <button class="video-control-btn" id="videoMuteBtn" title="静音">
+                                        <i class="bi bi-volume-up" id="videoVolumeIcon"></i>
+                                    </button>
+                                    <div class="video-volume-slider">
+                                        <input type="range" id="videoVolumeSlider" min="0" max="100" value="100" class="form-range">
+                                    </div>
+                                </div>
+
+                                <!-- 时间显示 -->
+                                <div class="time-display text-white">
+                                    <span id="videoTimeDisplay">0:00 / 0:00</span>
+                                </div>
+                            </div>
+
+                            <div class="d-flex align-items-center gap-2">
+                                <!-- 播放速度 -->
+                                <div class="dropdown">
+                                    <button class="video-control-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" title="播放速度">
+                                        <i class="bi bi-speedometer2"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-dark">
+                                        <li><a class="dropdown-item" href="#" onclick="app.setVideoSpeed(0.5)">0.5x</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="app.setVideoSpeed(0.75)">0.75x</a></li>
+                                        <li><a class="dropdown-item active" href="#" onclick="app.setVideoSpeed(1)">1x</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="app.setVideoSpeed(1.25)">1.25x</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="app.setVideoSpeed(1.5)">1.5x</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="app.setVideoSpeed(2)">2x</a></li>
+                                    </ul>
+                                </div>
+
+                                <!-- 画中画 -->
+                                <button class="video-control-btn" id="videoPipBtn" title="画中画">
+                                    <i class="bi bi-pip"></i>
+                                </button>
+
+                                <!-- 全屏 -->
+                                <button class="video-control-btn" id="videoFullscreenBtn" title="全屏">
+                                    <i class="bi bi-fullscreen"></i>
+                                </button>
+
+                                <!-- 下载 -->
+                                <button class="video-control-btn" onclick="app.downloadFile(app.currentVideo?.name)" title="下载">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 现代化音频播放器模态框 -->
+<div class="modal fade" id="audioModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content modern-audio-player">
+            <div class="modal-header border-0 p-4">
+                <h5 class="modal-title text-white fw-bold">
+                    <i class="bi bi-disc me-2"></i>音乐播放器
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row g-4">
+                    <!-- 左侧：专辑封面和播放控制 -->
+                    <div class="col-lg-5">
+                        <div class="text-center">
+                            <!-- 专辑封面区域 -->
+                            <div class="album-cover-container mb-4">
+                                <div class="album-cover" id="albumCover">
+                                    <div class="album-cover-inner">
+                                        <i class="bi bi-music-note-beamed display-1 text-white" id="audioIcon"></i>
+                                    </div>
+                                    <div class="vinyl-effect"></div>
+                                </div>
+                                <div class="audio-waves">
+                                    <div class="wave"></div>
+                                    <div class="wave"></div>
+                                    <div class="wave"></div>
+                                    <div class="wave"></div>
+                                    <div class="wave"></div>
+                                </div>
+                            </div>
+
+                            <!-- 歌曲信息 -->
+                            <div class="song-info mb-4">
+                                <h4 class="text-white fw-bold mb-1" id="audioFileName">音频文件</h4>
+                                <p class="text-white-50 mb-0" id="audioArtist">未知艺术家</p>
+                                <small class="text-white-50" id="audioFileInfo">正在加载...</small>
+                            </div>
+
+                            <!-- 进度条 -->
+                            <div class="progress-container mb-4">
+                                <div class="d-flex justify-content-between text-white-50 small mb-2">
+                                    <span id="currentTime">0:00</span>
+                                    <span id="totalTime">0:00</span>
+                                </div>
+                                <div class="custom-progress" id="progressContainer">
+                                    <div class="progress-bg"></div>
+                                    <div class="progress-fill" id="progressFill"></div>
+                                    <div class="progress-handle" id="progressHandle"></div>
+                                </div>
+                            </div>
+
+                            <!-- 播放控制按钮 -->
+                            <div class="player-controls mb-4">
+                                <button class="control-btn" id="shuffleBtn" title="随机播放">
+                                    <i class="bi bi-shuffle"></i>
+                                </button>
+                                <button class="control-btn" id="prevBtn" title="上一首">
+                                    <i class="bi bi-skip-backward-fill"></i>
+                                </button>
+                                <button class="control-btn play-btn" id="playPauseBtn" title="播放/暂停">
+                                    <i class="bi bi-play-fill" id="playIcon"></i>
+                                </button>
+                                <button class="control-btn" id="nextBtn" title="下一首">
+                                    <i class="bi bi-skip-forward-fill"></i>
+                                </button>
+                                <button class="control-btn" id="repeatBtn" title="循环播放">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </div>
+
+                            <!-- 音量控制 -->
+                            <div class="volume-container mb-4">
+                                <div class="d-flex align-items-center justify-content-center gap-3">
+                                    <i class="bi bi-volume-down text-white-50"></i>
+                                    <div class="volume-slider">
+                                        <input type="range" id="volumeSlider" min="0" max="100" value="100" class="form-range">
+                                    </div>
+                                    <i class="bi bi-volume-up text-white-50"></i>
+                                </div>
+                            </div>
+
+                            <!-- 功能按钮 -->
+                            <div class="action-buttons">
+                                <button type="button" class="btn btn-outline-light btn-sm me-2" onclick="app.downloadFile(app.currentAudio?.name)">
+                                    <i class="bi bi-download"></i> 下载
+                                </button>
+                                <button type="button" class="btn btn-outline-light btn-sm" onclick="app.toggleLyrics()">
+                                    <i class="bi bi-chat-quote"></i> <span id="lyricsToggleText">显示歌词</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：歌词显示 -->
+                    <div class="col-lg-7" id="lyricsPanel" style="display: none;">
+                        <div class="lyrics-container">
+                            <div class="lyrics-header mb-3">
+                                <h6 class="text-white fw-bold mb-0">
+                                    <i class="bi bi-chat-quote me-2"></i>歌词
+                                </h6>
+                            </div>
+                            <div class="lyrics-content" id="lyricsContent">
+                                <div class="text-center py-5">
+                                    <i class="bi bi-music-note-list display-4 text-white-50"></i>
+                                    <p class="mt-3 text-white-50">暂无歌词</p>
+                                    <small class="text-white-50">支持LRC格式歌词文件</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 隐藏的原生音频元素 -->
+                <audio id="audioPlayer" crossorigin style="display: none;">
+                    您的浏览器不支持音频播放
+                </audio>
             </div>
         </div>
     </div>
@@ -323,6 +533,731 @@
         margin: 10px;
     }
 }
+
+/* 现代化音频播放器样式 */
+.modern-audio-player {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+    overflow: hidden;
+}
+
+/* 专辑封面样式 */
+.album-cover-container {
+    position: relative;
+    display: inline-block;
+}
+
+.album-cover {
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+    background-size: 400% 400%;
+    animation: gradientShift 8s ease infinite;
+    position: relative;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+.album-cover-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.2);
+    backdrop-filter: blur(10px);
+    border-radius: 50%;
+}
+
+.vinyl-effect {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px;
+    height: 60px;
+    background: rgba(0,0,0,0.8);
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+}
+
+.vinyl-effect::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 50%;
+}
+
+/* 音频波形动画 */
+.audio-waves {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 3px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.audio-waves.playing {
+    opacity: 1;
+}
+
+.wave {
+    width: 4px;
+    height: 20px;
+    background: rgba(255,255,255,0.8);
+    border-radius: 2px;
+    animation: wave 1.5s ease-in-out infinite;
+}
+
+.wave:nth-child(2) { animation-delay: 0.1s; }
+.wave:nth-child(3) { animation-delay: 0.2s; }
+.wave:nth-child(4) { animation-delay: 0.3s; }
+.wave:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes wave {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(2); }
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* 播放时旋转动画 */
+.album-cover.playing {
+    animation: gradientShift 8s ease infinite, rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 歌曲信息样式 */
+.song-info h4 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* 自定义进度条 */
+.custom-progress {
+    position: relative;
+    height: 6px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.progress-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+}
+
+.progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.1s ease;
+}
+
+.progress-handle {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.custom-progress:hover .progress-handle {
+    opacity: 1;
+}
+
+/* 播放控制按钮 */
+.player-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.control-btn {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.control-btn:hover {
+    background: rgba(255,255,255,0.3);
+    transform: scale(1.1);
+}
+
+.control-btn.active {
+    background: rgba(255,255,255,0.4);
+    color: #ff6b6b;
+}
+
+.play-btn {
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+    font-size: 1.8rem;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+.play-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+}
+
+/* 音量控制 */
+.volume-slider {
+    width: 120px;
+}
+
+.volume-slider .form-range {
+    background: transparent;
+    border: none;
+    height: 4px;
+}
+
+.volume-slider .form-range::-webkit-slider-track {
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    height: 4px;
+}
+
+.volume-slider .form-range::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+}
+
+.volume-slider .form-range::-moz-range-track {
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    height: 4px;
+    border: none;
+}
+
+.volume-slider .form-range::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+    border: none;
+}
+
+/* 现代化歌词显示样式 */
+.lyrics-container {
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    padding: 25px;
+    height: 500px;
+    overflow: hidden;
+    position: relative;
+}
+
+.lyrics-header {
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.lyrics-content {
+    height: calc(100% - 60px);
+    overflow-y: auto;
+    padding-right: 10px;
+    line-height: 2;
+    font-size: 15px;
+}
+
+.lyrics-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.lyrics-content::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+}
+
+.lyrics-content::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+    border-radius: 3px;
+}
+
+.lyrics-content::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #ff5252, #26c6da);
+}
+
+.lyric-line {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 10px;
+    margin: 4px 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.lyric-line::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.lyric-line:hover::before {
+    left: 100%;
+}
+
+.lyric-line:hover {
+    background: rgba(255,255,255,0.15);
+    transform: translateX(5px);
+}
+
+/* 当前播放歌词的特殊样式 */
+.lyric-line.current {
+    background: linear-gradient(135deg, rgba(255,107,107,0.3), rgba(78,205,196,0.3));
+    color: #fff;
+    font-weight: 600;
+    transform: scale(1.02);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.lyric-line.current::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(135deg, #ff6b6b, #4ecdc4);
+    border-radius: 0 2px 2px 0;
+}
+
+/* 移动端现代化音频播放器优化 */
+@media (max-width: 768px) {
+    .modern-audio-player .modal-dialog {
+        margin: 10px;
+        max-width: calc(100vw - 20px);
+    }
+
+    .album-cover {
+        width: 180px;
+        height: 180px;
+    }
+
+    .song-info h4 {
+        font-size: 1.3rem;
+    }
+
+    .player-controls {
+        gap: 10px;
+    }
+
+    .control-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+    }
+
+    .play-btn {
+        width: 60px;
+        height: 60px;
+        font-size: 1.6rem;
+    }
+
+    .volume-slider {
+        width: 100px;
+    }
+
+    #lyricsPanel {
+        margin-top: 20px;
+    }
+
+    .lyrics-container {
+        height: 300px;
+        padding: 20px;
+    }
+
+    .lyrics-content {
+        font-size: 14px;
+        line-height: 1.8;
+    }
+}
+
+@media (max-width: 576px) {
+    .modern-audio-player .modal-body {
+        padding: 20px;
+    }
+
+    .album-cover {
+        width: 160px;
+        height: 160px;
+    }
+
+    .song-info h4 {
+        font-size: 1.2rem;
+    }
+
+    .player-controls {
+        gap: 8px;
+    }
+
+    .control-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .play-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 1.5rem;
+    }
+
+    .volume-container {
+        margin-bottom: 20px;
+    }
+
+    .volume-slider {
+        width: 80px;
+    }
+
+    .action-buttons .btn {
+        font-size: 0.85rem;
+        padding: 6px 12px;
+    }
+
+    .lyrics-container {
+        height: 250px;
+        padding: 15px;
+    }
+}
+
+/* 现代化视频播放器样式 */
+.modern-video-player {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: none;
+    border-radius: 0;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+}
+
+.video-container {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 80px);
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.main-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+}
+
+/* 视频信息覆盖层 */
+.video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(26,26,46,0.9) 0%, rgba(22,33,62,0.8) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.video-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.video-info-panel {
+    text-align: center;
+    max-width: 600px;
+    padding: 40px;
+}
+
+.video-poster {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 30px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.video-details h4 {
+    font-size: 2rem;
+    margin-bottom: 15px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.video-stats .badge {
+    font-size: 0.9rem;
+    padding: 8px 12px;
+    border-radius: 20px;
+}
+
+/* 自定义视频控制栏 */
+.custom-video-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.custom-video-controls.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.controls-background {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 120px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+    backdrop-filter: blur(10px);
+}
+
+.controls-content {
+    position: relative;
+    padding: 20px 30px;
+    z-index: 10;
+}
+
+/* 视频进度条 */
+.video-progress {
+    position: relative;
+    height: 6px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 3px;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.video-progress .progress-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
+}
+
+.video-progress .progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.1s ease;
+}
+
+.video-progress .progress-handle {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.video-progress:hover .progress-handle {
+    opacity: 1;
+}
+
+/* 视频控制按钮 */
+.video-control-btn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.video-control-btn:hover {
+    background: rgba(255,255,255,0.3);
+    transform: scale(1.1);
+}
+
+.video-control-btn:active {
+    transform: scale(0.95);
+}
+
+/* 视频音量控制 */
+.video-volume-slider {
+    width: 100px;
+}
+
+.video-volume-slider .form-range {
+    background: transparent;
+    border: none;
+    height: 4px;
+}
+
+.video-volume-slider .form-range::-webkit-slider-track {
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    height: 4px;
+}
+
+.video-volume-slider .form-range::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+}
+
+/* 时间显示 */
+.time-display {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* 移动端视频播放器优化 */
+@media (max-width: 768px) {
+    .modern-video-player .modal-dialog {
+        margin: 0;
+        max-width: 100vw;
+        height: 100vh;
+    }
+
+    .video-container {
+        height: calc(100vh - 60px);
+    }
+
+    .video-info-panel {
+        padding: 20px;
+        max-width: 90%;
+    }
+
+    .video-details h4 {
+        font-size: 1.5rem;
+    }
+
+    .video-poster {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 20px;
+    }
+
+    .controls-content {
+        padding: 15px 20px;
+    }
+
+    .video-control-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+
+    .video-volume-slider {
+        width: 80px;
+    }
+
+    .video-stats .badge {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+        margin: 2px;
+    }
+}
 </style>
 {% endblock %}
 
@@ -337,7 +1272,10 @@ class FilesApp {
         this.filterType = 'all';
         this.sortBy = 'modified';
         this.currentVideo = null;
-        
+        this.currentAudio = null;
+        this.currentLyrics = null;
+        this.lyricsTimer = null;
+
         this.init();
     }
     
@@ -383,6 +1321,16 @@ class FilesApp {
         // 删除选中按钮
         document.getElementById('deleteSelectedBtn').addEventListener('click', () => {
             this.deleteSelected();
+        });
+
+        // 音频模态框关闭时清理资源
+        document.getElementById('audioModal').addEventListener('hidden.bs.modal', () => {
+            this.cleanupAudio();
+        });
+
+        // 视频模态框关闭时清理资源
+        document.getElementById('videoModal').addEventListener('hidden.bs.modal', () => {
+            this.cleanupVideo();
         });
     }
     
@@ -500,9 +1448,14 @@ class FilesApp {
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm">
-                        ${this.isVideoFile(file.name) ? 
-                            `<button class="btn btn-outline-success" onclick="app.playVideo('${file.name}')" title="播放">
+                        ${this.isVideoFile(file.name) ?
+                            `<button class="btn btn-outline-success" onclick="app.playVideo('${file.name}')" title="播放视频">
                                 <i class="bi bi-play-fill"></i>
+                            </button>` : ''
+                        }
+                        ${this.isAudioFile(file.name) ?
+                            `<button class="btn btn-outline-info" onclick="app.playAudio('${file.name}')" title="播放音频">
+                                <i class="bi bi-music-note-beamed"></i>
                             </button>` : ''
                         }
                         <button class="btn btn-outline-primary" onclick="app.downloadFile('${file.name}')" title="下载">
@@ -636,17 +1589,28 @@ class FilesApp {
         this.currentVideo = this.files.find(f => f.name === filename);
         if (!this.currentVideo) return;
 
+        // 获取播放器元素
         const video = document.getElementById('videoPlayer');
         const title = document.getElementById('videoTitle');
-        const info = document.getElementById('videoInfo');
+        const fileName = document.getElementById('videoFileName');
+        const fileInfo = document.getElementById('videoFileInfo');
+        const videoSize = document.getElementById('videoSize');
+        const videoDuration = document.getElementById('videoDuration');
+        const videoResolution = document.getElementById('videoResolution');
+        const overlay = document.getElementById('videoOverlay');
 
-        // 检查是否为大视频
+        // 解析视频信息
+        const videoInfo = this.parseVideoInfo(this.currentVideo.name);
         const isLargeVideo = this.currentVideo.size > 100 * 1024 * 1024; // 100MB+
         const sizeInfo = this.formatSize(this.currentVideo.size);
 
         // 设置视频信息
-        title.textContent = filename;
-        info.textContent = `${sizeInfo} • ${this.formatDate(this.currentVideo.modified)}${isLargeVideo ? ' • 大视频，加载中...' : ''}`;
+        title.textContent = '视频播放器';
+        fileName.textContent = videoInfo.title;
+        fileInfo.textContent = `${this.formatDate(this.currentVideo.modified)}`;
+        videoSize.textContent = sizeInfo;
+        videoDuration.textContent = '计算中...';
+        videoResolution.textContent = '检测中...';
 
         // 大视频提示
         if (isLargeVideo) {
@@ -656,19 +1620,31 @@ class FilesApp {
         // 先清理之前的视频资源
         this.cleanupVideo();
 
-        // 重新获取video元素（因为cleanupVideo可能替换了元素）
+        // 重新获取video元素
         const newVideo = document.getElementById('videoPlayer');
 
         // 设置视频源
         newVideo.src = `/files/stream/${encodeURIComponent(filename)}`;
 
-        // 添加一次性事件监听器（避免重复绑定）
+        // 初始化视频控制
+        this.initVideoControls();
+
+        // 添加事件监听器
         const loadStartHandler = () => {
             console.log('开始加载视频:', filename);
+            fileInfo.textContent = '正在加载视频...';
         };
 
         const canPlayHandler = () => {
             console.log('视频可以播放:', filename);
+            fileInfo.textContent = `${this.formatDate(this.currentVideo.modified)}`;
+
+            // 隐藏覆盖层
+            overlay.classList.add('hidden');
+
+            // 更新视频信息
+            this.updateVideoInfo();
+
             if (isLargeVideo) {
                 showNotification('大视频加载完成，可以播放了！', 'success');
             }
@@ -676,6 +1652,7 @@ class FilesApp {
 
         const errorHandler = (e) => {
             console.error('视频加载失败:', e);
+            fileInfo.textContent = '视频加载失败';
             showNotification('视频加载失败，请检查网络连接或文件完整性', 'danger');
         };
 
@@ -692,6 +1669,651 @@ class FilesApp {
         this.checkMemoryUsage();
 
         console.log('播放视频:', filename, isLargeVideo ? '(大视频)' : '(普通视频)');
+    }
+
+    parseVideoInfo(filename) {
+        // 移除扩展名
+        const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+
+        // 尝试解析视频标题
+        return {
+            title: nameWithoutExt
+        };
+    }
+
+    initVideoControls() {
+        const video = document.getElementById('videoPlayer');
+        const playPauseBtn = document.getElementById('videoPlayPauseBtn');
+        const playIcon = document.getElementById('videoPlayIcon');
+        const progressContainer = document.getElementById('videoProgressContainer');
+        const progressFill = document.getElementById('videoProgressFill');
+        const progressHandle = document.getElementById('videoProgressHandle');
+        const volumeSlider = document.getElementById('videoVolumeSlider');
+        const muteBtn = document.getElementById('videoMuteBtn');
+        const volumeIcon = document.getElementById('videoVolumeIcon');
+        const currentTimeEl = document.getElementById('videoCurrentTime');
+        const totalTimeEl = document.getElementById('videoTotalTime');
+        const timeDisplay = document.getElementById('videoTimeDisplay');
+        const fullscreenBtn = document.getElementById('videoFullscreenBtn');
+        const pipBtn = document.getElementById('videoPipBtn');
+        const customControls = document.getElementById('customControls');
+
+        // 播放/暂停按钮
+        playPauseBtn.onclick = () => {
+            if (video.paused) {
+                video.play();
+                playIcon.className = 'bi bi-pause-fill';
+            } else {
+                video.pause();
+                playIcon.className = 'bi bi-play-fill';
+            }
+        };
+
+        // 音量控制
+        volumeSlider.oninput = () => {
+            video.volume = volumeSlider.value / 100;
+            this.updateVolumeIcon();
+        };
+
+        // 静音按钮
+        muteBtn.onclick = () => {
+            video.muted = !video.muted;
+            this.updateVolumeIcon();
+        };
+
+        // 进度条控制
+        let isDragging = false;
+
+        progressContainer.onclick = (e) => {
+            if (!isDragging) {
+                const rect = progressContainer.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                video.currentTime = percent * video.duration;
+            }
+        };
+
+        progressContainer.onmousedown = (e) => {
+            isDragging = true;
+            const rect = progressContainer.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            video.currentTime = percent * video.duration;
+        };
+
+        document.onmouseup = () => {
+            isDragging = false;
+        };
+
+        document.onmousemove = (e) => {
+            if (isDragging) {
+                const rect = progressContainer.getBoundingClientRect();
+                const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                video.currentTime = percent * video.duration;
+            }
+        };
+
+        // 全屏控制
+        fullscreenBtn.onclick = () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                video.requestFullscreen();
+            }
+        };
+
+        // 画中画
+        pipBtn.onclick = () => {
+            if (video.requestPictureInPicture) {
+                video.requestPictureInPicture();
+            }
+        };
+
+        // 时间更新
+        video.ontimeupdate = () => {
+            if (!isDragging && video.duration) {
+                const percent = (video.currentTime / video.duration) * 100;
+                progressFill.style.width = percent + '%';
+                progressHandle.style.left = percent + '%';
+
+                currentTimeEl.textContent = this.formatTime(video.currentTime);
+                timeDisplay.textContent = `${this.formatTime(video.currentTime)} / ${this.formatTime(video.duration)}`;
+            }
+        };
+
+        // 视频结束
+        video.onended = () => {
+            playIcon.className = 'bi bi-play-fill';
+            progressFill.style.width = '0%';
+            progressHandle.style.left = '0%';
+            currentTimeEl.textContent = '0:00';
+        };
+
+        // 鼠标移动显示控制栏
+        let hideControlsTimer;
+        const showControls = () => {
+            customControls.classList.add('visible');
+            clearTimeout(hideControlsTimer);
+            hideControlsTimer = setTimeout(() => {
+                if (!video.paused) {
+                    customControls.classList.remove('visible');
+                }
+            }, 3000);
+        };
+
+        video.addEventListener('mousemove', showControls);
+        video.addEventListener('click', () => {
+            if (video.paused) {
+                video.play();
+                playIcon.className = 'bi bi-pause-fill';
+            } else {
+                video.pause();
+                playIcon.className = 'bi bi-play-fill';
+            }
+        });
+
+        // 初始显示控制栏
+        showControls();
+    }
+
+    updateVideoInfo() {
+        const video = document.getElementById('videoPlayer');
+        const videoDuration = document.getElementById('videoDuration');
+        const videoResolution = document.getElementById('videoResolution');
+        const totalTimeEl = document.getElementById('videoTotalTime');
+
+        video.onloadedmetadata = () => {
+            // 更新时长
+            const duration = this.formatTime(video.duration);
+            videoDuration.textContent = duration;
+            totalTimeEl.textContent = duration;
+
+            // 更新分辨率
+            const resolution = `${video.videoWidth}x${video.videoHeight}`;
+            videoResolution.textContent = resolution;
+        };
+    }
+
+    updateVolumeIcon() {
+        const video = document.getElementById('videoPlayer');
+        const volumeIcon = document.getElementById('videoVolumeIcon');
+
+        if (video.muted || video.volume === 0) {
+            volumeIcon.className = 'bi bi-volume-mute';
+        } else if (video.volume < 0.5) {
+            volumeIcon.className = 'bi bi-volume-down';
+        } else {
+            volumeIcon.className = 'bi bi-volume-up';
+        }
+    }
+
+    setVideoSpeed(speed) {
+        const video = document.getElementById('videoPlayer');
+        video.playbackRate = speed;
+
+        // 更新下拉菜单选中状态
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        event.target.classList.add('active');
+    }
+
+    playAudio(filename) {
+        this.currentAudio = this.files.find(f => f.name === filename);
+        if (!this.currentAudio) return;
+
+        // 获取播放器元素
+        const audio = document.getElementById('audioPlayer');
+        const fileName = document.getElementById('audioFileName');
+        const fileInfo = document.getElementById('audioFileInfo');
+        const artistName = document.getElementById('audioArtist');
+        const icon = document.getElementById('audioIcon');
+        const albumCover = document.getElementById('albumCover');
+
+        // 解析文件名获取歌曲信息
+        const songInfo = this.parseSongInfo(this.currentAudio.name);
+
+        // 设置音频信息
+        fileName.textContent = songInfo.title;
+        artistName.textContent = songInfo.artist;
+        fileInfo.textContent = `${this.formatSize(this.currentAudio.size)} • ${this.formatDate(this.currentAudio.modified)}`;
+
+        // 根据音频格式设置图标
+        const ext = this.currentAudio.name.split('.').pop().toLowerCase();
+        const iconMap = {
+            'mp3': 'bi-file-music',
+            'wav': 'bi-file-music-fill',
+            'flac': 'bi-file-music',
+            'aac': 'bi-file-music',
+            'ogg': 'bi-file-music',
+            'wma': 'bi-file-music',
+            'm4a': 'bi-file-music-fill'
+        };
+        icon.className = `${iconMap[ext] || 'bi-music-note-beamed'} display-1 text-white`;
+
+        // 先清理之前的音频资源
+        this.cleanupAudio();
+
+        // 重新获取audio元素
+        const newAudio = document.getElementById('audioPlayer');
+
+        // 设置音频源
+        newAudio.src = `/files/stream/${encodeURIComponent(filename)}`;
+
+        // 初始化播放器控制
+        this.initAudioControls();
+
+        // 添加事件监听器
+        const loadStartHandler = () => {
+            console.log('开始加载音频:', filename);
+            fileInfo.textContent = '正在加载音频...';
+        };
+
+        const canPlayHandler = () => {
+            console.log('音频可以播放:', filename);
+            fileInfo.textContent = `${this.formatSize(this.currentAudio.size)} • ${this.formatDate(this.currentAudio.modified)}`;
+            showNotification('音频加载完成！', 'success');
+            this.updateDuration();
+        };
+
+        const errorHandler = (e) => {
+            console.error('音频加载失败:', e);
+            fileInfo.textContent = '音频加载失败';
+            showNotification('音频加载失败，请检查网络连接或文件完整性', 'danger');
+        };
+
+        // 使用once选项确保事件只触发一次
+        newAudio.addEventListener('loadstart', loadStartHandler, { once: true });
+        newAudio.addEventListener('canplay', canPlayHandler, { once: true });
+        newAudio.addEventListener('error', errorHandler, { once: true });
+
+        // 显示模态框
+        const modal = new bootstrap.Modal(document.getElementById('audioModal'));
+        modal.show();
+
+        // 尝试加载歌词
+        this.loadLyrics(filename);
+
+        console.log('播放音频:', filename);
+    }
+
+    parseSongInfo(filename) {
+        // 移除扩展名
+        const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+
+        // 尝试解析 "艺术家 - 歌曲名" 格式
+        if (nameWithoutExt.includes(' - ')) {
+            const parts = nameWithoutExt.split(' - ');
+            return {
+                artist: parts[0].trim(),
+                title: parts.slice(1).join(' - ').trim()
+            };
+        }
+
+        // 尝试解析 "艺术家-歌曲名" 格式
+        if (nameWithoutExt.includes('-') && !nameWithoutExt.startsWith('-')) {
+            const parts = nameWithoutExt.split('-');
+            if (parts.length >= 2) {
+                return {
+                    artist: parts[0].trim(),
+                    title: parts.slice(1).join('-').trim()
+                };
+            }
+        }
+
+        // 默认情况
+        return {
+            artist: '未知艺术家',
+            title: nameWithoutExt
+        };
+    }
+
+    initAudioControls() {
+        const audio = document.getElementById('audioPlayer');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playIcon = document.getElementById('playIcon');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressHandle = document.getElementById('progressHandle');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const currentTimeEl = document.getElementById('currentTime');
+        const totalTimeEl = document.getElementById('totalTime');
+        const albumCover = document.getElementById('albumCover');
+        const audioWaves = document.querySelector('.audio-waves');
+
+        // 播放/暂停按钮
+        playPauseBtn.onclick = () => {
+            if (audio.paused) {
+                audio.play();
+                playIcon.className = 'bi bi-pause-fill';
+                albumCover.classList.add('playing');
+                audioWaves.classList.add('playing');
+            } else {
+                audio.pause();
+                playIcon.className = 'bi bi-play-fill';
+                albumCover.classList.remove('playing');
+                audioWaves.classList.remove('playing');
+            }
+        };
+
+        // 音量控制
+        volumeSlider.oninput = () => {
+            audio.volume = volumeSlider.value / 100;
+        };
+
+        // 进度条控制
+        let isDragging = false;
+
+        progressContainer.onclick = (e) => {
+            if (!isDragging) {
+                const rect = progressContainer.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                audio.currentTime = percent * audio.duration;
+            }
+        };
+
+        progressContainer.onmousedown = (e) => {
+            isDragging = true;
+            const rect = progressContainer.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            audio.currentTime = percent * audio.duration;
+        };
+
+        document.onmouseup = () => {
+            isDragging = false;
+        };
+
+        document.onmousemove = (e) => {
+            if (isDragging) {
+                const rect = progressContainer.getBoundingClientRect();
+                const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                audio.currentTime = percent * audio.duration;
+            }
+        };
+
+        // 时间更新
+        audio.ontimeupdate = () => {
+            if (!isDragging && audio.duration) {
+                const percent = (audio.currentTime / audio.duration) * 100;
+                progressFill.style.width = percent + '%';
+                progressHandle.style.left = percent + '%';
+
+                currentTimeEl.textContent = this.formatTime(audio.currentTime);
+
+                // 同步歌词
+                if (this.currentLyrics) {
+                    this.syncLyrics(audio.currentTime);
+                }
+            }
+        };
+
+        // 音频结束
+        audio.onended = () => {
+            playIcon.className = 'bi bi-play-fill';
+            albumCover.classList.remove('playing');
+            audioWaves.classList.remove('playing');
+            progressFill.style.width = '0%';
+            progressHandle.style.left = '0%';
+            currentTimeEl.textContent = '0:00';
+        };
+
+        // 其他控制按钮（暂时只是样式，功能可以后续添加）
+        document.getElementById('shuffleBtn').onclick = () => {
+            document.getElementById('shuffleBtn').classList.toggle('active');
+        };
+
+        document.getElementById('repeatBtn').onclick = () => {
+            document.getElementById('repeatBtn').classList.toggle('active');
+        };
+    }
+
+    updateDuration() {
+        const audio = document.getElementById('audioPlayer');
+        const totalTimeEl = document.getElementById('totalTime');
+
+        audio.onloadedmetadata = () => {
+            totalTimeEl.textContent = this.formatTime(audio.duration);
+        };
+    }
+
+    formatTime(seconds) {
+        if (isNaN(seconds)) return '0:00';
+
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+
+    async loadLyrics(audioFilename) {
+        try {
+            // 生成可能的歌词文件名
+            const baseName = audioFilename.replace(/\.[^/.]+$/, ""); // 移除扩展名
+            const lyricsFilenames = [
+                `${baseName}.lrc`,
+                `${baseName}.txt`,
+                `${audioFilename}.lrc`,
+                `${audioFilename}.txt`
+            ];
+
+            let lyricsContent = null;
+            let lyricsType = 'none';
+
+            // 尝试加载歌词文件
+            for (const lyricsFile of lyricsFilenames) {
+                try {
+                    const response = await fetch(`/files/stream/${encodeURIComponent(lyricsFile)}`);
+                    if (response.ok) {
+                        const text = await response.text();
+                        if (text.trim()) {
+                            lyricsContent = text;
+                            lyricsType = lyricsFile.endsWith('.lrc') ? 'lrc' : 'txt';
+                            console.log(`✅ 找到歌词文件: ${lyricsFile}`);
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    // 继续尝试下一个文件
+                }
+            }
+
+            // 显示歌词
+            this.displayLyrics(lyricsContent, lyricsType);
+
+        } catch (error) {
+            console.error('加载歌词失败:', error);
+            this.displayLyrics(null, 'none');
+        }
+    }
+
+    displayLyrics(content, type) {
+        const lyricsContent = document.getElementById('lyricsContent');
+
+        if (!content) {
+            lyricsContent.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-music-note-list display-4 opacity-50"></i>
+                    <p class="mt-2 opacity-75">暂无歌词</p>
+                    <small class="opacity-50">支持LRC格式歌词文件</small>
+                </div>
+            `;
+            return;
+        }
+
+        if (type === 'lrc') {
+            // 解析LRC格式歌词
+            this.parseLrcLyrics(content);
+        } else {
+            // 显示纯文本歌词
+            const lines = content.split('\n').filter(line => line.trim());
+            lyricsContent.innerHTML = lines.map(line =>
+                `<p class="mb-2 opacity-75">${this.escapeHtml(line)}</p>`
+            ).join('');
+        }
+    }
+
+    parseLrcLyrics(lrcContent) {
+        const lyricsContent = document.getElementById('lyricsContent');
+        const lines = lrcContent.split('\n');
+        const lyrics = [];
+
+        // 解析LRC格式 [mm:ss.xx]歌词内容
+        const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2})\](.*)/;
+
+        lines.forEach(line => {
+            const match = line.match(timeRegex);
+            if (match) {
+                const minutes = parseInt(match[1]);
+                const seconds = parseInt(match[2]);
+                const centiseconds = parseInt(match[3]);
+                const text = match[4].trim();
+
+                if (text) {
+                    const time = minutes * 60 + seconds + centiseconds / 100;
+                    lyrics.push({ time, text });
+                }
+            }
+        });
+
+        // 按时间排序
+        lyrics.sort((a, b) => a.time - b.time);
+
+        // 存储歌词数据
+        this.currentLyrics = lyrics;
+
+        // 显示歌词
+        if (lyrics.length > 0) {
+            lyricsContent.innerHTML = lyrics.map((lyric, index) =>
+                `<p class="lyric-line mb-2 opacity-75" data-time="${lyric.time}" data-index="${index}">${this.escapeHtml(lyric.text)}</p>`
+            ).join('');
+
+            // 开始歌词同步
+            this.startLyricsSync();
+        } else {
+            lyricsContent.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-exclamation-triangle display-4 opacity-50"></i>
+                    <p class="mt-2 opacity-75">歌词格式错误</p>
+                    <small class="opacity-50">请检查LRC文件格式</small>
+                </div>
+            `;
+        }
+    }
+
+    startLyricsSync() {
+        const audio = document.getElementById('audioPlayer');
+
+        // 清除之前的同步定时器
+        if (this.lyricsTimer) {
+            clearInterval(this.lyricsTimer);
+        }
+
+        this.lyricsTimer = setInterval(() => {
+            if (!audio.paused && this.currentLyrics) {
+                this.syncLyrics(audio.currentTime);
+            }
+        }, 100); // 每100ms更新一次
+    }
+
+    syncLyrics(currentTime) {
+        if (!this.currentLyrics) return;
+
+        let currentIndex = -1;
+
+        // 找到当前时间对应的歌词
+        for (let i = 0; i < this.currentLyrics.length; i++) {
+            if (currentTime >= this.currentLyrics[i].time) {
+                currentIndex = i;
+            } else {
+                break;
+            }
+        }
+
+        // 高亮当前歌词
+        const lyricsLines = document.querySelectorAll('.lyric-line');
+        lyricsLines.forEach((line, index) => {
+            line.classList.remove('current');
+
+            if (index === currentIndex) {
+                line.classList.add('current');
+
+                // 滚动到当前歌词
+                line.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                    inline: 'nearest'
+                });
+            }
+        });
+    }
+
+    toggleLyrics() {
+        const panel = document.getElementById('lyricsPanel');
+        const toggleText = document.getElementById('lyricsToggleText');
+
+        if (panel.style.display === 'none') {
+            panel.style.display = 'block';
+            toggleText.textContent = '隐藏歌词';
+        } else {
+            panel.style.display = 'none';
+            toggleText.textContent = '显示歌词';
+        }
+    }
+
+    cleanupAudio() {
+        const audio = document.getElementById('audioPlayer');
+        if (audio) {
+            console.log('🧹 清理音频资源...');
+
+            // 1. 暂停播放
+            audio.pause();
+
+            // 2. 重置时间
+            audio.currentTime = 0;
+
+            // 3. 清除源
+            audio.src = '';
+            audio.load();
+
+            // 4. 重置播放器UI
+            const playIcon = document.getElementById('playIcon');
+            const albumCover = document.getElementById('albumCover');
+            const audioWaves = document.querySelector('.audio-waves');
+            const progressFill = document.getElementById('progressFill');
+            const progressHandle = document.getElementById('progressHandle');
+            const currentTimeEl = document.getElementById('currentTime');
+            const totalTimeEl = document.getElementById('totalTime');
+
+            if (playIcon) playIcon.className = 'bi bi-play-fill';
+            if (albumCover) albumCover.classList.remove('playing');
+            if (audioWaves) audioWaves.classList.remove('playing');
+            if (progressFill) progressFill.style.width = '0%';
+            if (progressHandle) progressHandle.style.left = '0%';
+            if (currentTimeEl) currentTimeEl.textContent = '0:00';
+            if (totalTimeEl) totalTimeEl.textContent = '0:00';
+
+            // 5. 清理歌词相关资源
+            if (this.lyricsTimer) {
+                clearInterval(this.lyricsTimer);
+                this.lyricsTimer = null;
+            }
+            this.currentLyrics = null;
+
+            // 6. 重置歌词面板
+            const lyricsPanel = document.getElementById('lyricsPanel');
+            const toggleText = document.getElementById('lyricsToggleText');
+            if (lyricsPanel) {
+                lyricsPanel.style.display = 'none';
+            }
+            if (toggleText) {
+                toggleText.textContent = '显示歌词';
+            }
+
+            // 7. 清除歌词高亮
+            const lyricsLines = document.querySelectorAll('.lyric-line');
+            lyricsLines.forEach(line => {
+                line.classList.remove('current');
+            });
+
+            console.log('✅ 音频和歌词资源清理完成');
+        }
     }
 
     cleanupVideo() {
@@ -712,19 +2334,49 @@ class FilesApp {
             // 4. 清空缓冲区
             video.load();
 
-            // 5. 移除所有事件监听器（防止内存泄漏）
+            // 5. 重置播放器UI
+            const playIcon = document.getElementById('videoPlayIcon');
+            const progressFill = document.getElementById('videoProgressFill');
+            const progressHandle = document.getElementById('videoProgressHandle');
+            const currentTimeEl = document.getElementById('videoCurrentTime');
+            const totalTimeEl = document.getElementById('videoTotalTime');
+            const timeDisplay = document.getElementById('videoTimeDisplay');
+            const overlay = document.getElementById('videoOverlay');
+            const customControls = document.getElementById('customControls');
+
+            if (playIcon) playIcon.className = 'bi bi-play-fill';
+            if (progressFill) progressFill.style.width = '0%';
+            if (progressHandle) progressHandle.style.left = '0%';
+            if (currentTimeEl) currentTimeEl.textContent = '0:00';
+            if (totalTimeEl) totalTimeEl.textContent = '0:00';
+            if (timeDisplay) timeDisplay.textContent = '0:00 / 0:00';
+            if (overlay) overlay.classList.remove('hidden');
+            if (customControls) customControls.classList.remove('visible');
+
+            // 6. 重置视频信息
+            const videoDuration = document.getElementById('videoDuration');
+            const videoResolution = document.getElementById('videoResolution');
+            const videoFileName = document.getElementById('videoFileName');
+            const videoFileInfo = document.getElementById('videoFileInfo');
+
+            if (videoDuration) videoDuration.textContent = '时长';
+            if (videoResolution) videoResolution.textContent = '分辨率';
+            if (videoFileName) videoFileName.textContent = '视频文件';
+            if (videoFileInfo) videoFileInfo.textContent = '正在加载...';
+
+            // 7. 移除所有事件监听器（防止内存泄漏）
             const newVideo = video.cloneNode(true);
             video.parentNode.replaceChild(newVideo, video);
 
-            // 6. 清理当前视频引用
+            // 8. 清理当前视频引用
             this.currentVideo = null;
 
-            // 7. 强制垃圾回收提示（浏览器会自行决定）
+            // 9. 强制垃圾回收提示（浏览器会自行决定）
             if (window.gc) {
                 window.gc();
             }
 
-            // 8. 内存使用情况检查（如果浏览器支持）
+            // 10. 内存使用情况检查（如果浏览器支持）
             if (performance.memory) {
                 const memoryInfo = performance.memory;
                 console.log('内存使用情况:', {

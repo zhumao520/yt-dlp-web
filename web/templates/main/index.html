@@ -853,7 +853,7 @@ function downloadManager() {
 
         async loadActiveDownloads() {
             try {
-                const response = await apiRequest('/download/list');
+                const response = await apiRequest('/api/download/list');
                 if (response.ok) {
                     const data = await response.json();
                     this.activeDownloads = data.downloads.filter(d =>
@@ -867,7 +867,7 @@ function downloadManager() {
 
         async loadRecentDownloads() {
             try {
-                const response = await apiRequest('/download/list');
+                const response = await apiRequest('/api/download/list');
                 if (response.ok) {
                     const data = await response.json();
                     this.recentDownloads = data.downloads;

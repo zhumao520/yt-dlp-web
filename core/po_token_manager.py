@@ -580,7 +580,46 @@ generatePOToken();
             logger.error(f"❌ {caller_name} 应用PyTubeFix PO Token配置失败: {e}")
             return yt_kwargs
 
+    def apply_to_ytdlp_opts(self, ydl_opts: dict, caller_name: str = "Unknown") -> dict:
+        """
+        将PO Token配置应用到yt-dlp选项
 
+        Args:
+            ydl_opts: yt-dlp选项字典
+            caller_name: 调用者名称（用于日志）
+
+        Returns:
+            更新后的yt-dlp选项字典
+        """
+        try:
+            config = self.get_config(caller_name)
+
+            # 如果有PO Token配置，应用到yt-dlp
+            if config['po_token_available']:
+                # 确保extractor_args存在
+                if 'extractor_args' not in ydl_opts:
+                    ydl_opts['extractor_args'] = {}
+
+                if 'youtube' not in ydl_opts['extractor_args']:
+                    ydl_opts['extractor_args']['youtube'] = {}
+
+                # 应用PO Token配置
+                ydl_opts['extractor_args']['youtube'].update({
+                    'po_token': config['po_token'],
+                    'visitor_data': config['visitor_data']
+                })
+
+                logger.info(f"🔑 {caller_name} yt-dlp应用PO Token配置")
+                logger.debug(f"   PO Token: {config['po_token'][:20]}...")
+                logger.debug(f"   Visitor Data: {config['visitor_data'][:20]}...")
+            else:
+                logger.info(f"⚠️ {caller_name} yt-dlp无PO Token配置")
+
+            return ydl_opts
+
+        except Exception as e:
+            logger.error(f"❌ {caller_name} yt-dlp PO Token配置应用失败: {e}")
+            return ydl_opts
 
     def _check_nodejs_available(self) -> bool:
         """检查Node.js是否可用"""
@@ -750,9 +789,9 @@ def get_po_token_config(caller_name: str = "Unknown") -> Dict[str, Any]:
     """获取PO Token配置的便捷函数"""
     return get_po_token_manager().get_config(caller_name)
 
-def apply_po_token_to_ytdlp(ydl_opts: Dict[str, Any], url: str = "", caller_name: str = "Unknown") -> Dict[str, Any]:
+def apply_po_token_to_ytdlp(ydl_opts: Dict[str, Any], caller_name: str = "Unknown") -> Dict[str, Any]:
     """将PO Token应用到yt-dlp的便捷函数"""
-    return get_po_token_manager().apply_to_ytdlp_opts(ydl_opts, url, caller_name)
+    return get_po_token_manager().apply_to_ytdlp_opts(ydl_opts, caller_name)
 
 def apply_po_token_to_pytubefix(yt_kwargs: Dict[str, Any], caller_name: str = "Unknown") -> Dict[str, Any]:
     """将PO Token应用到PyTubeFix的便捷函数"""
