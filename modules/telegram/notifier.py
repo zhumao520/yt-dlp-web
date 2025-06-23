@@ -377,9 +377,19 @@ from core.events import on, Events
 def handle_download_started(data):
     """处理下载开始事件"""
     try:
+        # 检查数据有效性
+        if not data or not isinstance(data, dict):
+            logger.warning(f"📡 收到无效的下载开始事件数据: {data}")
+            return
+
         download_id = data.get('download_id')
         url = data.get('url')
         options = data.get('options', {})
+
+        # 验证必需字段
+        if not download_id or not url:
+            logger.warning(f"📡 下载开始事件缺少必需字段: download_id={download_id}, url={url}")
+            return
 
         # 提前检查 Telegram 是否启用
         notifier = get_telegram_notifier()
@@ -433,6 +443,11 @@ def handle_download_started(data):
 @on(Events.DOWNLOAD_PROGRESS)
 def handle_download_progress(data):
     """处理下载进度事件 - 暂时禁用以减少日志噪音"""
+    # 检查数据有效性
+    if not data or not isinstance(data, dict):
+        logger.debug(f"📡 收到无效的下载进度事件数据: {data}")
+        return
+
     # 暂时禁用进度通知，专注于m3u8下载功能
     return
 
@@ -441,9 +456,19 @@ def handle_download_progress(data):
 def handle_download_completed(data):
     """处理下载完成事件 - 自动发送文件"""
     try:
+        # 检查数据有效性
+        if not data or not isinstance(data, dict):
+            logger.warning(f"📡 收到无效的下载完成事件数据: {data}")
+            return
+
         download_id = data.get('download_id')
         file_path = data.get('file_path')
         title = data.get('title', 'Unknown')
+
+        # 验证必需字段
+        if not download_id:
+            logger.warning(f"📡 下载完成事件缺少download_id: {data}")
+            return
 
         # 提前检查 Telegram 是否启用，避免不必要的处理
         notifier = get_telegram_notifier()
@@ -528,10 +553,20 @@ def handle_download_completed(data):
 def handle_download_failed(data):
     """处理下载失败事件"""
     try:
+        # 检查数据有效性
+        if not data or not isinstance(data, dict):
+            logger.warning(f"📡 收到无效的下载失败事件数据: {data}")
+            return
+
         download_id = data.get('download_id')
         error = data.get('error', 'Unknown error')
         title = data.get('title', 'Unknown')
         url = data.get('url', '')
+
+        # 验证必需字段
+        if not download_id:
+            logger.warning(f"📡 下载失败事件缺少download_id: {data}")
+            return
 
         # 提前检查 Telegram 是否启用
         notifier = get_telegram_notifier()

@@ -298,9 +298,52 @@ class DownloadManagerV2:
         return self.get_download(download_id)
     
     def get_all_downloads(self) -> List[Dict[str, Any]]:
-        """获取所有下载"""
-        with self.lock:
-            return list(self.downloads.values())
+        """获取所有下载（包括内存中的和数据库中的历史记录）"""
+        try:
+            # 获取内存中的下载记录
+            with self.lock:
+                memory_downloads = list(self.downloads.values())
+
+            # 获取数据库中的历史记录
+            database_downloads = self._load_from_database()
+
+            # 合并记录，避免重复
+            all_downloads = {}
+
+            # 先添加数据库记录
+            for download in database_downloads:
+                all_downloads[download['id']] = download
+
+            # 再添加内存记录（会覆盖数据库中的同ID记录，确保最新状态）
+            for download in memory_downloads:
+                all_downloads[download['id']] = download
+
+            # 转换为列表并按创建时间排序
+            result = list(all_downloads.values())
+
+            # 安全的排序函数，处理datetime和字符串混合的情况
+            def safe_sort_key(download):
+                created_at = download.get('created_at')
+                if not created_at:
+                    return ''
+
+                # 如果是datetime对象，转换为字符串
+                if hasattr(created_at, 'isoformat'):
+                    return created_at.isoformat()
+
+                # 如果已经是字符串，直接返回
+                return str(created_at)
+
+            result.sort(key=safe_sort_key, reverse=True)
+
+            logger.debug(f"📋 返回下载记录: 内存 {len(memory_downloads)} 条, 数据库 {len(database_downloads)} 条, 合并后 {len(result)} 条")
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ 获取所有下载记录失败: {e}")
+            # 如果出错，至少返回内存中的记录
+            with self.lock:
+                return list(self.downloads.values())
     
     def cancel_download(self, download_id: str) -> bool:
         """取消下载"""
@@ -328,7 +371,43 @@ class DownloadManagerV2:
         except Exception as e:
             logger.error(f"❌ 取消下载失败: {e}")
             return False
-    
+
+    def _load_from_database(self) -> List[Dict[str, Any]]:
+        """从数据库加载历史下载记录"""
+        try:
+            from core.database import get_database
+            db = get_database()
+
+            # 获取数据库中的下载记录
+            records = db.get_download_records(limit=100)  # 限制返回最近100条记录
+
+            downloads = []
+            for record in records:
+                # 转换数据库记录为下载管理器格式
+                download_info = {
+                    'id': record['id'],
+                    'url': record['url'],
+                    'title': record['title'],
+                    'status': record['status'],
+                    'progress': record['progress'] or 0,
+                    'file_path': record['file_path'],
+                    'file_size': record['file_size'],
+                    'error_message': record['error_message'],
+                    'created_at': record['created_at'],
+                    'completed_at': record['completed_at'],
+                    'options': {},  # 数据库中没有存储options
+                    'retry_count': 0,
+                    'max_retries': 3
+                }
+                downloads.append(download_info)
+
+            logger.debug(f"📋 从数据库加载了 {len(downloads)} 条历史记录")
+            return downloads
+
+        except Exception as e:
+            logger.warning(f"⚠️ 从数据库加载历史记录失败: {e}")
+            return []
+
     def _execute_download(self, download_id: str):
         """执行下载任务"""
         try:

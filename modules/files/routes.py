@@ -6,6 +6,7 @@
 import os
 import logging
 from pathlib import Path
+from urllib.parse import quote
 from flask import Blueprint, send_file, jsonify, abort
 from core.auth import auth_required
 
@@ -44,9 +45,28 @@ def download_file(filename):
             logger.info(f"流媒体播放: {filename}")
             return send_file(file_path, as_attachment=False, mimetype=_get_video_mimetype(filename))
         else:
-            # 普通下载
+            # 普通下载 - 使用自定义响应避免send_file的文件名问题
             logger.info(f"下载文件: {filename}")
-            return send_file(file_path, as_attachment=True)
+
+            # 获取文件信息
+            file_size = file_path.stat().st_size
+            mimetype = _get_media_mimetype(filename)
+
+            # 安全的文件名处理
+            safe_filename = filename.encode('utf-8').decode('utf-8')
+
+            from flask import Response
+            response = Response(
+                _generate_file_chunks(file_path),
+                mimetype=mimetype,
+                headers={
+                    'Content-Length': str(file_size),
+                    'Content-Disposition': f'attachment; filename*=UTF-8\'\'{quote(safe_filename)}',
+                    'Cache-Control': 'no-cache',
+                    'Access-Control-Allow-Origin': '*'
+                }
+            )
+            return response
 
     except Exception as e:
         logger.error(f"文件访问失败: {e}")

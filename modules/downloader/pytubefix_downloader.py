@@ -179,10 +179,12 @@ class PyTubeFixDownloader:
             }
     
     def _extract_sync(self, url: str, quality: str) -> Dict[str, Any]:
-        """同步提取视频信息"""
+        """同步提取视频信息（带超时机制）"""
         try:
             from pytubefix import YouTube
-            
+            import signal
+            import threading
+
             # 创建YouTube对象，配置代理
             # PyTubeFix正确的反机器人配置
             yt_kwargs = {}
@@ -192,7 +194,7 @@ class PyTubeFixDownloader:
                 yt_kwargs['proxies'] = {'http': self.proxy, 'https': self.proxy}
                 logger.debug(f"✅ PyTubeFix使用代理: {self.proxy}")
 
-            # 应用PO Token配置
+            # 应用PO Token配置（快速降级）
             yt_kwargs = self.po_token_manager.apply_to_pytubefix_kwargs(yt_kwargs, "PyTubeFix-Extract")
 
             # 标准认证模式
@@ -218,7 +220,43 @@ class PyTubeFixDownloader:
             client_type, client_reason = self._select_optimal_client(is_container)
             logger.info(f"🎯 选择客户端: {client_type} - {client_reason}")
 
-            yt = YouTube(url, client_type, **yt_kwargs)
+            # 使用超时机制创建YouTube对象
+            result = {'yt': None, 'error': None}
+
+            def create_youtube():
+                try:
+                    result['yt'] = YouTube(url, client_type, **yt_kwargs)
+                except Exception as e:
+                    result['error'] = str(e)
+
+            # 启动创建线程
+            thread = threading.Thread(target=create_youtube)
+            thread.daemon = True
+            thread.start()
+
+            # 等待最多20秒
+            thread.join(timeout=20)
+
+            if thread.is_alive():
+                logger.warning(f"⏰ PyTubeFix YouTube对象创建超时（20秒），快速降级")
+                return {
+                    'error': 'creation_timeout',
+                    'message': 'PyTubeFix YouTube对象创建超时，建议检查网络或PO Token配置'
+                }
+
+            if result['error']:
+                logger.error(f"❌ PyTubeFix YouTube对象创建失败: {result['error']}")
+                return {
+                    'error': 'creation_failed',
+                    'message': f'PyTubeFix YouTube对象创建失败: {result["error"]}'
+                }
+
+            yt = result['yt']
+            if not yt:
+                return {
+                    'error': 'creation_failed',
+                    'message': 'PyTubeFix YouTube对象创建失败'
+                }
             
             # 获取基本信息
             basic_info = {
