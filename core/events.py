@@ -62,10 +62,9 @@ class EventBus:
 
         for callback in listeners:
             try:
-                if data is not None:
-                    callback(data)
-                else:
-                    callback()
+                # 统一调用方式：总是传递data参数，即使它是None
+                # 这样事件处理器函数签名就保持一致
+                callback(data)
             except Exception as e:
                 logger.error(f"❌ 事件处理器错误 {event_name}->{callback.__name__}: {e}")
 

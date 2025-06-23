@@ -698,74 +698,26 @@
         </div>
     </div>
     
+
+
     <!-- 美化当前下载任务 -->
-    <div class="row mb-3" id="activeDownloadsSection" style="display: none;">
-        <div class="col">
+    <div class="row mb-3 mt-4" id="currentDownloadsContainer" style="display: none;">
+        <div class="col-lg-8 mx-auto">
             <div class="card glass-card">
                 <div class="card-body">
                     <h5 class="card-title" style="color: white;">
                         <i class="bi bi-activity me-2"></i>
-                        🔥 当前下载 (<span id="activeCount">0</span>)
+                        🔥 当前下载 (<span id="downloadCount">0</span>)
                     </h5>
-                    <div id="activeDownloadsList"></div>
+                    <div id="downloadsContainer">
+                        <!-- 下载项将通过JavaScript动态插入 -->
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 📚 现代化最近下载 -->
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <div class="modern-card p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0 fw-bold">
-                        <i class="bi bi-clock-history me-2 text-primary"></i>
-                        最近下载
-                    </h5>
-                    <a href="{{ url_for('main.history') }}"
-                       class="btn btn-outline-primary modern-btn">
-                        查看全部
-                    </a>
-                </div>
 
-                <div x-show="recentDownloads.length === 0" class="text-center py-5">
-                    <i class="bi bi-inbox display-4 text-muted"></i>
-                    <p class="mt-3 text-muted">暂无下载记录</p>
-                    <small class="text-muted">开始您的第一次下载吧！</small>
-                </div>
-
-                <div x-show="recentDownloads.length > 0" class="row g-3">
-                    <template x-for="download in recentDownloads.slice(0, 6)" :key="download.id">
-                        <div class="col-md-6 col-lg-4">
-                            <div class="modern-card p-3 h-100">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <span class="badge rounded-pill"
-                                          :class="getStatusClass(download.status)"
-                                          x-text="getStatusText(download.status)"></span>
-                                    <small class="text-muted" x-text="formatDate(download.created_at)"></small>
-                                </div>
-                                <h6 class="mb-2 fw-semibold" x-text="download.title || 'Unknown'"></h6>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">
-                                        <i class="bi bi-file-earmark-play me-1"></i>
-                                        <span x-text="download.filename ? download.filename.split('.').pop().toUpperCase() : 'N/A'"></span>
-                                    </small>
-                                    <div x-show="download.status === 'completed' && download.filename">
-                                        <a :href="`/files/download/${encodeURIComponent(download.filename)}`"
-                                           class="btn btn-sm btn-outline-primary modern-btn"
-                                           target="_blank">
-                                            <i class="bi bi-download"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-        </div>
-    </div>
-    
 </div>
 {% endblock %}
 
@@ -784,11 +736,18 @@ function downloadManager() {
         loading: false,
         videoInfo: null,
         activeDownloads: [],
-        recentDownloads: [],
 
         init() {
-            this.loadRecentDownloads();
-            this.startPolling();
+            console.log('🚀 Alpine.js downloadManager 初始化');
+
+            // 延迟加载数据，确保Alpine.js完全初始化
+            this.$nextTick(() => {
+                console.log('🎯 Alpine.js 完全初始化完成，开始加载数据');
+                this.startPolling();
+            });
+
+            // 添加全局引用便于调试
+            window.downloadManagerInstance = this;
         },
 
         async getVideoInfo() {
@@ -856,31 +815,96 @@ function downloadManager() {
                 const response = await apiRequest('/api/download/list');
                 if (response.ok) {
                     const data = await response.json();
-                    this.activeDownloads = data.downloads.filter(d =>
-                        ['pending', 'downloading'].includes(d.status)
-                    );
+                    // 确保data.downloads存在且是数组
+                    const downloads = data.downloads || [];
+                    // 显示正在进行的下载 + 最近完成的下载
+                    const now = new Date();
+                    const activeDownloads = downloads.filter(d => {
+                        // 正在进行的下载
+                        if (['pending', 'downloading'].includes(d.status)) {
+                            return true;
+                        }
+                        // 最近12小时内完成的下载
+                        if (d.status === 'completed' && d.created_at) {
+                            const downloadTime = new Date(d.created_at);
+                            const diffMinutes = (now - downloadTime) / (1000 * 60);
+                            return diffMinutes <= 720; // 12小时 = 720分钟
+                        }
+                        return false;
+                    }).slice(0, 5); // 最多显示5个
+
+                    // 使用纯JavaScript更新UI
+                    this.updateCurrentDownloadsUI(activeDownloads);
+                    this.activeDownloads = activeDownloads; // 保持数据同步
+                } else {
+                    this.updateCurrentDownloadsUI([]);
+                    this.activeDownloads = [];
                 }
             } catch (error) {
                 console.error('加载活跃下载失败:', error);
+                this.updateCurrentDownloadsUI([]);
+                this.activeDownloads = [];
             }
         },
 
-        async loadRecentDownloads() {
-            try {
-                const response = await apiRequest('/api/download/list');
-                if (response.ok) {
-                    const data = await response.json();
-                    this.recentDownloads = data.downloads;
-                }
-            } catch (error) {
-                console.error('加载最近下载失败:', error);
+        // 纯JavaScript更新当前下载UI
+        updateCurrentDownloadsUI(downloads) {
+            const container = document.getElementById('currentDownloadsContainer');
+            const countSpan = document.getElementById('downloadCount');
+            const downloadsContainer = document.getElementById('downloadsContainer');
+
+            if (!container || !countSpan || !downloadsContainer) return;
+
+            // 更新数量
+            countSpan.textContent = downloads.length;
+
+            // 显示/隐藏容器
+            if (downloads.length > 0) {
+                container.style.display = 'block';
+            } else {
+                container.style.display = 'none';
+                return;
             }
+
+            // 生成下载项HTML
+            let html = '';
+            downloads.forEach(download => {
+                // 从文件名提取标题
+                let title = '获取信息中...';
+                if (download.title && download.title !== null) {
+                    title = download.title;
+                } else if (download.filename) {
+                    const filename = download.filename.split('\\').pop().split('/').pop();
+                    title = filename.replace(/\.[^/.]+$/, '') || '未知视频';
+                }
+
+                const status = this.getStatusText(download.status);
+                const statusClass = this.getStatusClass(download.status);
+                const progress = download.progress || 0;
+
+                html += `
+                    <div class="download-status-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-0">${title}</h6>
+                                <span class="badge ${statusClass}">${status}</span>
+                            </div>
+                            <div class="progress mb-2" style="height: 6px;">
+                                <div class="progress-bar" style="width: ${progress}%"></div>
+                            </div>
+                            <small class="text-muted">${progress}%</small>
+                        </div>
+                    </div>
+                `;
+            });
+
+            downloadsContainer.innerHTML = html;
         },
 
         startPolling() {
+            // 每3秒刷新一次活跃下载
             setInterval(() => {
                 this.loadActiveDownloads();
-                this.loadRecentDownloads();
             }, 3000);
         },
 
@@ -902,10 +926,6 @@ function downloadManager() {
                 return (num / 1000).toFixed(1) + 'K';
             }
             return num.toString();
-        },
-
-        formatDate(dateString) {
-            return new Date(dateString).toLocaleString('zh-CN');
         },
 
         getStatusClass(status) {
@@ -931,9 +951,5 @@ function downloadManager() {
         }
     }
 }
-
-// Alpine.js 已经处理所有功能，不需要额外的类
-
-
 </script>
 {% endblock %}

@@ -122,6 +122,9 @@
                             <button type="button" class="btn btn-outline-success modern-btn" id="selectAllBtn">
                                 <i class="bi bi-check-all me-1"></i>全选
                             </button>
+                            <button type="button" class="btn btn-outline-danger modern-btn d-none" id="deleteSelectedBtn">
+                                <i class="bi bi-trash me-1"></i>删除选中
+                            </button>
                         </div>
                     </div>
                     </div>
@@ -133,41 +136,49 @@
     <!-- 📋 现代化文件列表 -->
     <div class="row">
         <div class="col-lg-8 mx-auto">
-            <!-- 批量操作栏 -->
-            <div class="modern-card mb-3" id="bulkActionsBar" style="display: none;">
-                <div class="card-body py-2">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center gap-2">
-                            <input type="checkbox" class="form-check-input" id="selectAllCheckbox">
-                            <small class="text-muted">已选择 <span id="selectedCount">0</span> 个文件</small>
+            <div class="modern-card p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <tr class="text-white">
+                                <th style="width: 40px;" class="border-0">
+                                    <input type="checkbox" class="form-check-input" id="selectAllCheckbox">
+                                </th>
+                                <th class="border-0 fw-bold">
+                                    <i class="bi bi-file-earmark me-1"></i>文件名
+                                </th>
+                                <th style="width: 80px;" class="border-0 fw-bold d-none d-md-table-cell">
+                                    <i class="bi bi-hdd me-1"></i>大小
+                                </th>
+                                <th style="width: 120px;" class="border-0 fw-bold d-none d-lg-table-cell">
+                                    <i class="bi bi-clock me-1"></i>修改时间
+                                </th>
+                                <th style="width: 140px;" class="border-0 fw-bold">
+                                    <i class="bi bi-gear me-1"></i>操作
+                                </th>
+                            </tr>
+                        </thead>
+                            <tbody id="filesTableBody">
+                                <!-- 文件列表将在这里动态生成 -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 空状态 -->
+                    <div id="emptyState" class="text-center py-5 d-none">
+                        <i class="bi bi-folder2-open display-4 text-muted"></i>
+                        <h5 class="mt-3 text-muted">暂无文件</h5>
+                        <p class="text-muted" id="emptyMessage">还没有下载任何文件</p>
+                    </div>
+                    
+                    <!-- 加载状态 -->
+                    <div id="loadingState" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">加载中...</span>
                         </div>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-danger" id="deleteSelectedBtn">
-                                <i class="bi bi-trash"></i> 删除选中
-                            </button>
-                        </div>
+                        <p class="mt-2 text-muted">加载文件列表...</p>
                     </div>
                 </div>
-            </div>
-
-            <!-- 文件卡片容器 -->
-            <div id="filesContainer">
-                <!-- 文件卡片将在这里动态生成 -->
-            </div>
-
-            <!-- 空状态 -->
-            <div id="emptyState" class="text-center py-5 d-none">
-                <i class="bi bi-folder2-open display-4 text-muted"></i>
-                <h5 class="mt-3 text-muted">暂无文件</h5>
-                <p class="text-muted" id="emptyMessage">还没有下载任何文件</p>
-            </div>
-
-            <!-- 加载状态 -->
-            <div id="loadingState" class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">加载中...</span>
-                </div>
-                <p class="mt-2 text-muted">加载文件列表...</p>
             </div>
         </div>
     </div>
@@ -422,31 +433,65 @@
 
 {% block extra_styles %}
 <style>
-/* 文件卡片样式优化 */
-.modern-card {
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+/* 修复表格白色边框和背景 */
+.table {
+    border-color: transparent !important;
+    border: none !important;
+    background: transparent !important;
 }
 
-.modern-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+.table td, .table th {
+    border-color: transparent !important;
+    border: none !important;
+    background: transparent !important;
 }
 
-/* 文件图标样式 */
-.file-icon {
-    font-size: 1.2rem;
+.table tbody tr {
+    border-color: transparent !important;
+    background: transparent !important;
 }
 
-/* 批量操作栏样式 */
-#bulkActionsBar {
-    border-left: 4px solid #007bff;
-    background: rgba(0, 123, 255, 0.1);
+.table tbody tr td {
+    background: transparent !important;
+    color: white !important;
 }
 
-/* 文件类型标签样式 */
-.badge {
-    font-size: 0.7rem;
-    padding: 0.3rem 0.5rem;
+.table tbody tr .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.table-hover tbody tr:hover td {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 专门修复表格头部边框 */
+.table thead {
+    border: none !important;
+    border-color: transparent !important;
+}
+
+.table thead tr {
+    border: none !important;
+    border-color: transparent !important;
+    background: transparent !important;
+}
+
+.table thead tr.text-white {
+    border: none !important;
+    border-color: transparent !important;
+    background: transparent !important;
+}
+
+.table thead th {
+    border: none !important;
+    border-color: transparent !important;
+    border-bottom: none !important;
+    border-top: none !important;
+    background: transparent !important;
 }
 
 /* 简洁视频播放器样式 */
@@ -490,14 +535,9 @@
         margin: 10px;
     }
 
-    /* 移动端卡片优化 */
-    .modern-card .row {
-        margin: 0;
-    }
-
-    .modern-card .col-md-6 {
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
+    /* 移动端表格优化 */
+    .table-responsive {
+        border: none;
     }
 
     .btn-group-sm .btn {
@@ -508,12 +548,6 @@
     .btn-group-sm .btn i {
         font-size: 0.8rem;
     }
-
-    /* 移动端文件名换行 */
-    .card-title {
-        word-break: break-all;
-        line-height: 1.3;
-    }
 }
 
 /* 小屏幕优化 */
@@ -522,11 +556,26 @@
         padding: 0.3rem 0.5rem;
         font-size: 0.8rem;
     }
+}
 
-    /* 中等屏幕时调整布局 */
-    .modern-card .col-md-6:first-child {
-        margin-bottom: 0.5rem;
-    }
+/* 确保操作按钮始终可见 */
+.table td:last-child {
+    min-width: 140px;
+    white-space: nowrap;
+}
+
+/* 文件名列自适应 */
+.table td:nth-child(2) {
+    max-width: 0;
+    width: 100%;
+}
+
+.table td:nth-child(2) .fw-medium {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+    max-width: 100%;
 }
 
 /* 现代化音频播放器样式 */
@@ -1415,85 +1464,65 @@ class FilesApp {
     }
     
     renderFiles() {
-        const container = document.getElementById('filesContainer');
+        const tbody = document.getElementById('filesTableBody');
         const emptyState = document.getElementById('emptyState');
-
+        
         if (this.filteredFiles.length === 0) {
-            container.innerHTML = '';
+            tbody.innerHTML = '';
             emptyState.classList.remove('d-none');
-            document.getElementById('emptyMessage').textContent =
+            document.getElementById('emptyMessage').textContent = 
                 this.searchQuery ? '没有找到匹配的文件' : '还没有下载任何文件';
             return;
         }
-
+        
         emptyState.classList.add('d-none');
-
-        container.innerHTML = this.filteredFiles.map(file => `
-            <div class="modern-card mb-3">
-                <div class="card-body py-2">
-                    <div class="row align-items-start">
-                        <div class="col-md-6 ps-3 pe-1">
-                            <!-- 文件信息 -->
-                            <div class="mb-0">
-                                <div class="d-flex align-items-center mb-1">
-                                    <input type="checkbox"
-                                           class="form-check-input file-checkbox me-2"
-                                           value="${file.name}"
-                                           ${this.selectedFiles.has(file.name) ? 'checked' : ''}>
-                                    <div class="me-2">
-                                        ${this.getFileIcon(file.name)}
-                                    </div>
-                                    <h6 class="card-title mb-0 text-break" style="font-size: 0.9rem; line-height: 1.2;">
-                                        ${this.escapeHtml(file.name)}
-                                    </h6>
-                                </div>
-                                <small class="text-muted" style="font-size: 0.75rem; line-height: 1.1;">
-                                    ${this.getFileType(file.name)}
-                                </small>
-                            </div>
-
-                            <!-- 文件详情 -->
-                            <div class="d-flex flex-wrap gap-1" style="margin-top: 2px;">
-                                <small class="text-muted" style="font-size: 0.65rem;">
-                                    <i class="bi bi-hdd me-1"></i>${this.formatSize(file.size || 0)}
-                                </small>
-                                <small class="text-muted" style="font-size: 0.65rem;">
-                                    <i class="bi bi-clock me-1"></i>${this.formatDate(file.modified)}
-                                </small>
-                            </div>
+        
+        tbody.innerHTML = this.filteredFiles.map(file => `
+            <tr>
+                <td>
+                    <input type="checkbox" 
+                           class="form-check-input file-checkbox" 
+                           value="${file.name}"
+                           ${this.selectedFiles.has(file.name) ? 'checked' : ''}>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="me-2">
+                            ${this.getFileIcon(file.name)}
                         </div>
-
-                        <div class="col-md-6 ps-0">
-                            <div class="d-flex justify-content-end align-items-start gap-2">
-                                <!-- 文件类型标签 -->
-                                <span class="badge ${this.getFileTypeBadge(file.name)}">${this.getFileTypeText(file.name)}</span>
-
-                                <!-- 操作按钮 -->
-                                <div class="btn-group btn-group-sm">
-                                    ${this.isVideoFile(file.name) ?
-                                        `<button class="btn btn-outline-success" onclick="app.playVideo('${this.escapeHtml(file.name)}')" title="播放视频">
-                                            <i class="bi bi-play-fill"></i>
-                                        </button>` : ''
-                                    }
-                                    ${this.isAudioFile(file.name) ?
-                                        `<button class="btn btn-outline-info" onclick="app.playAudio('${this.escapeHtml(file.name)}')" title="播放音频">
-                                            <i class="bi bi-music-note-beamed"></i>
-                                        </button>` : ''
-                                    }
-                                    <button class="btn btn-outline-primary" onclick="app.downloadFile('${this.escapeHtml(file.name)}')" title="下载">
-                                        <i class="bi bi-download"></i>
-                                    </button>
-                                    <button class="btn btn-outline-danger" onclick="app.deleteFile('${this.escapeHtml(file.name)}')" title="删除">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            </div>
+                        <div>
+                            <div class="fw-medium">${this.escapeHtml(file.name)}</div>
+                            <small class="text-muted">${this.getFileType(file.name)}</small>
                         </div>
                     </div>
-                </div>
-            </div>
+                </td>
+                <td class="d-none d-md-table-cell">${this.formatSize(file.size || 0)}</td>
+                <td class="d-none d-lg-table-cell">
+                    <small>${this.formatDate(file.modified)}</small>
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm" style="white-space: nowrap;">
+                        ${this.isVideoFile(file.name) ?
+                            `<button class="btn btn-outline-success" onclick="app.playVideo('${file.name}')" title="播放视频">
+                                <i class="bi bi-play-fill"></i>
+                            </button>` : ''
+                        }
+                        ${this.isAudioFile(file.name) ?
+                            `<button class="btn btn-outline-info" onclick="app.playAudio('${file.name}')" title="播放音频">
+                                <i class="bi bi-music-note-beamed"></i>
+                            </button>` : ''
+                        }
+                        <button class="btn btn-outline-primary" onclick="app.downloadFile('${file.name}')" title="下载">
+                            <i class="bi bi-download"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="app.deleteFile('${file.name}')" title="删除">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
         `).join('');
-
+        
         // 重新绑定复选框事件
         this.bindCheckboxEvents();
     }
@@ -1512,19 +1541,16 @@ class FilesApp {
     }
     
     updateSelectionUI() {
-        const bulkActionsBar = document.getElementById('bulkActionsBar');
         const deleteBtn = document.getElementById('deleteSelectedBtn');
         const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-        const selectedCount = document.getElementById('selectedCount');
-
+        
         if (this.selectedFiles.size > 0) {
-            bulkActionsBar.style.display = 'block';
-            selectedCount.textContent = this.selectedFiles.size;
+            deleteBtn.classList.remove('d-none');
             deleteBtn.innerHTML = `<i class="bi bi-trash"></i> 删除选中 (${this.selectedFiles.size})`;
         } else {
-            bulkActionsBar.style.display = 'none';
+            deleteBtn.classList.add('d-none');
         }
-
+        
         // 更新全选复选框状态
         if (this.selectedFiles.size === 0) {
             selectAllCheckbox.indeterminate = false;
@@ -1555,12 +1581,12 @@ class FilesApp {
     showLoading(show) {
         const loadingState = document.getElementById('loadingState');
         const emptyState = document.getElementById('emptyState');
-        const container = document.getElementById('filesContainer');
-
+        const tbody = document.getElementById('filesTableBody');
+        
         if (show) {
             loadingState.classList.remove('d-none');
             emptyState.classList.add('d-none');
-            container.innerHTML = '';
+            tbody.innerHTML = '';
         } else {
             loadingState.classList.add('d-none');
         }
@@ -1591,19 +1617,6 @@ class FilesApp {
         if (this.isVideoFile(filename)) return `视频 (${ext.toUpperCase()})`;
         if (this.isAudioFile(filename)) return `音频 (${ext.toUpperCase()})`;
         return `文件 (${ext.toUpperCase()})`;
-    }
-
-    getFileTypeBadge(filename) {
-        if (this.isVideoFile(filename)) return 'bg-success';
-        if (this.isAudioFile(filename)) return 'bg-info';
-        return 'bg-secondary';
-    }
-
-    getFileTypeText(filename) {
-        const ext = filename.split('.').pop().toLowerCase();
-        if (this.isVideoFile(filename)) return '视频';
-        if (this.isAudioFile(filename)) return '音频';
-        return ext.toUpperCase();
     }
     
     // 格式化函数

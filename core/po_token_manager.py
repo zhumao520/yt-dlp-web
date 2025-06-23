@@ -105,11 +105,12 @@ class POTokenManager:
             proxy_config = ProxyConverter.get_ytdlp_proxy(f"POTokenVerify-{caller_name}")
             logger.debug(f"🌐 {caller_name} PO Token验证使用代理: {proxy_config}")
 
-            # 创建测试用的yt-dlp配置
+            # 创建测试用的yt-dlp配置（添加超时）
             test_opts = {
                 'quiet': True,
                 'no_warnings': True,
                 'extract_flat': True,
+                'socket_timeout': 10,  # 10秒socket超时
                 'extractor_args': {
                     'youtube': {
                         'po_token': po_token,
@@ -119,27 +120,53 @@ class POTokenManager:
                 }
             }
 
+            # 添加代理配置
+            if proxy_config:
+                test_opts['proxy'] = proxy_config
+
             # 使用一个简单的YouTube视频进行测试
             test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # 经典测试视频
 
-            with yt_dlp.YoutubeDL(test_opts) as ydl:
+            # 使用线程和超时机制
+            import threading
+            result = {'success': False, 'error': None}
+
+            def verify_thread():
                 try:
-                    info = ydl.extract_info(test_url, download=False)
-                    if info and 'title' in info:
-                        logger.info(f"✅ {caller_name} PO Token验证成功")
-                        return True
-                    else:
-                        logger.warning(f"⚠️ {caller_name} PO Token验证失败 - 无法获取视频信息")
-                        return False
+                    with yt_dlp.YoutubeDL(test_opts) as ydl:
+                        info = ydl.extract_info(test_url, download=False)
+                        if info and 'title' in info:
+                            result['success'] = True
+                        else:
+                            result['error'] = '无法获取视频信息'
                 except Exception as e:
-                    error_msg = str(e).lower()
-                    if 'sign in' in error_msg or 'unavailable' in error_msg or 'token' in error_msg:
-                        logger.warning(f"⚠️ {caller_name} PO Token已失效: {e}")
-                        return False
-                    else:
-                        # 其他错误可能不是PO Token问题
-                        logger.debug(f"🔍 {caller_name} PO Token验证遇到其他错误: {e}")
-                        return True  # 假设PO Token有效，错误可能是网络问题
+                    result['error'] = str(e)
+
+            # 启动验证线程
+            thread = threading.Thread(target=verify_thread)
+            thread.daemon = True
+            thread.start()
+
+            # 等待最多15秒
+            thread.join(timeout=15)
+
+            if thread.is_alive():
+                logger.warning(f"⏰ {caller_name} PO Token验证超时（15秒），跳过验证")
+                return False  # 超时视为验证失败，快速降级
+
+            if result['success']:
+                logger.info(f"✅ {caller_name} PO Token验证成功")
+                return True
+            else:
+                error_msg = result['error'] or '未知错误'
+                error_lower = error_msg.lower()
+                if 'sign in' in error_lower or 'unavailable' in error_lower or 'token' in error_lower:
+                    logger.warning(f"⚠️ {caller_name} PO Token已失效: {error_msg}")
+                    return False
+                else:
+                    # 其他错误可能不是PO Token问题，但为了快速降级，返回False
+                    logger.warning(f"⚠️ {caller_name} PO Token验证遇到错误，快速降级: {error_msg}")
+                    return False
 
         except Exception as e:
             logger.error(f"❌ {caller_name} PO Token验证异常: {e}")
@@ -580,46 +607,7 @@ generatePOToken();
             logger.error(f"❌ {caller_name} 应用PyTubeFix PO Token配置失败: {e}")
             return yt_kwargs
 
-    def apply_to_ytdlp_opts(self, ydl_opts: dict, caller_name: str = "Unknown") -> dict:
-        """
-        将PO Token配置应用到yt-dlp选项
 
-        Args:
-            ydl_opts: yt-dlp选项字典
-            caller_name: 调用者名称（用于日志）
-
-        Returns:
-            更新后的yt-dlp选项字典
-        """
-        try:
-            config = self.get_config(caller_name)
-
-            # 如果有PO Token配置，应用到yt-dlp
-            if config['po_token_available']:
-                # 确保extractor_args存在
-                if 'extractor_args' not in ydl_opts:
-                    ydl_opts['extractor_args'] = {}
-
-                if 'youtube' not in ydl_opts['extractor_args']:
-                    ydl_opts['extractor_args']['youtube'] = {}
-
-                # 应用PO Token配置
-                ydl_opts['extractor_args']['youtube'].update({
-                    'po_token': config['po_token'],
-                    'visitor_data': config['visitor_data']
-                })
-
-                logger.info(f"🔑 {caller_name} yt-dlp应用PO Token配置")
-                logger.debug(f"   PO Token: {config['po_token'][:20]}...")
-                logger.debug(f"   Visitor Data: {config['visitor_data'][:20]}...")
-            else:
-                logger.info(f"⚠️ {caller_name} yt-dlp无PO Token配置")
-
-            return ydl_opts
-
-        except Exception as e:
-            logger.error(f"❌ {caller_name} yt-dlp PO Token配置应用失败: {e}")
-            return ydl_opts
 
     def _check_nodejs_available(self) -> bool:
         """检查Node.js是否可用"""
@@ -789,9 +777,9 @@ def get_po_token_config(caller_name: str = "Unknown") -> Dict[str, Any]:
     """获取PO Token配置的便捷函数"""
     return get_po_token_manager().get_config(caller_name)
 
-def apply_po_token_to_ytdlp(ydl_opts: Dict[str, Any], caller_name: str = "Unknown") -> Dict[str, Any]:
+def apply_po_token_to_ytdlp(ydl_opts: Dict[str, Any], url: str, caller_name: str = "Unknown") -> Dict[str, Any]:
     """将PO Token应用到yt-dlp的便捷函数"""
-    return get_po_token_manager().apply_to_ytdlp_opts(ydl_opts, caller_name)
+    return get_po_token_manager().apply_to_ytdlp_opts(ydl_opts, url, caller_name)
 
 def apply_po_token_to_pytubefix(yt_kwargs: Dict[str, Any], caller_name: str = "Unknown") -> Dict[str, Any]:
     """将PO Token应用到PyTubeFix的便捷函数"""

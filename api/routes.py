@@ -1999,13 +1999,25 @@ def api_download_list():
         # 格式化返回数据
         response_data = []
         for download in downloads:
+            # 处理created_at字段，可能是datetime对象或字符串
+            created_at = download['created_at']
+            if created_at:
+                if hasattr(created_at, 'isoformat'):
+                    # 是datetime对象
+                    created_at_str = created_at.isoformat()
+                else:
+                    # 是字符串，直接使用
+                    created_at_str = str(created_at)
+            else:
+                created_at_str = None
+
             item = {
                 'id': download['id'],
                 'url': download['url'],
                 'status': download['status'],
                 'progress': download['progress'],
                 'title': download['title'],
-                'created_at': download['created_at'].isoformat() if download['created_at'] else None
+                'created_at': created_at_str
             }
 
             if download['status'] == 'completed' and download['file_path']:

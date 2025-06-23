@@ -418,57 +418,57 @@ class HistoryApp {
         
         container.innerHTML = this.filteredDownloads.map(download => `
             <div class="modern-card mb-3">
-                <div class="card-body">
+                <div class="card-body py-2">
                     <div class="row align-items-start">
-                        <div class="col-md-8">
+                        <div class="col-md-6 ps-3 pe-1">
                             <!-- 标题和URL -->
-                            <div class="mb-2">
-                                <h6 class="card-title mb-1">${this.escapeHtml(download.title || '获取信息中...')}</h6>
-                                <small class="text-muted text-break">${this.escapeHtml(download.url)}</small>
+                            <div class="mb-0">
+                                <h6 class="card-title mb-0 text-break" style="font-size: 0.9rem; line-height: 1.2;">${this.escapeHtml(this.getDisplayTitle(download))}</h6>
+                                <small class="text-muted text-break" style="word-break: break-all; display: block; font-size: 0.75rem; line-height: 1.1;">${this.escapeHtml(download.url)}</small>
                             </div>
                             
                             <!-- 进度条 -->
                             ${download.status === 'downloading' ? `
-                                <div class="mb-2">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <small class="text-muted">下载进度</small>
-                                        <small class="fw-medium">${download.progress}%</small>
+                                <div style="margin-top: 2px; margin-bottom: 2px;">
+                                    <div class="d-flex justify-content-between align-items-center" style="margin-bottom: 2px;">
+                                        <small class="text-muted" style="font-size: 0.7rem;">下载进度</small>
+                                        <small class="fw-medium" style="font-size: 0.7rem;">${download.progress}%</small>
                                     </div>
-                                    <div class="progress" style="height: 6px;">
+                                    <div class="progress" style="height: 3px;">
                                         <div class="progress-bar" style="width: ${download.progress}%"></div>
                                     </div>
                                 </div>
                             ` : ''}
-                            
+
                             <!-- 文件信息 -->
                             ${download.status === 'completed' && download.filename ? `
-                                <div class="mb-2">
-                                    <small class="text-muted">
+                                <div style="margin-top: 2px; margin-bottom: 2px;">
+                                    <small class="text-muted text-break" style="font-size: 0.7rem; line-height: 1.1;">
                                         <i class="bi bi-file-earmark me-1"></i>
-                                        ${this.escapeHtml(download.filename)}
-                                        ${download.file_size ? `(${this.formatSize(download.file_size)})` : ''}
+                                        <span class="d-inline-block" style="max-width: 100%; word-break: break-all;">${this.escapeHtml(download.filename)}</span>
+                                        ${download.file_size ? `<br><span class="text-info">(${this.formatSize(download.file_size)})</span>` : ''}
                                     </small>
                                 </div>
                             ` : ''}
-                            
+
                             <!-- 错误信息 -->
                             ${download.status === 'failed' && download.error_message ? `
-                                <div class="alert alert-danger alert-sm mb-2">
+                                <div class="alert alert-danger alert-sm" style="padding: 0.2rem 0.4rem; margin-top: 2px; margin-bottom: 2px;">
                                     <i class="bi bi-exclamation-circle me-1"></i>
-                                    <small>${this.escapeHtml(download.error_message)}</small>
+                                    <small style="font-size: 0.7rem;">${this.escapeHtml(download.error_message)}</small>
                                 </div>
                             ` : ''}
-                            
+
                             <!-- 元信息 -->
-                            <div class="d-flex flex-wrap gap-3">
-                                <small class="text-muted">ID: <code>${download.id}</code></small>
-                                <small class="text-muted">创建: ${this.formatDate(download.created_at)}</small>
-                                ${download.completed_at ? `<small class="text-muted">完成: ${this.formatDate(download.completed_at)}</small>` : ''}
-                                ${download.options?.source ? `<small class="text-muted">来源: ${this.getSourceName(download.options.source)}</small>` : ''}
+                            <div class="d-flex flex-wrap gap-1" style="margin-top: 2px;">
+                                <small class="text-muted" style="font-size: 0.65rem;">ID: <code>${download.id}</code></small>
+                                <small class="text-muted" style="font-size: 0.65rem;">创建: ${this.formatDate(download.created_at)}</small>
+                                ${download.completed_at ? `<small class="text-muted" style="font-size: 0.65rem;">完成: ${this.formatDate(download.completed_at)}</small>` : ''}
+                                ${download.options?.source ? `<small class="text-muted" style="font-size: 0.65rem;">来源: ${this.getSourceName(download.options.source)}</small>` : ''}
                             </div>
                         </div>
-                        
-                        <div class="col-md-4">
+
+                        <div class="col-md-6 ps-0">
                             <div class="d-flex justify-content-end align-items-start gap-2">
                                 <!-- 状态标签 -->
                                 <span class="badge ${this.getStatusClass(download.status)}">${this.getStatusText(download.status)}</span>
@@ -607,7 +607,9 @@ class HistoryApp {
     }
     
     downloadFile(filename) {
-        window.open(`/files/download/${encodeURIComponent(filename)}`, '_blank');
+        // 从完整路径中提取文件名
+        const actualFilename = filename.split('\\').pop().split('/').pop();
+        window.open(`/files/download/${encodeURIComponent(actualFilename)}`, '_blank');
     }
     
     startPolling() {
@@ -668,6 +670,37 @@ class HistoryApp {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // 智能显示标题
+    getDisplayTitle(download) {
+        // 1. 如果有标题且不为null，直接使用
+        if (download.title && download.title !== null) {
+            return download.title;
+        }
+
+        // 2. 如果有文件名，从文件名提取标题
+        if (download.filename) {
+            const filename = download.filename.split('\\').pop().split('/').pop();
+            const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+            return nameWithoutExt || '未知视频';
+        }
+
+        // 3. 根据状态显示不同的提示
+        switch (download.status) {
+            case 'pending':
+                return '等待开始下载...';
+            case 'downloading':
+                return '正在下载中...';
+            case 'failed':
+                return '下载失败';
+            case 'cancelled':
+                return '下载已取消';
+            case 'completed':
+                return '下载完成（无标题信息）';
+            default:
+                return '未知状态';
+        }
     }
 }
 
