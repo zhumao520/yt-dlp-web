@@ -75,20 +75,31 @@ def stream_file(filename):
             logger.warning(f"文件不存在: {filename}")
             abort(404)
 
-        # 只允许视频文件流媒体播放
-        if not _is_video_file(filename):
-            logger.warning(f"非视频文件: {filename}")
+        # 检查是否为支持的文件类型（媒体文件或歌词文件）
+        if not (_is_video_file(filename) or _is_audio_file(filename) or _is_lyrics_file(filename)):
+            logger.warning(f"不支持的文件类型: {filename}")
             abort(400)
 
-        logger.info(f"🎥 流媒体播放: {filename}")
+        # 确定文件类型
+        if _is_video_file(filename):
+            file_type = "视频"
+            icon = "🎥"
+        elif _is_audio_file(filename):
+            file_type = "音频"
+            icon = "🎵"
+        else:  # 歌词文件
+            file_type = "歌词"
+            icon = "📝"
+
+        logger.info(f"{icon} 流媒体播放 ({file_type}): {filename}")
 
         # 获取文件信息
         file_size = file_path.stat().st_size
-        mimetype = _get_video_mimetype(filename)
+        mimetype = _get_media_mimetype(filename)
 
-        # 大视频检测
-        is_large_video = file_size > 100 * 1024 * 1024  # 100MB以上为大视频
-        logger.info(f"文件大小: {file_size} bytes ({file_size/(1024*1024):.1f}MB), MIME类型: {mimetype}, 大视频: {is_large_video}")
+        # 大文件检测
+        is_large_file = file_size > 100 * 1024 * 1024  # 100MB以上为大文件
+        logger.info(f"文件大小: {file_size} bytes ({file_size/(1024*1024):.1f}MB), MIME类型: {mimetype}, 大文件: {is_large_file}")
 
         # 检查是否为Range请求
         range_header = request.headers.get('Range')
@@ -205,8 +216,77 @@ def _is_video_file(filename):
     return Path(filename).suffix.lower() in video_extensions
 
 
+def _is_audio_file(filename):
+    """检查是否为音频文件"""
+    audio_extensions = {
+        '.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma',
+        '.m4a', '.opus', '.aiff', '.ape', '.ac3', '.dts'
+    }
+    return Path(filename).suffix.lower() in audio_extensions
+
+
+def _is_lyrics_file(filename):
+    """检查是否为歌词文件"""
+    lyrics_extensions = {'.lrc', '.txt'}
+    return Path(filename).suffix.lower() in lyrics_extensions
+
+
+def _get_media_mimetype(filename):
+    """获取媒体文件的MIME类型（视频、音频或歌词）"""
+    ext = Path(filename).suffix.lower()
+
+    # 视频MIME类型
+    video_mime_types = {
+        '.mp4': 'video/mp4',
+        '.webm': 'video/webm',
+        '.ogv': 'video/ogg',
+        '.avi': 'video/x-msvideo',
+        '.mov': 'video/quicktime',
+        '.mkv': 'video/x-matroska',
+        '.flv': 'video/x-flv',
+        '.wmv': 'video/x-ms-wmv',
+        '.m4v': 'video/mp4',
+        '.3gp': 'video/3gpp',
+        '.ts': 'video/mp2t',
+        '.m2ts': 'video/mp2t'
+    }
+
+    # 音频MIME类型
+    audio_mime_types = {
+        '.mp3': 'audio/mpeg',
+        '.wav': 'audio/wav',
+        '.flac': 'audio/flac',
+        '.aac': 'audio/aac',
+        '.ogg': 'audio/ogg',
+        '.wma': 'audio/x-ms-wma',
+        '.m4a': 'audio/mp4',
+        '.opus': 'audio/opus',
+        '.aiff': 'audio/aiff',
+        '.ape': 'audio/x-ape',
+        '.ac3': 'audio/ac3',
+        '.dts': 'audio/dts'
+    }
+
+    # 歌词文件MIME类型
+    lyrics_mime_types = {
+        '.lrc': 'text/plain; charset=utf-8',
+        '.txt': 'text/plain; charset=utf-8'
+    }
+
+    # 按优先级检查文件类型
+    if ext in video_mime_types:
+        return video_mime_types[ext]
+    elif ext in audio_mime_types:
+        return audio_mime_types[ext]
+    elif ext in lyrics_mime_types:
+        return lyrics_mime_types[ext]
+    else:
+        # 默认返回通用类型
+        return 'application/octet-stream'
+
+
 def _get_video_mimetype(filename):
-    """获取视频文件的MIME类型"""
+    """获取视频文件的MIME类型（保持向后兼容）"""
     ext = Path(filename).suffix.lower()
     mime_types = {
         '.mp4': 'video/mp4',
@@ -372,7 +452,9 @@ def debug_file(filename):
             'size_mb': round(stat.st_size / (1024 * 1024), 2),
             'modified': stat.st_mtime,
             'is_video': _is_video_file(filename),
-            'detected_mimetype': _get_video_mimetype(filename),
+            'is_audio': _is_audio_file(filename),
+            'is_lyrics': _is_lyrics_file(filename),
+            'detected_mimetype': _get_media_mimetype(filename),
             'system_mimetype': mimetypes.guess_type(filename)[0],
             'extension': file_path.suffix.lower(),
             'stream_url': f'/files/stream/{filename}',
