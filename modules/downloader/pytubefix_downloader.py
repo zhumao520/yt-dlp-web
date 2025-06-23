@@ -189,10 +189,12 @@ class PyTubeFixDownloader:
             # PyTubeFix正确的反机器人配置
             yt_kwargs = {}
 
-            # 代理配置
+            # 代理配置 - 支持SOCKS5
             if self.proxy:
-                yt_kwargs['proxies'] = {'http': self.proxy, 'https': self.proxy}
-                logger.debug(f"✅ PyTubeFix使用代理: {self.proxy}")
+                proxy_config = self._configure_proxy_for_pytubefix(self.proxy)
+                if proxy_config:
+                    yt_kwargs.update(proxy_config)
+                    logger.debug(f"✅ PyTubeFix使用代理: {self.proxy}")
 
             # 应用PO Token配置（快速降级）
             yt_kwargs = self.po_token_manager.apply_to_pytubefix_kwargs(yt_kwargs, "PyTubeFix-Extract")
@@ -290,6 +292,77 @@ class PyTubeFixDownloader:
                 'error': 'sync_extraction_failed',
                 'message': f'PyTubeFix同步提取失败: {str(e)}'
             }
+
+    def _configure_proxy_for_pytubefix(self, proxy_url: str) -> Dict[str, Any]:
+        """为PyTubeFix配置代理，支持SOCKS5"""
+        try:
+            if not proxy_url:
+                return {}
+
+            # 解析代理URL
+            if '://' in proxy_url:
+                protocol, rest = proxy_url.split('://', 1)
+                protocol = protocol.lower()
+
+                # 解析认证信息和地址
+                if '@' in rest:
+                    auth_part, addr_part = rest.rsplit('@', 1)
+                    if ':' in auth_part:
+                        username, password = auth_part.split(':', 1)
+                    else:
+                        username, password = auth_part, ''
+                else:
+                    username, password = '', ''
+                    addr_part = rest
+
+                # 解析主机和端口
+                if ':' in addr_part:
+                    host, port = addr_part.rsplit(':', 1)
+                    port = int(port)
+                else:
+                    host = addr_part
+                    port = 1080 if protocol == 'socks5' else 8080
+
+                # 根据协议类型配置
+                if protocol in ['http', 'https']:
+                    # HTTP代理直接使用
+                    return {'proxies': {'http': proxy_url, 'https': proxy_url}}
+
+                elif protocol == 'socks5':
+                    # SOCKS5代理需要特殊处理
+                    try:
+                        # 尝试使用requests[socks]支持
+                        import socks
+                        import socket
+
+                        # 配置全局SOCKS5代理
+                        socks.set_default_proxy(socks.SOCKS5, host, port, username=username or None, password=password or None)
+                        socket.socket = socks.socksocket
+
+                        logger.info(f"✅ PyTubeFix配置SOCKS5代理: {host}:{port}")
+                        return {'_socks5_configured': True}
+
+                    except ImportError:
+                        logger.warning("⚠️ 未安装PySocks，尝试转换SOCKS5为HTTP代理")
+                        # 回退到转换逻辑
+                        from core.proxy_converter import ProxyConverter
+                        http_proxy = ProxyConverter.get_pytubefix_proxy("PyTubeFix-SOCKS5")
+                        if http_proxy:
+                            return {'proxies': {'http': http_proxy, 'https': http_proxy}}
+                        else:
+                            logger.warning("⚠️ SOCKS5转HTTP失败，PyTubeFix将直连")
+                            return {}
+
+                    except Exception as e:
+                        logger.error(f"❌ SOCKS5代理配置失败: {e}")
+                        return {}
+
+            # 如果不是标准格式，尝试作为HTTP代理使用
+            return {'proxies': {'http': proxy_url, 'https': proxy_url}}
+
+        except Exception as e:
+            logger.error(f"❌ 代理配置解析失败: {e}")
+            return {}
     
     def _extract_formats(self, yt) -> List[Dict[str, Any]]:
         """提取格式信息"""
@@ -380,10 +453,12 @@ class PyTubeFixDownloader:
             # 创建YouTube对象 - 使用正确的PyTubeFix配置
             yt_kwargs = {}
 
-            # 代理配置
+            # 代理配置 - 支持SOCKS5
             if self.proxy:
-                yt_kwargs['proxies'] = {'http': self.proxy, 'https': self.proxy}
-                logger.debug(f"✅ PyTubeFix下载使用代理: {self.proxy}")
+                proxy_config = self._configure_proxy_for_pytubefix(self.proxy)
+                if proxy_config:
+                    yt_kwargs.update(proxy_config)
+                    logger.debug(f"✅ PyTubeFix下载使用代理: {self.proxy}")
 
             # 应用PO Token配置（与提取方法保持一致）
             yt_kwargs = self.po_token_manager.apply_to_pytubefix_kwargs(yt_kwargs, "PyTubeFix-Download")
