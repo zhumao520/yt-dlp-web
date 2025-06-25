@@ -182,13 +182,25 @@ class Database:
     
     @contextmanager
     def get_connection(self):
-        """获取数据库连接（上下文管理器）"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row  # 使结果可以按列名访问
+        """获取数据库连接（上下文管理器，防止连接泄漏）"""
+        conn = None
         try:
+            conn = sqlite3.connect(self.db_path, timeout=30.0)  # 添加超时
+            conn.row_factory = sqlite3.Row  # 使结果可以按列名访问
+            # 启用外键约束
+            conn.execute('PRAGMA foreign_keys = ON')
             yield conn
+        except Exception as e:
+            if conn:
+                conn.rollback()  # 发生异常时回滚
+            logger.error(f"❌ 数据库连接异常: {e}")
+            raise
         finally:
-            conn.close()
+            if conn:
+                try:
+                    conn.close()
+                except Exception as e:
+                    logger.error(f"❌ 关闭数据库连接失败: {e}")
     
     def execute_query(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
         """执行查询并返回结果"""
@@ -220,15 +232,65 @@ class Database:
         return results[0] if results else None
     
     def verify_user_password(self, username: str, password: str) -> bool:
-        """验证用户密码"""
-        import hashlib
+        """验证用户密码（安全版本，支持盐值）"""
         user = self.get_user_by_username(username)
         if not user:
             return False
-        
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
-        return user['password_hash'] == password_hash
+
+        stored_hash = user['password_hash']
+
+        # 检查是否为新格式（包含盐值）
+        if ':' in stored_hash:
+            salt, hash_value = stored_hash.split(':', 1)
+            return self._verify_password_with_salt(password, salt, hash_value)
+        else:
+            # 兼容旧格式（无盐值）
+            import hashlib
+            password_hash = hashlib.sha256(password.encode()).hexdigest()
+            is_valid = stored_hash == password_hash
+
+            # 如果验证成功，升级到新格式
+            if is_valid:
+                new_hash = self._hash_password_with_salt(password)
+                self.execute_update(
+                    'UPDATE users SET password_hash = ? WHERE username = ?',
+                    (new_hash, username)
+                )
+                logger.info(f"🔒 用户 {username} 密码已升级到安全格式")
+
+            return is_valid
     
+    def _hash_password_with_salt(self, password: str) -> str:
+        """使用盐值安全哈希密码"""
+        import hashlib
+        import secrets
+
+        # 生成随机盐值
+        salt = secrets.token_hex(32)
+
+        # 使用PBKDF2进行多轮哈希
+        password_hash = hashlib.pbkdf2_hmac(
+            'sha256',
+            password.encode('utf-8'),
+            salt.encode('utf-8'),
+            100000  # 10万轮迭代
+        ).hex()
+
+        return f"{salt}:{password_hash}"
+
+    def _verify_password_with_salt(self, password: str, salt: str, stored_hash: str) -> bool:
+        """验证带盐值的密码"""
+        import hashlib
+
+        password_hash = hashlib.pbkdf2_hmac(
+            'sha256',
+            password.encode('utf-8'),
+            salt.encode('utf-8'),
+            100000  # 10万轮迭代
+        ).hex()
+
+        return password_hash == stored_hash
+
     def update_user_login_time(self, username: str):
         """更新用户最后登录时间"""
         self.execute_update(
@@ -458,25 +520,33 @@ class Database:
             return False
 
 
-# 全局数据库实例
+# 全局数据库实例（线程安全）
+import threading
 _db_instance = None
+_db_lock = threading.Lock()
 
 def get_database() -> Database:
-    """获取数据库实例"""
+    """获取数据库实例（线程安全）"""
     global _db_instance
+
+    # 双重检查锁定模式
     if _db_instance is None:
-        # 避免循环导入，使用默认数据库路径或环境变量
-        import os
-        db_path = os.environ.get('DATABASE_URL', 'sqlite:///data/app.db')
+        with _db_lock:
+            if _db_instance is None:
+                # 避免循环导入，使用默认数据库路径或环境变量
+                import os
+                db_path = os.environ.get('DATABASE_URL', 'sqlite:///data/app.db')
 
-        # 提取SQLite文件路径
-        if db_path.startswith('sqlite:///'):
-            db_path = db_path[10:]  # 移除 'sqlite:///' 前缀
+                # 提取SQLite文件路径
+                if db_path.startswith('sqlite:///'):
+                    db_path = db_path[10:]  # 移除 'sqlite:///' 前缀
 
-        # 确保数据目录存在
-        db_dir = os.path.dirname(db_path)
-        if db_dir and not os.path.exists(db_dir):
-            os.makedirs(db_dir, exist_ok=True)
+                # 确保数据目录存在
+                db_dir = os.path.dirname(db_path)
+                if db_dir and not os.path.exists(db_dir):
+                    os.makedirs(db_dir, exist_ok=True)
 
-        _db_instance = Database(db_path)
+                _db_instance = Database(db_path)
+                logger.info(f"✅ 数据库实例已创建: {db_path}")
+
     return _db_instance

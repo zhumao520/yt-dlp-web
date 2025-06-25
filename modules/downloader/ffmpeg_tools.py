@@ -468,7 +468,35 @@ class FFmpegTools:
         except Exception as e:
             logger.error(f"❌ 获取视频信息失败: {e}")
             return None
-    
+
+    def merge_video_audio(self, video_path: str, audio_path: str, output_path: str) -> bool:
+        """合并视频和音频文件"""
+        try:
+            args = [
+                '-i', video_path,  # 输入视频
+                '-i', audio_path,  # 输入音频
+                '-c:v', 'copy',    # 复制视频流，不重新编码
+                '-c:a', 'aac',     # 音频编码为AAC
+                '-strict', 'experimental',  # 允许实验性编码器
+                '-y',              # 覆盖输出文件
+                output_path        # 输出文件
+            ]
+
+            logger.info(f"🔧 合并视频和音频: {video_path} + {audio_path} -> {output_path}")
+
+            result = self.run_ffmpeg_command(args, timeout=600)  # 10分钟超时
+
+            if result['success']:
+                logger.info(f"✅ 视频音频合并成功: {output_path}")
+                return True
+            else:
+                logger.error(f"❌ 视频音频合并失败: {result.get('error', result.get('stderr', '未知错误'))}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ 视频音频合并异常: {e}")
+            return False
+
     def get_status(self) -> Dict[str, Any]:
         """获取FFmpeg状态信息"""
         return {

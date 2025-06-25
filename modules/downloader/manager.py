@@ -17,7 +17,6 @@ from typing import Dict, Any, Optional, List
 from concurrent.futures import ThreadPoolExecutor
 
 # 导入模块化组件
-from .core_manager import CoreDownloadManager
 from .retry_manager import RetryManager
 from .ffmpeg_tools import FFmpegTools
 from .filename_processor import FilenameProcessor
@@ -163,7 +162,6 @@ class DownloadManagerV2:
                         if existing_download['id'] in self.downloads:
                             self.downloads[existing_download['id']]['status'] = 'pending'
                             self.downloads[existing_download['id']]['error_message'] = None
-                            self.downloads[existing_download['id']]['retry_count'] = 0
                     return existing_download['id']
 
             # 创建下载记录
@@ -179,8 +177,6 @@ class DownloadManagerV2:
                 'created_at': datetime.now(),
                 'completed_at': None,
                 'options': options or {},
-                'retry_count': 0,
-                'max_retries': options.get('max_retries', 3) if options else 3,
                 'url_hash': self._generate_url_hash(url)  # 添加URL哈希用于续传
             }
 
@@ -395,9 +391,7 @@ class DownloadManagerV2:
                     'error_message': record['error_message'],
                     'created_at': record['created_at'],
                     'completed_at': record['completed_at'],
-                    'options': {},  # 数据库中没有存储options
-                    'retry_count': 0,
-                    'max_retries': 3
+                    'options': {}  # 数据库中没有存储options
                 }
                 downloads.append(download_info)
 
@@ -470,12 +464,23 @@ class DownloadManagerV2:
                 # 应用智能文件名
                 if options.get('smart_filename', True):
                     final_path = self._apply_smart_filename(file_path, video_info, options)
-                    file_path = final_path or file_path
+                    if final_path:
+                        file_path = final_path
+                        logger.info(f"✅ 智能文件名应用成功: {Path(file_path).name}")
 
-                # 下载成功
-                file_size = Path(file_path).stat().st_size if Path(file_path).exists() else None
+                # 确保文件存在并获取最终信息
+                final_file_path = Path(file_path)
+                if not final_file_path.exists():
+                    logger.error(f"❌ 最终文件不存在: {file_path}")
+                    self._handle_download_failure(download_id, '最终文件不存在')
+                    return
+
+                file_size = final_file_path.stat().st_size
+                logger.info(f"📁 最终文件: {final_file_path.name} ({file_size / (1024*1024):.1f}MB)")
+
+                # 下载和后处理完全完成，发送完成事件
                 self._update_download_status(download_id, 'completed', 100,
-                                           file_path=file_path, file_size=file_size)
+                                           file_path=str(final_file_path), file_size=file_size)
 
                 # 清理重试数据
                 self.retry_manager.clear_retry_data(download_id)
@@ -501,34 +506,36 @@ class DownloadManagerV2:
             return False
 
     def _handle_download_failure(self, download_id: str, error_msg: str):
-        """处理下载失败"""
+        """处理下载失败 - 统一使用RetryManager"""
         try:
             # 使用重试管理器判断是否重试
             should_retry = self.retry_manager.should_retry(download_id, error_msg)
-            
+
             if should_retry:
                 # 安排重试
                 self.retry_manager.schedule_retry(download_id, self._execute_download)
-                
-                # 更新状态
+
+                # 获取重试信息用于状态显示
                 retry_info = self.retry_manager.get_retry_info(download_id)
-                retry_count = retry_info.get('retry_count', 0) if retry_info else 0
-                max_retries = 3  # 默认值
-                
-                self._update_download_status(download_id, 'retrying', 
-                                           error_message=f"重试中 ({retry_count}/{max_retries}): {error_msg}")
+                if retry_info:
+                    retry_count = retry_info.get('retry_count', 0)
+                    max_retries = self.retry_manager.retry_config.get('max_retries', 3)
+                    self._update_download_status(download_id, 'retrying',
+                                               error_message=f"重试中 ({retry_count}/{max_retries}): {error_msg}")
+                else:
+                    self._update_download_status(download_id, 'retrying', error_message=f"准备重试: {error_msg}")
             else:
                 # 标记为最终失败
                 self._update_download_status(download_id, 'failed', error_message=error_msg)
-                
+
                 # 发送失败事件
                 self._emit_event('DOWNLOAD_FAILED', {
                     'download_id': download_id,
                     'error': error_msg
                 })
-                
+
                 logger.error(f"❌ 下载最终失败: {download_id} - {error_msg}")
-            
+
         except Exception as e:
             logger.error(f"❌ 处理下载失败时出错: {e}")
             self._update_download_status(download_id, 'failed', error_message=f"处理失败: {str(e)}")
@@ -734,13 +741,9 @@ class DownloadManagerV2:
             return None
 
     def _get_proxy_config(self) -> Optional[str]:
-        """获取代理配置 - 使用统一的代理转换器"""
-        try:
-            from core.proxy_converter import ProxyConverter
-            return ProxyConverter.get_ytdlp_proxy("DownloadManager")
-        except Exception as e:
-            logger.debug(f"🔍 获取代理配置失败: {e}")
-            return None
+        """获取代理配置 - 使用统一的代理助手"""
+        from core.proxy_helper import ProxyHelper
+        return ProxyHelper.get_ytdlp_proxy("DownloadManager")
 
 
 
@@ -809,6 +812,26 @@ class DownloadManagerV2:
 
         except Exception as e:
             logger.error(f"❌ 更新下载状态失败: {e}")
+
+    def get_active_downloads(self) -> List[Dict]:
+        """获取活跃的下载任务（正在进行中的）"""
+        try:
+            with self.lock:
+                active_downloads = []
+                for download_id, download_info in self.downloads.items():
+                    if download_info.get('status') in ['pending', 'downloading']:
+                        active_downloads.append({
+                            'id': download_id,
+                            'status': download_info.get('status'),
+                            'title': download_info.get('title'),
+                            'url': download_info.get('url'),
+                            'progress': download_info.get('progress', 0),
+                            'created_at': download_info.get('created_at')
+                        })
+                return active_downloads
+        except Exception as e:
+            logger.error(f"❌ 获取活跃下载失败: {e}")
+            return []
 
     def get_system_status(self) -> Dict[str, Any]:
         """获取系统状态"""

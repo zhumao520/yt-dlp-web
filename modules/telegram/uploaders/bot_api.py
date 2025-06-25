@@ -31,33 +31,113 @@ class BotAPIUploader(BaseUploader):
     def is_available(self) -> bool:
         """检查 Bot API 上传器是否可用"""
         return bool(self.bot_token and self.chat_id)
-    
+
+    def _send_with_retry(self, func, max_retries: int = 3, **kwargs):
+        """带重试机制的发送方法"""
+        last_exception = None
+
+        for attempt in range(max_retries):
+            try:
+                logger.debug(f"📤 Bot API 尝试 {attempt + 1}/{max_retries}")
+                return func(**kwargs)
+
+            except requests.exceptions.ConnectionError as e:
+                last_exception = e
+                error_msg = str(e).lower()
+
+                # 特殊处理 RemoteDisconnected 错误
+                if 'remote end closed connection' in error_msg or 'remotedisconnected' in error_msg:
+                    logger.warning(f"⚠️ 远程服务器断开连接 (尝试 {attempt + 1}/{max_retries}): {e}")
+                else:
+                    logger.warning(f"⚠️ 网络连接错误 (尝试 {attempt + 1}/{max_retries}): {e}")
+
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 2  # 递增等待时间：2s, 4s, 6s
+                    logger.info(f"🔄 {wait_time}秒后重试...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    if 'remote end closed connection' in error_msg:
+                        logger.error("❌ 远程服务器持续断开连接，可能是代理或网络问题")
+                    else:
+                        logger.error("❌ 网络连接失败，已达到最大重试次数")
+                    return False
+
+            except requests.exceptions.Timeout as e:
+                last_exception = e
+                logger.warning(f"⚠️ 请求超时 (尝试 {attempt + 1}/{max_retries}): {e}")
+
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 3  # 递增等待时间：3s, 6s, 9s
+                    logger.info(f"🔄 {wait_time}秒后重试...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error("❌ 请求超时，已达到最大重试次数")
+                    return False
+
+            except requests.exceptions.HTTPError as e:
+                last_exception = e
+                status_code = e.response.status_code if e.response else 0
+
+                # 某些HTTP错误不应该重试
+                if status_code in [400, 401, 403, 404]:
+                    logger.error(f"❌ HTTP错误 {status_code}，不重试: {e}")
+                    return False
+
+                logger.warning(f"⚠️ HTTP错误 (尝试 {attempt + 1}/{max_retries}): {e}")
+
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 2
+                    logger.info(f"🔄 {wait_time}秒后重试...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error("❌ HTTP错误，已达到最大重试次数")
+                    return False
+
+            except Exception as e:
+                last_exception = e
+                logger.error(f"❌ 未知错误 (尝试 {attempt + 1}/{max_retries}): {e}")
+
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 2
+                    logger.info(f"🔄 {wait_time}秒后重试...")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error("❌ 未知错误，已达到最大重试次数")
+                    return False
+
+        # 如果所有重试都失败，返回 False
+        logger.error(f"❌ 所有重试都失败，最后异常: {last_exception}")
+        return False
+
     def send_message(self, message: str, parse_mode: str = None) -> bool:
-        """发送文本消息"""
-        try:
-            url = f"{self.base_url}/sendMessage"
-            
-            data = {
-                'chat_id': self.chat_id,
-                'text': message
-            }
-            
-            if parse_mode:
-                data['parse_mode'] = parse_mode
-            
-            response = requests.post(url, json=data, timeout=30, proxies=self.proxies)
-            response.raise_for_status()
-            
-            result = response.json()
-            if result.get('ok'):
-                logger.info("✅ Bot API消息发送成功")
-                return True
-            else:
-                logger.error(f"❌ Bot API消息发送失败: {result}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"❌ Bot API消息发送异常: {e}")
+        """发送文本消息 - 带重试机制"""
+        return self._send_with_retry(self._send_message_impl, message=message, parse_mode=parse_mode)
+
+    def _send_message_impl(self, message: str, parse_mode: str = None) -> bool:
+        """发送文本消息的具体实现"""
+        url = f"{self.base_url}/sendMessage"
+
+        data = {
+            'chat_id': self.chat_id,
+            'text': message
+        }
+
+        if parse_mode:
+            data['parse_mode'] = parse_mode
+
+        response = requests.post(url, json=data, timeout=30, proxies=self.proxies)
+        response.raise_for_status()
+
+        result = response.json()
+        if result.get('ok'):
+            logger.info("✅ Bot API消息发送成功")
+            return True
+        else:
+            logger.debug(f"🔍 Bot API消息发送失败: {result}")
             return False
     
     def send_file(self, file_path: str, caption: str = None, **kwargs) -> bool:
@@ -65,7 +145,7 @@ class BotAPIUploader(BaseUploader):
         try:
             file_path_obj = Path(file_path)
             if not file_path_obj.exists():
-                logger.error(f"❌ 文件不存在: {file_path}")
+                logger.debug(f"🔍 文件不存在: {file_path}")
                 return False
             
             # 获取文件元数据
@@ -91,8 +171,8 @@ class BotAPIUploader(BaseUploader):
                 return self._send_document(file_path, caption)
                 
         except Exception as e:
-            logger.error(f"❌ Bot API文件发送异常: {e}")
-            return False
+            logger.debug(f"🔍 Bot API文件发送异常: {e}")
+            return None
     
     def send_media_group(self, files: List[str], caption: str = None) -> bool:
         """发送媒体组"""
@@ -160,7 +240,7 @@ class BotAPIUploader(BaseUploader):
                     logger.info(f"✅ 媒体组发送成功({len(media)}个文件)")
                     return True
                 else:
-                    logger.error(f"❌ 媒体组发送失败: {result}")
+                    logger.debug(f"🔍 媒体组发送失败: {result}")
                     return False
                     
             finally:
@@ -169,7 +249,8 @@ class BotAPIUploader(BaseUploader):
                     file_obj.close()
                 
         except Exception as e:
-            logger.error(f"❌ 媒体组发送异常: {e}")
+            logger.debug(f"🔍 媒体组发送异常: {e}")
+            return None
             return False
     
     def _send_video(self, file_path: str, caption: str, metadata: Dict[str, Any]) -> bool:
@@ -205,7 +286,7 @@ class BotAPIUploader(BaseUploader):
                         logger.info("✅ 视频发送成功")
                         return True
                     else:
-                        logger.error(f"❌ 视频发送失败: {result}")
+                        logger.debug(f"🔍 视频发送失败: {result}")
                         return False
                         
                 finally:
@@ -213,8 +294,8 @@ class BotAPIUploader(BaseUploader):
                         files['thumb'].close()
                         
         except Exception as e:
-            logger.error(f"❌ 视频发送异常: {e}")
-            return False
+            logger.debug(f"🔍 视频发送异常: {e}")
+            return None
     
     def _send_audio(self, file_path: str, caption: str, metadata: Dict[str, Any]) -> bool:
         """发送音频文件"""
@@ -237,12 +318,12 @@ class BotAPIUploader(BaseUploader):
                     logger.info("✅ 音频发送成功")
                     return True
                 else:
-                    logger.error(f"❌ 音频发送失败: {result}")
+                    logger.debug(f"🔍 音频发送失败: {result}")
                     return False
                     
         except Exception as e:
-            logger.error(f"❌ 音频发送异常: {e}")
-            return False
+            logger.debug(f"🔍 音频发送异常: {e}")
+            return None
     
     def _send_photo(self, file_path: str, caption: str) -> bool:
         """发送图片文件"""
@@ -264,12 +345,12 @@ class BotAPIUploader(BaseUploader):
                     logger.info("✅ 图片发送成功")
                     return True
                 else:
-                    logger.error(f"❌ 图片发送失败: {result}")
+                    logger.debug(f"🔍 图片发送失败: {result}")
                     return False
                     
         except Exception as e:
-            logger.error(f"❌ 图片发送异常: {e}")
-            return False
+            logger.debug(f"🔍 图片发送异常: {e}")
+            return None
     
     def _send_document(self, file_path: str, caption: str) -> bool:
         """发送文档文件"""
@@ -291,12 +372,12 @@ class BotAPIUploader(BaseUploader):
                     logger.info("✅ 文档发送成功")
                     return True
                 else:
-                    logger.error(f"❌ 文档发送失败: {result}")
+                    logger.debug(f"🔍 文档发送失败: {result}")
                     return False
                     
         except Exception as e:
-            logger.error(f"❌ 文档发送异常: {e}")
-            return False
+            logger.debug(f"🔍 文档发送异常: {e}")
+            return None
     
     def _build_media_item(self, file_path: str, file_type: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
         """构建媒体项"""
@@ -347,6 +428,7 @@ class BotAPIUploader(BaseUploader):
                         
         except Exception as e:
             logger.debug(f"更新进度显示失败: {e}")
+            return None
     
     def cleanup(self):
         """清理资源"""

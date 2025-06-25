@@ -235,99 +235,6 @@
     animation: pulse 2s infinite;
 }
 
-/* 视频信息预览美化 */
-.video-info-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
-    padding: 1.5rem;
-    margin: 1.5rem 0;
-    animation: slideInUp 0.5s ease-out;
-}
-
-@keyframes slideInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.video-info-card img {
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    transition: transform 0.3s ease;
-}
-
-.video-info-card img:hover {
-    transform: scale(1.05);
-}
-
-.video-info-card h6 {
-    color: white;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.video-info-card .text-muted {
-    color: rgba(255, 255, 255, 0.7) !important;
-}
-
-/* 音频格式帮助美化 */
-.audio-format-help {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
-    color: white;
-    animation: fadeInUp 0.5s ease-out;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.audio-format-help .alert-heading {
-    color: white;
-    font-weight: 600;
-}
-
-.audio-format-help .text-primary {
-    color: #4facfe !important;
-}
-
-.audio-format-help .text-success {
-    color: #43e97b !important;
-}
-
-.audio-format-help .text-warning {
-    color: #fee140 !important;
-}
-
-.audio-format-help .text-info {
-    color: #00f2fe !important;
-}
-
-.audio-format-help .bg-light {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-radius: 12px;
-}
-
-.audio-format-help .text-muted {
-    color: rgba(255, 255, 255, 0.8) !important;
-}
-
 /* 徽章美化 */
 .format-badge {
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
@@ -484,6 +391,39 @@
 </style>
 {% endblock %}
 
+
+<!-- 🔍 样式调试信息 -->
+<script>
+console.log('🎨 首页样式调试信息:');
+console.log('- 页面加载时间:', new Date().toISOString());
+console.log('- 用户代理:', navigator.userAgent);
+console.log('- 屏幕尺寸:', window.screen.width + 'x' + window.screen.height);
+console.log('- 视口尺寸:', window.innerWidth + 'x' + window.innerHeight);
+
+// 检查CSS加载状态
+document.addEventListener('DOMContentLoaded', function() {
+    const styles = document.querySelectorAll('link[rel="stylesheet"]');
+    console.log('📄 加载的CSS文件数量:', styles.length);
+    
+    styles.forEach((link, index) => {
+        console.log(`CSS ${index + 1}:`, link.href);
+    });
+    
+    // 检查关键样式类
+    const testElement = document.createElement('div');
+    testElement.className = 'modern-card';
+    document.body.appendChild(testElement);
+    
+    const computedStyle = window.getComputedStyle(testElement);
+    console.log('🎨 modern-card样式检查:');
+    console.log('- background:', computedStyle.background);
+    console.log('- border-radius:', computedStyle.borderRadius);
+    console.log('- backdrop-filter:', computedStyle.backdropFilter);
+    
+    document.body.removeChild(testElement);
+});
+</script>
+
 {% block content %}
 <div class="container-fluid" id="downloadApp" x-data="downloadManager()">
 
@@ -533,13 +473,7 @@
                                    x-model="form.url"
                                    placeholder="粘贴 YouTube、Bilibili、Twitter 等平台视频链接..."
                                    required>
-                            <button type="button"
-                                    class="btn btn-outline-primary modern-btn"
-                                    id="getInfoBtn"
-                                    x-on:click="getVideoInfo()"
-                                    title="获取视频信息">
-                                <i class="bi bi-info-circle"></i>
-                            </button>
+
                         </div>
                         <div class="form-text mt-2">
                             <i class="bi bi-lightbulb text-warning me-1"></i>
@@ -547,33 +481,7 @@
                         </div>
                     </div>
                         
-                    <!-- 🎬 现代化视频信息预览 -->
-                    <div x-show="videoInfo" x-transition class="mb-3">
-                        <div class="modern-card p-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                            <div class="row align-items-center text-white">
-                                <div class="col-auto">
-                                    <img x-bind:src="videoInfo?.thumbnail"
-                                         class="rounded-3 shadow"
-                                         style="width: 120px; height: 90px; object-fit: cover;"
-                                         alt="视频缩略图">
-                                </div>
-                                <div class="col">
-                                    <h6 class="mb-1 fw-bold" x-text="videoInfo?.title"></h6>
-                                    <p class="mb-1 opacity-75" x-text="videoInfo?.uploader"></p>
-                                    <div class="d-flex gap-3">
-                                        <small class="opacity-75">
-                                            <i class="bi bi-clock me-1"></i>
-                                            <span x-text="videoInfo?.duration ? formatDuration(videoInfo.duration) : ''"></span>
-                                        </small>
-                                        <small class="opacity-75">
-                                            <i class="bi bi-eye me-1"></i>
-                                            <span x-text="videoInfo?.view_count ? formatNumber(videoInfo.view_count) + ' 次观看' : ''"></span>
-                                        </small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+
                         
                     <!-- 🎛️ 现代化下载选项 -->
                     <div class="row g-3 mb-3">
@@ -592,7 +500,8 @@
                                 <i class="bi bi-badge-hd me-1 text-success"></i>视频质量
                             </label>
                             <select class="form-select modern-input" id="quality" x-model="form.quality">
-                                <option value="high" selected>🌟 最高质量 (4K/1080p)</option>
+                                <option value="4k">🎬 4K超高清 (2160p)</option>
+                                <option value="high" selected>🌟 高清 (1080p)</option>
                                 <option value="medium">⭐ 中等质量 (720p)</option>
                                 <option value="low">💫 低质量 (360p)</option>
                             </select>
@@ -649,56 +558,12 @@
                         </div>
                     </div>
 
-                        <!-- 音频格式说明 -->
-                        <div class="row mb-2 d-none" id="audioFormatHelp">
-                            <div class="col">
-                                <div class="alert audio-format-help">
-                                    <h6 class="alert-heading mb-3">
-                                        <i class="bi bi-music-note-beamed"></i> 音频格式选择指南
-                                    </h6>
-                                    <div class="row g-4">
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <strong class="text-primary">🎵 MP3</strong>
-                                                <p class="mb-1 small">最广泛支持的音频格式</p>
-                                                <small class="text-muted">适用于所有设备和播放器</small>
-                                            </div>
-                                            <div class="mb-3">
-                                                <strong class="text-success">🎧 AAC</strong>
-                                                <p class="mb-1 small">高效压缩，音质优秀</p>
-                                                <small class="text-muted">Apple 设备和现代播放器首选</small>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <strong class="text-warning">🎼 FLAC</strong>
-                                                <p class="mb-1 small">无损压缩，保持原始音质</p>
-                                                <small class="text-muted">音乐收藏和专业用途</small>
-                                            </div>
-                                            <div class="mb-3">
-                                                <strong class="text-info">🎶 OGG</strong>
-                                                <p class="mb-1 small">开源格式，质量出色</p>
-                                                <small class="text-muted">Linux 系统和开源软件</small>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="mt-3 p-2 bg-light rounded">
-                                        <small class="text-muted">
-                                            <i class="bi bi-lightbulb"></i>
-                                            <strong>建议：</strong>日常使用选择 MP3 192kbps，追求音质选择 AAC 256kbps，收藏音乐选择 FLAC 无损
-                                        </small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                     </form>
                 </div>
             </div>
         </div>
     </div>
     
-
 
     <!-- 美化当前下载任务 -->
     <div class="row mb-3 mt-4" id="currentDownloadsContainer" style="display: none;">
@@ -717,7 +582,6 @@
         </div>
     </div>
 
-
 </div>
 {% endblock %}
 
@@ -728,13 +592,12 @@ function downloadManager() {
     return {
         form: {
             url: '',
-            quality: 'medium',
+            quality: 'high',
             download_type: 'video',
             audio_format: 'audio_mp3_medium',
             custom_filename: ''
         },
         loading: false,
-        videoInfo: null,
         activeDownloads: [],
 
         init() {
@@ -748,27 +611,6 @@ function downloadManager() {
 
             // 添加全局引用便于调试
             window.downloadManagerInstance = this;
-        },
-
-        async getVideoInfo() {
-            if (!this.form.url) return;
-
-            try {
-                const response = await apiRequest('/api/video/info', {
-                    method: 'POST',
-                    body: JSON.stringify({ url: this.form.url })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    this.videoInfo = data.video_info;
-                    showNotification('视频信息获取成功', 'success');
-                } else {
-                    showNotification('获取视频信息失败', 'danger');
-                }
-            } catch (error) {
-                showNotification('网络错误', 'danger');
-            }
         },
 
         async startDownload() {
@@ -795,7 +637,6 @@ function downloadManager() {
                     // 重置表单
                     this.form.url = '';
                     this.form.custom_filename = '';
-                    this.videoInfo = null;
 
                     // 刷新下载列表
                     await this.loadActiveDownloads();
@@ -870,12 +711,12 @@ function downloadManager() {
             let html = '';
             downloads.forEach(download => {
                 // 从文件名提取标题
-                let title = '获取信息中...';
+                let title = '下载中...';
                 if (download.title && download.title !== null) {
                     title = download.title;
                 } else if (download.filename) {
                     const filename = download.filename.split('\\').pop().split('/').pop();
-                    title = filename.replace(/\.[^/.]+$/, '') || '未知视频';
+                    title = filename.replace(/\.[^/.]+$/, '') || '未知文件';
                 }
 
                 const status = this.getStatusText(download.status);
@@ -883,7 +724,7 @@ function downloadManager() {
                 const progress = download.progress || 0;
 
                 html += `
-                    <div class="download-status-card">
+                    <div class="download-status-card" data-download-id="${download.id}">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <h6 class="mb-0">${title}</h6>
@@ -892,7 +733,7 @@ function downloadManager() {
                             <div class="progress mb-2" style="height: 6px;">
                                 <div class="progress-bar" style="width: ${progress}%"></div>
                             </div>
-                            <small class="text-muted">${progress}%</small>
+                            <small class="text-muted progress-text">${progress}%</small>
                         </div>
                     </div>
                 `;
@@ -902,30 +743,207 @@ function downloadManager() {
         },
 
         startPolling() {
-            // 每3秒刷新一次活跃下载
+            // 启用实时进度更新（SSE）
+            this.startSSE();
+
+            // 每10秒刷新一次活跃下载（作为备用）
             setInterval(() => {
                 this.loadActiveDownloads();
-            }, 3000);
+            }, 10000);
         },
 
-        formatDuration(seconds) {
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
+        startSSE() {
+            // 启动Server-Sent Events实时进度更新
+            try {
+                // 如果已有连接，先关闭
+                if (this.eventSource) {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                }
 
-            if (hours > 0) {
-                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                const clientId = 'download_progress_' + Date.now();
+                this.eventSource = new EventSource(`/api/events?client_id=${clientId}`);
+
+                this.eventSource.onopen = () => {
+                    console.log('📡 SSE连接已建立');
+                };
+
+                this.eventSource.addEventListener('connected', (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log('✅ SSE连接确认:', data.client_id);
+                });
+
+                this.eventSource.addEventListener('download_progress', (event) => {
+                    const data = JSON.parse(event.data);
+                    this.updateDownloadProgress(data);
+                });
+
+                this.eventSource.addEventListener('download_completed', (event) => {
+                    const data = JSON.parse(event.data);
+                    this.handleDownloadCompleted(data);
+
+                    // 下载完成后，检查是否还有活跃下载
+                    setTimeout(() => {
+                        this.checkAndCloseSSE();
+                    }, 2000); // 2秒后检查
+                });
+
+                this.eventSource.addEventListener('download_failed', (event) => {
+                    const data = JSON.parse(event.data);
+                    this.handleDownloadFailed(data);
+
+                    // 下载失败后，检查是否还有活跃下载
+                    setTimeout(() => {
+                        this.checkAndCloseSSE();
+                    }, 2000); // 2秒后检查
+                });
+
+                this.eventSource.addEventListener('download_started', (event) => {
+                    const data = JSON.parse(event.data);
+                    this.handleDownloadStarted(data);
+                });
+
+                this.eventSource.addEventListener('all_downloads_completed', (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log('🎉 所有下载已完成，关闭SSE连接');
+                    this.closeSSE();
+                    showNotification('所有下载已完成', 'success');
+                });
+
+                this.eventSource.onerror = (error) => {
+                    console.error('❌ SSE连接错误:', error);
+
+                    // 检查连接状态
+                    if (this.eventSource.readyState === EventSource.CLOSED) {
+                        console.log('📡 SSE连接已关闭，5秒后重试...');
+                        // 清理当前连接
+                        this.eventSource = null;
+                        // 5秒后重试
+                        setTimeout(() => {
+                            console.log('🔄 重新连接SSE...');
+                            this.startSSE();
+                        }, 5000);
+                    } else if (this.eventSource.readyState === EventSource.CONNECTING) {
+                        console.log('📡 SSE正在重连...');
+                    }
+                };
+
+            } catch (error) {
+                console.error('❌ 启动SSE失败:', error);
+                // 降级到轮询模式
+                console.log('🔄 降级到轮询模式');
             }
-            return `${minutes}:${secs.toString().padStart(2, '0')}`;
         },
 
-        formatNumber(num) {
-            if (num >= 1000000) {
-                return (num / 1000000).toFixed(1) + 'M';
-            } else if (num >= 1000) {
-                return (num / 1000).toFixed(1) + 'K';
+        async checkAndCloseSSE() {
+            // 检查是否还有活跃下载，如果没有则关闭SSE连接
+            try {
+                const activeDownloads = await this.getActiveDownloads();
+
+                if (activeDownloads.length === 0) {
+                    console.log('📡 没有活跃下载，关闭SSE连接');
+                    this.closeSSE();
+
+                    // 显示通知
+                    showNotification('所有下载已完成', 'success');
+                } else {
+                    console.log(`📡 还有 ${activeDownloads.length} 个活跃下载，保持SSE连接`);
+                }
+            } catch (error) {
+                console.error('检查活跃下载失败:', error);
             }
-            return num.toString();
+        },
+
+        closeSSE() {
+            // 关闭SSE连接
+            if (this.eventSource) {
+                console.log('📡 关闭SSE连接');
+                this.eventSource.close();
+                this.eventSource = null;
+            }
+        },
+
+        async getActiveDownloads() {
+            // 获取活跃下载列表
+            try {
+                const response = await apiRequest('/download/list');
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.downloads.filter(d =>
+                        ['pending', 'downloading'].includes(d.status)
+                    );
+                }
+                return [];
+            } catch (error) {
+                console.error('获取活跃下载失败:', error);
+                return [];
+            }
+        },
+
+        updateDownloadProgress(data) {
+            // 实时更新下载进度
+            try {
+                if (!data || !data.download_id) {
+                    console.warn('⚠️ 无效的进度数据:', data);
+                    return;
+                }
+
+                const { download_id, status, progress } = data;
+
+                // 验证进度值
+                const validProgress = Math.max(0, Math.min(100, parseInt(progress) || 0));
+
+                // 查找对应的下载卡片
+                const card = document.querySelector(`[data-download-id="${download_id}"]`);
+                if (card) {
+                    // 更新进度条
+                    const progressBar = card.querySelector('.progress-bar');
+                    const progressText = card.querySelector('.progress-text');
+                    const statusBadge = card.querySelector('.badge');
+
+                    if (progressBar) {
+                        progressBar.style.width = `${validProgress}%`;
+                    }
+                    if (progressText) {
+                        progressText.textContent = `${validProgress}%`;
+                    }
+                    if (statusBadge && status) {
+                        statusBadge.textContent = this.getStatusText(status);
+                        statusBadge.className = `badge ${this.getStatusClass(status)}`;
+                    }
+                } else {
+                    // 如果找不到卡片，刷新下载列表
+                    this.loadActiveDownloads();
+                }
+            } catch (error) {
+                console.error('❌ 更新进度失败:', error);
+            }
+        },
+
+        handleDownloadCompleted(data) {
+            console.log('🎉 下载完成:', data);
+            // 刷新下载列表显示最新状态
+            this.loadActiveDownloads();
+            // 显示完成通知
+            if (window.showNotification) {
+                window.showNotification(`下载完成: ${data.title}`, 'success');
+            }
+        },
+
+        handleDownloadFailed(data) {
+            console.log('❌ 下载失败:', data);
+            // 刷新下载列表显示最新状态
+            this.loadActiveDownloads();
+            // 显示失败通知
+            if (window.showNotification) {
+                window.showNotification(`下载失败: ${data.error}`, 'danger');
+            }
+        },
+
+        handleDownloadStarted(data) {
+            console.log('🚀 下载开始:', data);
+            // 刷新下载列表显示新的下载
+            this.loadActiveDownloads();
         },
 
         getStatusClass(status) {
@@ -951,5 +969,42 @@ function downloadManager() {
         }
     }
 }
+
+// 页面生命周期管理
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('📡 页面加载完成，初始化SSE管理');
+});
+
+// 页面卸载时清理SSE连接
+window.addEventListener('beforeunload', () => {
+    if (window.downloadManagerInstance && window.downloadManagerInstance.closeSSE) {
+        console.log('📡 页面卸载，清理SSE连接');
+        window.downloadManagerInstance.closeSSE();
+    }
+});
+
+// 页面可见性变化时的SSE管理
+document.addEventListener('visibilitychange', () => {
+    if (!window.downloadManagerInstance) return;
+
+    if (document.hidden) {
+        console.log('📡 页面隐藏，暂停SSE');
+        window.downloadManagerInstance.closeSSE();
+    } else {
+        console.log('📡 页面显示，检查是否需要恢复SSE');
+        // 延迟检查，避免频繁开关
+        setTimeout(async () => {
+            try {
+                const activeDownloads = await window.downloadManagerInstance.getActiveDownloads();
+                if (activeDownloads.length > 0 && !window.downloadManagerInstance.eventSource) {
+                    console.log('📡 有活跃下载，恢复SSE连接');
+                    window.downloadManagerInstance.startSSE();
+                }
+            } catch (error) {
+                console.error('检查活跃下载失败:', error);
+            }
+        }, 1000);
+    }
+});
 </script>
 {% endblock %}

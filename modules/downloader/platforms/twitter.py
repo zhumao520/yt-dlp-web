@@ -57,7 +57,7 @@ class TwitterPlatform(BasePlatform):
         """Twitter 通常没有字幕"""
         return False
     
-    def get_format_selector(self, quality: str = 'best') -> str:
+    def get_format_selector(self, quality: str = 'best', url: str = '') -> str:
         """Twitter 格式选择器 - 多重备用策略"""
         if quality == 'best':
             return 'best[ext=mp4]/best[ext=m4v]/best[height<=720]/best/worst'

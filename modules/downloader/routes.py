@@ -31,7 +31,7 @@ def start_download():
         
         # 获取下载选项
         options = {
-            'quality': data.get('quality', 'medium'),
+            'quality': data.get('quality', 'high'),
             'audio_only': data.get('audio_only', False),
             'format': data.get('format'),
             'custom_filename': data.get('custom_filename', '').strip(),

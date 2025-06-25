@@ -45,13 +45,22 @@ class POTokenManager:
             auth_config = cookies_manager.get_youtube_auth_config()
 
             if auth_config['success']:
+                po_token = auth_config.get('po_token', '').strip()
+                visitor_data = auth_config.get('visitor_data', '').strip()
+                oauth2_token = auth_config.get('oauth2_token', '').strip()
+
+                # 重新计算可用性，确保格式正确
+                po_token_available = bool(po_token and len(po_token) > 10 and '+' in po_token)
+                visitor_data_available = bool(visitor_data and len(visitor_data) > 10)
+                oauth2_available = bool(oauth2_token and len(oauth2_token) > 10)
+
                 config = {
-                    'po_token': auth_config.get('po_token', ''),
-                    'visitor_data': auth_config.get('visitor_data', ''),
-                    'oauth2_token': auth_config.get('oauth2_token', ''),
-                    'po_token_available': auth_config.get('po_token_available', False),
-                    'visitor_data_available': auth_config.get('visitor_data_available', False),
-                    'oauth2_available': auth_config.get('oauth2_available', False)
+                    'po_token': po_token,
+                    'visitor_data': visitor_data,
+                    'oauth2_token': oauth2_token,
+                    'po_token_available': po_token_available,
+                    'visitor_data_available': visitor_data_available,
+                    'oauth2_available': oauth2_available
                 }
                 
                 # 更新缓存
@@ -234,27 +243,86 @@ class POTokenManager:
 
             logger.info(f"🚀 {caller_name} 调用现有自动生成功能")
 
-            # 设置SSL（适用于TUN网络）
+            # 设置SSL和网络配置（适用于代理环境）
             ssl._create_default_https_context = ssl._create_unverified_context
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-            # 获取代理配置
-            proxy_config = ProxyConverter.get_requests_proxy(f"AutoUpdate-{caller_name}")
-            logger.debug(f"🌐 代理配置: {proxy_config}")
+            # 检查代理配置，如果可用则使用代理
+            try:
+                from core.database import get_database
+                db = get_database()
+                db_proxy_config = db.get_proxy_config()
+
+                if db_proxy_config and db_proxy_config.get('enabled'):
+                    proxy_type = db_proxy_config.get('proxy_type', 'http')
+                    host = db_proxy_config.get('host')
+                    port = db_proxy_config.get('port')
+                    username = db_proxy_config.get('username')
+                    password = db_proxy_config.get('password')
+
+                    if host and port and proxy_type == 'socks5':
+                        # 尝试使用SOCKS5代理
+                        try:
+                            import socks
+                            auth = ""
+                            if username and password:
+                                auth = f"{username}:{password}@"
+
+                            proxy_url = f"socks5://{auth}{host}:{port}"
+                            proxy_config = {
+                                'http': proxy_url,
+                                'https': proxy_url
+                            }
+                            logger.info(f"✅ {caller_name} PO Token生成使用SOCKS5代理: {host}:{port}")
+                        except ImportError:
+                            logger.warning(f"⚠️ {caller_name} 未安装PySocks，使用直连模式")
+                            proxy_config = None
+                    else:
+                        logger.info(f"🔍 {caller_name} PO Token生成使用直连模式")
+                        proxy_config = None
+                else:
+                    logger.info(f"🔍 {caller_name} PO Token生成使用直连模式（无代理配置）")
+                    proxy_config = None
+
+            except Exception as e:
+                logger.warning(f"⚠️ {caller_name} 代理配置检查失败，使用直连: {e}")
+                proxy_config = None
 
             # 步骤1: 生成visitor data
             logger.info(f"🔍 {caller_name} 生成visitor data...")
             visitor_data = None
 
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive'
             }
 
-            kwargs = {'headers': headers, 'timeout': 15, 'verify': False}
-            if proxy_config:
-                kwargs['proxies'] = proxy_config
+            # 网络配置优化
+            kwargs = {
+                'headers': headers,
+                'timeout': (10, 30),  # (连接超时, 读取超时)
+                'verify': False,
+                'allow_redirects': True,
+                'stream': False
+            }
 
-            response = requests.get('https://www.youtube.com', **kwargs)
+            try:
+                response = requests.get('https://www.youtube.com', **kwargs)
+            except requests.exceptions.SSLError as ssl_err:
+                logger.warning(f"⚠️ {caller_name} SSL连接失败，尝试降级协议: {ssl_err}")
+                # 尝试使用HTTP而不是HTTPS
+                try:
+                    response = requests.get('http://www.youtube.com', **kwargs)
+                    logger.info(f"✅ {caller_name} HTTP连接成功")
+                except Exception as http_err:
+                    logger.error(f"❌ {caller_name} HTTP连接也失败: {http_err}")
+                    raise ssl_err
+            except Exception as e:
+                logger.error(f"❌ {caller_name} 网络连接失败: {e}")
+                raise
 
             if response.status_code == 200:
                 content = response.text
@@ -490,14 +558,37 @@ generatePOToken();
 
             # 根据PO Token可用性配置最优客户端
             if config['po_token_available']:
-                # 有PO Token时，使用mweb客户端获得最佳4K支持
-                ydl_opts['extractor_args']['youtube'].update({
-                    'po_token': f"mweb.gvs+{config['po_token']}",  # 按官方格式配置
-                    'visitor_data': config['visitor_data'],
-                    'player_client': ['mweb', 'web'],  # 优先使用mweb客户端
-                    'player_skip': ['webpage']  # 跳过网页解析，提高速度
-                })
+                # 检查PO Token格式并修正
+                po_token = config['po_token']
+                visitor_data = config['visitor_data']
+
+                # 确保PO Token格式正确
+                if not po_token.startswith('mweb.gvs+'):
+                    # 如果PO Token不包含前缀，添加前缀
+                    formatted_po_token = f"mweb.gvs+{po_token}"
+                else:
+                    formatted_po_token = po_token
+
+                # 验证PO Token格式
+                if '+' not in formatted_po_token:
+                    logger.warning(f"⚠️ {caller_name} PO Token格式错误，跳过配置")
+                    # 使用tv客户端作为备选
+                    ydl_opts['extractor_args']['youtube'].update({
+                        'player_client': ['tv', 'web'],
+                        'player_skip': ['webpage']
+                    })
+                else:
+                    # 有PO Token时，使用mweb客户端获得最佳4K支持
+                    # 修复：确保PO Token作为完整字符串传递，而不是逐字符解析
+                    ydl_opts['extractor_args']['youtube'].update({
+                        'po_token': [formatted_po_token],  # 使用列表格式防止逐字符解析
+                        'visitor_data': [visitor_data],    # 使用列表格式防止逐字符解析
+                        'player_client': ['mweb', 'web'],  # 优先使用mweb客户端
+                        'player_skip': ['webpage']  # 跳过网页解析，提高速度
+                    })
                 logger.info(f"🔑 {caller_name} 使用PO Token配置 (mweb客户端，支持4K)")
+                logger.debug(f"   格式化PO Token: {formatted_po_token[:30]}...")
+                logger.debug(f"   Visitor Data: {visitor_data[:30]}...")
             else:
                 # 没有PO Token时，使用tv客户端作为备选
                 ydl_opts['extractor_args']['youtube'].update({
@@ -534,13 +625,13 @@ generatePOToken();
             # 如果用户已经指定了具体格式，不要覆盖
             if current_format in ['best', 'worst', 'bestvideo', 'bestaudio']:
                 if has_po_token:
-                    # 有PO Token时，可以安全地请求4K格式
-                    ydl_opts['format'] = 'bestvideo[height<=2160]+bestaudio/best[height<=2160]'
-                    logger.debug("🎬 优化格式选择：支持4K (2160p)")
+                    # 有PO Token时，优先请求4K格式，使用最佳编码
+                    ydl_opts['format'] = 'bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160]/best'
+                    logger.info("🎬 4K模式：使用PO Token支持最高2160p分辨率")
                 else:
-                    # 没有PO Token时，限制到1080p以避免403错误
-                    ydl_opts['format'] = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]'
-                    logger.debug("🎬 优化格式选择：限制到1080p")
+                    # 没有PO Token时，仍然尝试4K但使用TV客户端
+                    ydl_opts['format'] = 'bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
+                    logger.info("🎬 4K模式：无PO Token，使用TV客户端尝试高分辨率")
 
             # 添加格式排序，优先选择mp4容器
             if 'format_sort' not in ydl_opts:

@@ -174,22 +174,14 @@ class VideoExtractor:
             return None
     
     def _get_proxy_config(self) -> Optional[str]:
-        """获取代理配置 - 使用统一的代理转换器"""
-        try:
-            from core.proxy_converter import ProxyConverter
-            return ProxyConverter.get_ytdlp_proxy("VideoExtractor")
-        except Exception as e:
-            logger.debug(f"🔍 获取代理配置失败: {e}")
-            return None
+        """获取代理配置 - 使用统一的代理助手"""
+        from core.proxy_helper import ProxyHelper
+        return ProxyHelper.get_ytdlp_proxy("VideoExtractor")
 
     def _get_pytubefix_proxy_config(self) -> Optional[str]:
-        """获取PyTubeFix专用的代理配置 - 使用统一的代理转换器"""
-        try:
-            from core.proxy_converter import ProxyConverter
-            return ProxyConverter.get_pytubefix_proxy("VideoExtractor-PyTubeFix")
-        except Exception as e:
-            logger.debug(f"🔍 获取PyTubeFix代理配置失败: {e}")
-            return None
+        """获取PyTubeFix专用的代理配置 - 使用统一的代理助手"""
+        from core.proxy_helper import ProxyHelper
+        return ProxyHelper.get_pytubefix_proxy("VideoExtractor-PyTubeFix")
 
 
 

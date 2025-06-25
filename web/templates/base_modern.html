@@ -18,11 +18,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     
     <!-- Bootstrap 5.3 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css?v=1750768943" rel="stylesheet">
     <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css?v=1750768943">
     <!-- Plyr 视频播放器 CSS -->
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css?v=1750768943" />
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
     
@@ -793,6 +793,7 @@
             const defaultOptions = {
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                     ...(token && { 'Authorization': `Bearer ${token}` })
                 }
             };
@@ -800,6 +801,7 @@
             try {
                 const response = await fetch(url, { ...defaultOptions, ...options });
 
+                // 处理各种HTTP状态码
                 if (response.status === 401) {
                     // 清除所有token存储
                     localStorage.removeItem('auth_token');
@@ -809,12 +811,30 @@
                         window.location.href = '/auth/login?token_expired=1';
                     }, 1500);
                     return;
+                } else if (response.status === 403) {
+                    showNotification('权限不足，无法访问此资源', 'danger');
+                    return response;
+                } else if (response.status === 404) {
+                    showNotification('请求的资源不存在', 'warning');
+                    return response;
+                } else if (response.status >= 500) {
+                    showNotification('服务器内部错误，请稍后重试', 'danger');
+                    return response;
                 }
 
                 return response;
             } catch (error) {
                 console.error('API请求失败:', error);
-                showNotification('网络请求失败，请检查网络连接', 'danger');
+
+                // 区分不同类型的网络错误
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    showNotification('网络连接失败，请检查网络设置', 'danger');
+                } else if (error.name === 'AbortError') {
+                    showNotification('请求已取消', 'info');
+                } else {
+                    showNotification('网络请求失败，请稍后重试', 'danger');
+                }
+
                 throw error;
             }
         };

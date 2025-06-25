@@ -143,52 +143,111 @@ class UnifiedTelegramNotifier:
         )
 
     def send_message(self, message: str, parse_mode: str = 'Markdown') -> bool:
-        """发送文本消息"""
-        if not self.is_enabled() or not self.uploader:
-            logger.debug("Telegram 未启用或上传器不可用，跳过消息发送")
+        """发送文本消息 - 增强异常处理"""
+        if not self.is_enabled():
+            logger.debug("Telegram 未启用，跳过消息发送")
             return False
-        
+
+        if not self.uploader:
+            logger.error("❌ Telegram 上传器不可用")
+            # 尝试重新初始化上传器
+            try:
+                logger.info("🔄 尝试重新初始化 Telegram 上传器")
+                self._initialize_uploader()
+                if not self.uploader:
+                    logger.error("❌ 重新初始化失败")
+                    return False
+            except Exception as init_error:
+                logger.error(f"❌ 重新初始化异常: {init_error}")
+                return False
+
+        if not message or not message.strip():
+            logger.warning("⚠️ 消息内容为空，跳过发送")
+            return False
+
         try:
             logger.info(f"📤 发送 Telegram 消息，长度: {len(message)} 字符")
             success = self.uploader.send_message(message, parse_mode)
-            
+
             if success:
                 logger.info("✅ 消息发送成功")
+                return True
             else:
                 logger.error("❌ 消息发送失败")
-            
-            return success
-            
+                return False
+
+        except AttributeError as e:
+            logger.error(f"❌ 上传器属性错误: {e}")
+            logger.error("🔧 这可能是由于上传器初始化不完整导致的")
+            return False
         except Exception as e:
             logger.error(f"❌ 发送 Telegram 消息失败: {e}")
+            logger.error(f"🔍 异常类型: {type(e).__name__}")
+            import traceback
+            logger.debug(f"🔍 详细堆栈: {traceback.format_exc()}")
             return False
 
     def send_file(self, file_path: str, caption: str = None, **kwargs) -> bool:
-        """发送文件"""
-        if not self.is_enabled() or not self.uploader:
-            logger.debug("Telegram 未启用或上传器不可用，跳过文件发送")
+        """发送文件 - 增强异常处理"""
+        if not self.is_enabled():
+            logger.debug("Telegram 未启用，跳过文件发送")
             return False
-        
+
+        if not self.uploader:
+            logger.error("❌ Telegram 上传器不可用")
+            return False
+
+        if not file_path:
+            logger.error("❌ 文件路径为空")
+            return False
+
         try:
             file_path_obj = Path(file_path)
             if not file_path_obj.exists():
-                logger.error(f"文件不存在: {file_path}")
+                logger.error(f"❌ 文件不存在: {file_path}")
                 return False
-            
-            file_size_mb = file_path_obj.stat().st_size / (1024 * 1024)
+
+            # 检查文件是否可读
+            if not file_path_obj.is_file():
+                logger.error(f"❌ 路径不是文件: {file_path}")
+                return False
+
+            try:
+                file_size = file_path_obj.stat().st_size
+                file_size_mb = file_size / (1024 * 1024)
+            except OSError as e:
+                logger.error(f"❌ 无法获取文件信息: {e}")
+                return False
+
+            if file_size == 0:
+                logger.error(f"❌ 文件为空: {file_path}")
+                return False
+
             logger.info(f"📤 准备发送文件: {file_path_obj.name} ({file_size_mb:.1f}MB)")
-            
+
             success = self.uploader.send_file(file_path, caption, **kwargs)
-            
+
             if success:
                 logger.info(f"✅ 文件发送成功: {file_path_obj.name}")
+                return True
             else:
                 logger.error(f"❌ 文件发送失败: {file_path_obj.name}")
-            
-            return success
-            
+                return False
+
+        except PermissionError as e:
+            logger.error(f"❌ 文件权限错误: {e}")
+            return False
+        except FileNotFoundError as e:
+            logger.error(f"❌ 文件未找到: {e}")
+            return False
+        except OSError as e:
+            logger.error(f"❌ 文件系统错误: {e}")
+            return False
         except Exception as e:
             logger.error(f"❌ 发送 Telegram 文件失败: {e}")
+            logger.error(f"🔍 异常类型: {type(e).__name__}")
+            import traceback
+            logger.debug(f"🔍 详细堆栈: {traceback.format_exc()}")
             return False
 
     def update_progress_message(self, download_id: str, message: str) -> bool:
@@ -288,6 +347,7 @@ class UnifiedTelegramNotifier:
             if self.uploader and hasattr(self.uploader, 'get_uploader_status'):
                 uploader_status = self.uploader.get_uploader_status()
                 bot_api_status = uploader_status.get('bot_api_available', False)
+                # 统一字段名：pyrofork_available -> pyrogrammod（保持向后兼容）
                 pyrogrammod_status = uploader_status.get('pyrofork_available', False)
                 logger.debug(f"📊 从上传器获取状态: Bot API={bot_api_status}, Pyrofork={pyrogrammod_status}")
             elif self.uploader:
@@ -400,34 +460,35 @@ def handle_download_started(data):
         # 获取下载信息
         from modules.downloader.manager import get_download_manager
         download_manager = get_download_manager()
-        download_info = download_manager.get_download(download_id)
 
-        # 安全地处理下载信息
+        # 安全地处理下载信息和选项
         title = 'Unknown'
-        if download_info and isinstance(download_info, dict):
-            title = download_info.get('title', 'Unknown')
+        source = 'web'
 
-            with notifier._lock:
-                notifier._active_downloads[download_id] = {
-                    'title': title,
-                    'url': url,
-                    'last_progress': 0,
-                    'start_time': time.time(),
-                    'source': options.get('source', 'web')  # 记录下载来源
-                }
-        else:
-            # 如果没有下载信息，创建基础跟踪记录
-            with notifier._lock:
-                notifier._active_downloads[download_id] = {
-                    'title': 'Unknown',
-                    'url': url,
-                    'last_progress': 0,
-                    'start_time': time.time(),
-                    'source': options.get('source', 'web')
-                }
+        # 安全地获取选项
+        if options and isinstance(options, dict):
+            source = options.get('source', 'web')
+
+        # 安全地获取下载信息
+        try:
+            download_info = download_manager.get_download(download_id)
+            if download_info and isinstance(download_info, dict):
+                title = download_info.get('title', 'Unknown')
+        except Exception as e:
+            logger.debug(f"⚠️ 获取下载信息失败: {e}")
+            # 使用默认值继续处理
+
+        # 创建跟踪记录
+        with notifier._lock:
+            notifier._active_downloads[download_id] = {
+                'title': title,
+                'url': url,
+                'last_progress': 0,
+                'start_time': time.time(),
+                'source': source
+            }
 
         # 根据下载来源发送不同的开始通知
-        source = options.get('source', 'web')
         if source == 'telegram_webhook':
             logger.info(f"📡 Telegram 下载开始跟踪: {download_id}")
         else:

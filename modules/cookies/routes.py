@@ -687,8 +687,33 @@ def auto_generate_youtube_auth():
         ssl._create_default_https_context = ssl._create_unverified_context
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-        # 获取代理配置
-        proxy_config = ProxyConverter.get_requests_proxy("AutoGeneratePOToken")
+        # PO Token生成在代理环境中有技术限制，建议使用直连
+        logger.info("🔍 PO Token自动生成 - 检查代理环境...")
+
+        proxy_config = None
+        try:
+            from core.database import get_database
+            db = get_database()
+            db_proxy_config = db.get_proxy_config()
+
+            if db_proxy_config and db_proxy_config.get('enabled'):
+                logger.warning("⚠️ 检测到代理环境，PO Token自动生成可能受限")
+                logger.warning("💡 建议：")
+                logger.warning("   1. 使用手动获取方法")
+                logger.warning("   2. 或在直连环境中获取PO Token后导入")
+                logger.warning("   3. 当前将尝试直连生成（可能失败）")
+
+                # 在代理环境中，PO Token生成使用直连
+                # 因为Node.js脚本无法继承Python的代理配置
+                proxy_config = None
+                logger.info("🔄 PO Token生成使用直连模式")
+            else:
+                logger.info("✅ 直连环境，正常生成PO Token")
+
+        except Exception as e:
+            logger.debug(f"🔍 检查代理环境失败: {e}")
+            proxy_config = None
+
         logger.info(f"🌐 代理配置: {proxy_config}")
 
         # 步骤1: 生成visitor data

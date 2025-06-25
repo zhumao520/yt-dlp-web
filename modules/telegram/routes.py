@@ -1040,10 +1040,10 @@ def _start_download_with_quality(url, quality_option, config, video_info):
         }
 
         # 根据选择设置质量
-        quality_key = quality_option.get('quality_key', 'medium')
+        quality_key = quality_option.get('quality_key', 'high')
         if quality_key == 'audio':
             download_options['audio_only'] = True
-            download_options['quality'] = 'medium'
+            download_options['quality'] = 'high'
         elif quality_key in ['high', 'medium', 'low']:
             download_options['quality'] = quality_key
         else:
@@ -1102,7 +1102,7 @@ def _handle_download_request(url, config):
             'telegram_push': True,
             'telegram_push_mode': config.get('push_mode', 'file'),
             'source': 'telegram_webhook',
-            'quality': 'medium'  # 默认中等质量
+            'quality': 'high'  # 默认高质量
         }
 
         # 创建下载任务

@@ -22,20 +22,44 @@ class BaseService {
                 const defaultOptions = {
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         ...(token && { 'Authorization': `Bearer ${token}` })
                     }
                 };
                 response = await fetch(url, { ...defaultOptions, ...options });
             }
 
+            // 如果response为空（401重定向情况），直接返回
+            if (!response) {
+                return null;
+            }
+
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error || `HTTP ${response.status}`);
+                const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}`;
+
+                // 根据状态码提供更友好的错误信息
+                let userMessage = errorMessage;
+                if (response.status === 403) {
+                    userMessage = '权限不足，无法访问此资源';
+                } else if (response.status === 404) {
+                    userMessage = '请求的资源不存在';
+                } else if (response.status >= 500) {
+                    userMessage = '服务器内部错误，请稍后重试';
+                }
+
+                throw new Error(userMessage);
             }
 
             return await response.json();
         } catch (error) {
             console.error(`❌ API请求失败 [${url}]:`, error);
+
+            // 如果有全局通知函数，显示用户友好的错误信息
+            if (typeof window.showNotification === 'function' && !error.message.includes('权限') && !error.message.includes('不存在')) {
+                window.showNotification(`请求失败: ${error.message}`, 'danger');
+            }
+
             throw error;
         }
     }

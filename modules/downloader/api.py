@@ -332,7 +332,7 @@ class UnifiedDownloadAPI:
 
         standardized = {
             'source': options.get('source', 'api'),
-            'quality': options.get('quality', 'medium'),
+            'quality': options.get('quality', 'high'),
             'audio_only': audio_only,
             'format': options.get('format'),
             'telegram_push': telegram_push,

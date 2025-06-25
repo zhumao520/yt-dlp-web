@@ -64,7 +64,7 @@ class BilibiliPlatform(BasePlatform):
             'subtitlesformat': 'srt',  # 首选 SRT 格式
         }
     
-    def get_format_selector(self, quality: str = 'best') -> str:
+    def get_format_selector(self, quality: str = 'best', url: str = '') -> str:
         """Bilibili 格式选择器 - 优化非会员格式选择"""
         # Bilibili格式选择策略：优先选择可用的非会员格式
         base_selectors = [

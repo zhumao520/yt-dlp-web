@@ -20,7 +20,7 @@ class RetryManager:
     def __init__(self):
         self.retry_data: Dict[str, Dict[str, Any]] = {}
         self.lock = threading.RLock()
-        
+
         # 错误分析模式
         self.error_patterns = {
             'permanent_errors': [
@@ -41,15 +41,49 @@ class RetryManager:
                 'http error 504'
             ]
         }
-        
-        # 重试配置
-        self.retry_config = {
-            'max_retries': 3,
-            'base_delay': 2,
-            'max_delay': 60,
-            'exponential_base': 2
-        }
-    
+
+        # 从配置系统加载重试配置
+        self.retry_config = self._load_retry_config()
+
+    def _load_retry_config(self) -> Dict[str, Any]:
+        """从配置系统加载重试配置"""
+        try:
+            # 灵活的配置导入
+            try:
+                from core.config import get_config
+            except ImportError:
+                try:
+                    from app.core.config import get_config
+                except ImportError:
+                    logger.warning("⚠️ 无法导入配置模块，使用默认重试配置")
+                    return {
+                        'max_retries': 3,
+                        'base_delay': 2,
+                        'max_delay': 60,
+                        'exponential_base': 2
+                    }
+
+            # 从配置文件加载
+            config = {
+                'max_retries': get_config('network.max_retries', 3),
+                'base_delay': get_config('network.retry_delay', 2),
+                'max_delay': get_config('network.max_delay', 60),
+                'exponential_base': 2  # 固定值
+            }
+
+            logger.info(f"✅ 重试配置加载完成: max_retries={config['max_retries']}, base_delay={config['base_delay']}")
+            return config
+
+        except Exception as e:
+            logger.error(f"❌ 加载重试配置失败: {e}")
+            # 返回默认配置
+            return {
+                'max_retries': 3,
+                'base_delay': 2,
+                'max_delay': 60,
+                'exponential_base': 2
+            }
+
     def should_retry(self, download_id: str, error_msg: str) -> bool:
         """判断是否应该重试"""
         try:

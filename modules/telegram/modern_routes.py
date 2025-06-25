@@ -119,6 +119,7 @@ class ModernTelegramRouter:
             # 命令路由表
             command_handlers = {
                 '/start': lambda: self.command_service.handle_start_command(),
+                '/help': lambda: self.command_service.handle_start_command(),  # /help 等同于 /start
                 '/status': lambda: self.command_service.handle_status_command(),
                 '/downloads': lambda: self.command_service.handle_downloads_command(),
                 '/files': lambda: self.command_service.handle_files_command(),
@@ -126,6 +127,7 @@ class ModernTelegramRouter:
                 '/delete': lambda: self.command_service.handle_delete_command(args),
                 '/cancel': lambda: self.command_service.handle_cancel_command(args),
                 '/cleanup': lambda: self.command_service.handle_cleanup_command(),
+                '/debug': lambda: self.command_service.handle_debug_command(),
             }
             
             # 执行命令
@@ -149,7 +151,7 @@ class ModernTelegramRouter:
         """处理分辨率选择"""
         try:
             # 获取用户的选择状态
-            state = self.state_service.get_selection_state(chat_id)
+            state = self.state_service.get_state(chat_id)
             
             if not state:
                 notifier = self.get_notifier()
@@ -157,7 +159,7 @@ class ModernTelegramRouter:
                 return {'action': 'selection_expired'}
             
             url = state.get('url')
-            qualities = state.get('qualities', [])
+            qualities = state.get('quality_options', [])
             
             if not (1 <= selection <= len(qualities)):
                 notifier = self.get_notifier()
@@ -168,7 +170,7 @@ class ModernTelegramRouter:
             selected_quality = qualities[selection - 1]
             
             # 清除选择状态
-            self.state_service.clear_selection_state(chat_id)
+            self.state_service.clear_state(chat_id)
             
             # 开始下载
             return self._start_download_with_quality(url, selected_quality, user_info)
@@ -191,11 +193,7 @@ class ModernTelegramRouter:
             
             # 存储选择状态
             chat_id = config.get('chat_id')
-            self.state_service.store_selection_state(chat_id, {
-                'url': url,
-                'qualities': qualities,
-                'timestamp': time.time()
-            })
+            self.state_service.store_state(chat_id, url, {}, qualities)
             
             # 发送质量选择菜单
             self._send_quality_selection_menu(url, qualities)

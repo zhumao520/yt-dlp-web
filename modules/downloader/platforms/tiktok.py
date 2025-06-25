@@ -58,7 +58,7 @@ class TikTokPlatform(BasePlatform):
         """TikTok 通常没有字幕"""
         return False
     
-    def get_format_selector(self, quality: str = 'best') -> str:
+    def get_format_selector(self, quality: str = 'best', url: str = '') -> str:
         """TikTok 格式选择器"""
         if quality == 'best':
             return 'best[ext=mp4][height<=1080]/best[ext=webm][height<=1080]/best[height<=1080]/best/worst'

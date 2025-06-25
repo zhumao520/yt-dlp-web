@@ -15,6 +15,28 @@ logger = logging.getLogger(__name__)
 files_bp = Blueprint('files', __name__)
 
 
+def _is_safe_path(file_path: Path, base_dir: Path) -> bool:
+    """基本路径检查，仅防止路径遍历攻击（私人项目简化版）"""
+    try:
+        # 解析绝对路径
+        file_abs = file_path.resolve()
+        base_abs = base_dir.resolve()
+
+        # 基本的路径前缀检查（防止访问下载目录外的文件）
+        if not str(file_abs).startswith(str(base_abs)):
+            return False
+
+        # 确保文件名不为空
+        if not file_path.name:
+            return False
+
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ 路径检查异常: {e}")
+        return False
+
+
 @files_bp.route('/download/<filename>')
 @auth_required
 def download_file(filename):
@@ -27,15 +49,20 @@ def download_file(filename):
         download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
         file_path = download_dir / filename
 
-        # 安全检查：确保文件在下载目录内
-        if not str(file_path.resolve()).startswith(str(download_dir.resolve())):
-            logger.warning(f"尝试访问下载目录外的文件: {filename}")
+        # 增强的安全检查：防止路径遍历攻击
+        if not _is_safe_path(file_path, download_dir):
+            logger.warning(f"⚠️ 路径安全检查失败: {filename}")
             abort(403)
 
         # 检查文件是否存在
         if not file_path.exists():
-            logger.warning(f"文件不存在: {filename}")
-            abort(404)
+            # 检查是否为播放器自动请求的附加文件
+            if _is_auxiliary_file(filename):
+                logger.debug(f"播放器附加文件不存在（正常）: {filename}")
+                abort(404)  # 下载路由仍然返回404
+            else:
+                logger.warning(f"文件不存在: {filename}")
+                abort(404)
 
         # 检查是否为在线播放请求
         is_streaming = request.args.get('stream') == '1'
@@ -86,14 +113,21 @@ def stream_file(filename):
         download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
         file_path = download_dir / filename
 
-        # 安全检查
-        if not str(file_path.resolve()).startswith(str(download_dir.resolve())):
-            logger.warning(f"安全检查失败: {filename}")
+        # 增强的安全检查
+        if not _is_safe_path(file_path, download_dir):
+            logger.warning(f"⚠️ 流媒体路径安全检查失败: {filename}")
             abort(403)
 
         if not file_path.exists():
-            logger.warning(f"文件不存在: {filename}")
-            abort(404)
+            # 检查是否为播放器自动请求的附加文件（歌词、描述等）
+            if _is_auxiliary_file(filename):
+                logger.debug(f"播放器附加文件不存在（正常）: {filename}")
+                # 返回204 No Content而不是404，避免播放器报错
+                from flask import Response
+                return Response(status=204)
+            else:
+                logger.warning(f"文件不存在: {filename}")
+                abort(404)
 
         # 检查是否为支持的文件类型（媒体文件或歌词文件）
         if not (_is_video_file(filename) or _is_audio_file(filename) or _is_lyrics_file(filename)):
@@ -210,8 +244,9 @@ def delete_file(filename):
         download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
         file_path = download_dir / filename
         
-        # 安全检查
-        if not str(file_path.resolve()).startswith(str(download_dir.resolve())):
+        # 增强的安全检查
+        if not _is_safe_path(file_path, download_dir):
+            logger.warning(f"⚠️ 删除文件路径安全检查失败: {filename}")
             abort(403)
         
         if not file_path.exists():
@@ -249,6 +284,44 @@ def _is_lyrics_file(filename):
     """检查是否为歌词文件"""
     lyrics_extensions = {'.lrc', '.txt'}
     return Path(filename).suffix.lower() in lyrics_extensions
+
+
+def _is_auxiliary_file(filename):
+    """检查是否为播放器自动请求的附加文件"""
+    filename_lower = filename.lower()
+
+    # 检查是否为临时文件
+    if '.temp.' in filename_lower:
+        return True
+
+    # 常见的附加文件模式
+    auxiliary_patterns = [
+        '.txt',      # 歌词/描述文件
+        '.lrc',      # LRC歌词文件
+        '.srt',      # 字幕文件
+        '.vtt',      # WebVTT字幕文件
+        '.ass',      # ASS字幕文件
+        '.ssa',      # SSA字幕文件
+    ]
+
+    # 检查是否为附加文件
+    for pattern in auxiliary_patterns:
+        if filename_lower.endswith(pattern):
+            # 进一步检查是否为媒体文件的附加文件
+            base_name = filename_lower.replace(pattern, '')
+
+            # 检查是否存在对应的媒体文件
+            media_extensions = [
+                '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v',
+                '.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a', '.opus'
+            ]
+
+            for media_ext in media_extensions:
+                if (base_name + media_ext) != filename_lower:  # 不是自己
+                    # 这可能是某个媒体文件的附加文件
+                    return True
+
+    return False
 
 
 def _get_media_mimetype(filename):

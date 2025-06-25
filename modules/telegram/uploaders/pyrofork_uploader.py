@@ -174,23 +174,19 @@ class PyroForkUploader(BaseUploader):
         return self._check_dependencies()
 
     def send_message(self, message: str, parse_mode: str = 'Markdown') -> bool:
-        """发送文本消息"""
+        """发送文本消息 - 简化版本"""
         if not self.is_available():
             logger.debug("⚠️ Pyrofork 不可用，跳过消息发送")
             return False
 
         try:
-            # 在每次发送前重置客户端状态，确保干净的状态
-            self._reset_client_state()
             return self._run_async(self._async_send_message(message, parse_mode))
         except Exception as e:
             logger.error(f"❌ Pyrofork 消息发送失败: {e}")
-            # 发送失败时重置客户端状态
-            self._reset_client_state()
             return False
 
     def send_file(self, file_path: str, caption: str = None, **kwargs) -> bool:
-        """发送文件"""
+        """发送文件 - 简化版本"""
         if not self.is_available():
             logger.debug("⚠️ Pyrofork 不可用，跳过文件发送")
             return False
@@ -204,16 +200,11 @@ class PyroForkUploader(BaseUploader):
             # 设置进度回调
             self._current_upload_id = kwargs.get('upload_id', str(int(time.time())))
 
-            # 在每次发送前重置客户端状态，确保干净的状态
-            self._reset_client_state()
-
             # 异步发送文件
             return self._run_async(self._async_send_file(file_path, caption, **kwargs))
 
         except Exception as e:
             logger.error(f"❌ Pyrofork 文件发送失败: {e}")
-            # 发送失败时重置客户端状态
-            self._reset_client_state()
             return False
 
     def send_media_group(self, files: List[str], caption: str = None) -> bool:
@@ -223,13 +214,9 @@ class PyroForkUploader(BaseUploader):
             return False
 
         try:
-            # 在每次发送前重置客户端状态，确保干净的状态
-            self._reset_client_state()
             return self._run_async(self._async_send_media_group(files, caption))
         except Exception as e:
             logger.error(f"❌ Pyrofork 媒体组发送失败: {e}")
-            # 发送失败时重置客户端状态
-            self._reset_client_state()
             return False
 
     async def _async_send_message(self, message: str, parse_mode: str = 'Markdown') -> bool:
@@ -238,73 +225,162 @@ class PyroForkUploader(BaseUploader):
             client = await self._get_client()
             if not client:
                 return False
-            
+
+            # 转换 parse_mode 格式 - Pyrofork 使用不同的枚举
+            pyro_parse_mode = self._convert_parse_mode(parse_mode)
+
             await client.send_message(
                 chat_id=self.chat_id,
                 text=message,
-                parse_mode=parse_mode
+                parse_mode=pyro_parse_mode
             )
-            
+
             logger.debug("✅ Pyrofork 消息发送成功")
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ Pyrofork 异步消息发送失败: {e}")
             return False
 
-    async def _async_send_file(self, file_path: str, caption: str = None, **kwargs) -> bool:
-        """异步发送文件"""
+    def _convert_parse_mode(self, parse_mode: str):
+        """转换 parse_mode 格式"""
+        if not parse_mode:
+            return None
+
+        parse_mode_lower = parse_mode.lower()
+
         try:
-            client = await self._get_client()
-            if not client:
-                return False
-            
-            file_path_obj = Path(file_path)
-            file_size = file_path_obj.stat().st_size
-            
-            # 获取文件元数据
-            metadata = self.get_file_metadata(file_path)
-            file_type = metadata.get('file_type', 'document')
-            
-            logger.info(f"📤 开始上传 {file_type}: {file_path_obj.name} ({file_size / 1024 / 1024:.1f}MB)")
-            
-            # 根据文件类型选择发送方法
-            if file_type == 'video':
-                await self._send_video(client, file_path, caption, metadata)
-            elif file_type == 'audio':
-                await self._send_audio(client, file_path, caption, metadata)
-            elif file_type == 'photo':
-                await self._send_photo(client, file_path, caption)
+            from pyrogram.enums import ParseMode
+
+            if parse_mode_lower in ['markdown', 'md']:
+                return ParseMode.MARKDOWN
+            elif parse_mode_lower in ['html']:
+                return ParseMode.HTML
             else:
-                await self._send_document(client, file_path, caption)
-            
-            logger.info(f"✅ Pyrofork 文件上传成功: {file_path_obj.name}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"❌ Pyrofork 异步文件发送失败: {e}")
-            return False
+                # 默认返回 None（无格式化）
+                logger.debug(f"🔧 未知的 parse_mode: {parse_mode}，使用无格式化")
+                return None
 
-    async def _send_video(self, client, file_path: str, caption: str, metadata: Dict[str, Any]):
-        """发送视频文件"""
-        await client.send_video(
-            chat_id=self.chat_id,
-            video=file_path,
-            caption=caption or '',
-            duration=int(metadata.get('duration', 0)),
-            width=metadata.get('width', 1280),
-            height=metadata.get('height', 720),
-            supports_streaming=True,
-            progress=self._progress_callback_wrapper
-        )
+        except ImportError:
+            # 如果无法导入 ParseMode，尝试使用字符串
+            logger.debug("⚠️ 无法导入 ParseMode，尝试使用字符串格式")
+            if parse_mode_lower in ['markdown', 'md']:
+                return 'markdown'
+            elif parse_mode_lower in ['html']:
+                return 'html'
+            else:
+                return None
 
-    async def _send_audio(self, client, file_path: str, caption: str, metadata: Dict[str, Any]):
-        """发送音频文件"""
+    async def _async_send_file(self, file_path: str, caption: str = None, **kwargs) -> bool:
+        """异步发送文件 - 风控友好的重试机制"""
+        max_retries = 2  # 减少重试次数，避免频繁请求
+        retry_delay = 10  # 增加初始延迟，更人性化
+
+        for attempt in range(max_retries):
+            try:
+                client = await self._get_client()
+                if not client:
+                    return False
+
+                file_path_obj = Path(file_path)
+                file_size = file_path_obj.stat().st_size
+
+                # 获取文件元数据
+                metadata = self.get_file_metadata(file_path)
+                file_type = metadata.get('file_type', 'document')
+
+                if attempt > 0:
+                    logger.info(f"🔄 重试上传 {file_type}: {file_path_obj.name} (尝试 {attempt + 1}/{max_retries})")
+                    # 添加随机延迟，模拟人类行为
+                    import random
+                    random_delay = random.uniform(2, 5)  # 2-5秒随机延迟
+                    await asyncio.sleep(random_delay)
+                    logger.debug(f"⏱️ 随机延迟 {random_delay:.1f}秒，避免风控")
+                else:
+                    logger.info(f"📤 开始上传 {file_type}: {file_path_obj.name} ({file_size / 1024 / 1024:.1f}MB)")
+                    # 首次上传也添加小延迟
+                    import random
+                    initial_delay = random.uniform(1, 3)  # 1-3秒随机延迟
+                    await asyncio.sleep(initial_delay)
+                    logger.debug(f"⏱️ 初始延迟 {initial_delay:.1f}秒，模拟人类行为")
+
+                # 根据文件类型选择发送方法 - 简化版本
+                if file_type == 'video':
+                    await self._send_video_simple(client, file_path, caption)
+                elif file_type == 'audio':
+                    await self._send_audio_simple(client, file_path, caption)
+                else:
+                    await self._send_document_simple(client, file_path, caption)
+
+                logger.info(f"✅ Pyrofork 文件上传成功: {file_path_obj.name}")
+                return True
+
+            except Exception as e:
+                error_msg = str(e).lower()
+
+                # 检查是否是可重试的错误
+                if ('timeout' in error_msg or 'timed out' in error_msg or
+                    'connection' in error_msg or 'network' in error_msg):
+
+                    if attempt < max_retries - 1:
+                        # 风控友好的重试延迟：更长的等待时间 + 随机化
+                        import random
+                        base_delay = retry_delay + random.uniform(5, 15)  # 添加5-15秒随机延迟
+                        logger.warning(f"⚠️ 上传超时，{base_delay:.1f}秒后重试 (尝试 {attempt + 1}/{max_retries}): {e}")
+                        await asyncio.sleep(base_delay)
+                        retry_delay = min(retry_delay * 1.5, 60)  # 温和的指数退避，最大60秒
+                        continue
+                    else:
+                        logger.error(f"❌ 上传最终失败，已重试 {max_retries} 次: {e}")
+                        return False
+                else:
+                    # 非网络错误，不重试
+                    logger.error(f"❌ Pyrofork 文件上传失败 (不可重试): {e}")
+                    return False
+
+        # 如果所有重试都失败，返回 False
+        return False
+
+    async def _send_video_simple(self, client, file_path: str, caption: str):
+        """发送视频文件 - 优化版本，针对上传超时问题"""
+        # 获取文件大小来决定上传策略
+        file_size = Path(file_path).stat().st_size
+        file_size_mb = file_size / (1024 * 1024)
+
+        # 根据文件大小选择不同的上传策略
+        if file_size_mb > 50:  # 大文件使用保守设置
+            logger.info(f"📤 大文件上传 (风控友好): {file_size_mb:.1f}MB")
+
+            # 大文件添加额外延迟，避免风控
+            import random
+            large_file_delay = random.uniform(3, 8)  # 3-8秒随机延迟
+            await asyncio.sleep(large_file_delay)
+            logger.debug(f"⏱️ 大文件延迟 {large_file_delay:.1f}秒，避免风控")
+
+            # 使用标准设置，不强制重新上传
+            await client.send_video(
+                chat_id=self.chat_id,
+                video=file_path,
+                caption=caption or '',
+                supports_streaming=True,
+                progress=self._progress_callback_wrapper
+            )
+        else:
+            # 小文件使用标准设置
+            await client.send_video(
+                chat_id=self.chat_id,
+                video=file_path,
+                caption=caption or '',
+                supports_streaming=True,
+                progress=self._progress_callback_wrapper
+            )
+
+    async def _send_audio_simple(self, client, file_path: str, caption: str):
+        """发送音频文件 - 简化版本"""
         await client.send_audio(
             chat_id=self.chat_id,
             audio=file_path,
             caption=caption or '',
-            duration=int(metadata.get('duration', 0)),
             progress=self._progress_callback_wrapper
         )
 
@@ -317,14 +393,37 @@ class PyroForkUploader(BaseUploader):
             progress=self._progress_callback_wrapper
         )
 
-    async def _send_document(self, client, file_path: str, caption: str):
-        """发送文档文件"""
-        await client.send_document(
-            chat_id=self.chat_id,
-            document=file_path,
-            caption=caption or '',
-            progress=self._progress_callback_wrapper
-        )
+    async def _send_document_simple(self, client, file_path: str, caption: str):
+        """发送文档文件 - 优化版本，针对上传超时问题"""
+        # 获取文件大小来决定上传策略
+        file_size = Path(file_path).stat().st_size
+        file_size_mb = file_size / (1024 * 1024)
+
+        # 根据文件大小选择不同的上传策略
+        if file_size_mb > 50:  # 大文件使用保守设置
+            logger.info(f"📤 大文件文档上传 (风控友好): {file_size_mb:.1f}MB")
+
+            # 大文件添加额外延迟，避免风控
+            import random
+            large_file_delay = random.uniform(3, 8)  # 3-8秒随机延迟
+            await asyncio.sleep(large_file_delay)
+            logger.debug(f"⏱️ 大文件延迟 {large_file_delay:.1f}秒，避免风控")
+
+            # 使用标准设置，不强制重新上传
+            await client.send_document(
+                chat_id=self.chat_id,
+                document=file_path,
+                caption=caption or '',
+                progress=self._progress_callback_wrapper
+            )
+        else:
+            # 小文件使用标准设置
+            await client.send_document(
+                chat_id=self.chat_id,
+                document=file_path,
+                caption=caption or '',
+                progress=self._progress_callback_wrapper
+            )
 
     async def _async_send_media_group(self, files: List[str], caption: str = None) -> bool:
         """异步发送媒体组"""
@@ -370,15 +469,66 @@ class PyroForkUploader(BaseUploader):
             logger.error(f"❌ Pyrofork 异步媒体组发送失败: {e}")
             return False
 
+    async def _send_with_retry(self, send_func, max_retries: int = 3, **kwargs):
+        """带重试机制的发送方法"""
+        last_exception = None
+
+        for attempt in range(max_retries):
+            try:
+                logger.debug(f"📤 上传尝试 {attempt + 1}/{max_retries}")
+                return await send_func(**kwargs)
+
+            except Exception as e:
+                last_exception = e
+                error_msg = str(e).lower()
+
+                # 检查是否是可重试的错误
+                if self._is_retryable_error(error_msg):
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 10  # 递增等待时间：10s, 20s, 30s
+                        logger.warning(f"⚠️ 上传失败，{wait_time}秒后重试 (尝试 {attempt + 1}/{max_retries}): {e}")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        logger.error(f"❌ 上传失败，已达到最大重试次数: {e}")
+                        raise
+                else:
+                    # 不可重试的错误，直接抛出
+                    logger.error(f"❌ 上传失败（不可重试）: {e}")
+                    raise
+
+        # 如果所有重试都失败，抛出最后一个异常
+        raise last_exception
+
+    def _is_retryable_error(self, error_msg: str) -> bool:
+        """判断错误是否可重试"""
+        retryable_errors = [
+            'timeout',
+            'timed out',
+            'request timed out',
+            'connection',
+            'network',
+            'temporary',
+            'server error',
+            'internal error',
+            'flood',
+            'too many requests',
+            'rate limit',
+            'file part expired',
+            'upload failed'
+        ]
+
+        return any(error in error_msg for error in retryable_errors)
+
     async def _progress_callback_wrapper(self, current: int, total: int):
         """进度回调包装器"""
         try:
             if self._progress_callback:
                 self._progress_callback(current, total)
-            
+
             # 调用父类的进度处理
             self.upload_hook(current, total)
-            
+
         except Exception as e:
             logger.debug(f"进度回调失败: {e}")
 
@@ -393,21 +543,29 @@ class PyroForkUploader(BaseUploader):
             if not self.client:
                 from pyrogram import Client
 
-                session_name = os.path.join(self._session_dir, "ytdlp_session")
-                logger.debug(f"🔧 创建 Pyrofork 客户端: {session_name}")
+                # 使用内存会话，避免数据库锁定 - 学习ytdlbot简洁性
+                session_name = "ytdlp_memory_session"
+                logger.debug(f"🔧 创建 Pyrofork 客户端: {session_name} (内存会话)")
 
                 # 获取代理配置
                 proxy_config = self._get_proxy_config()
 
-                # 创建客户端配置
+                # 创建客户端配置 - 优化网络设置
                 client_kwargs = {
                     'name': session_name,
                     'api_id': self.api_id,
                     'api_hash': self.api_hash,
                     'bot_token': self.bot_token,
-                    'workdir': self._session_dir,
                     'in_memory': True,  # 使用内存会话
-                    'no_updates': True  # 禁用更新处理，减少资源占用
+                    'no_updates': True,  # 禁用更新处理
+                    # 网络优化设置 - 风控友好配置
+                    'sleep_threshold': 30,  # 降低防洪限制阈值，更保守
+                    'max_concurrent_transmissions': 1,  # 保持单线程，避免风控
+                    # 风控友好设置
+                    'workers': 1,  # 单工作线程，模拟人类行为
+                    'workdir': self._session_dir,  # 设置工作目录
+                    # 添加延迟设置
+                    'sleep_threshold': 30,  # 30秒防洪阈值
                 }
 
                 # 添加代理配置
@@ -417,39 +575,34 @@ class PyroForkUploader(BaseUploader):
 
                 self.client = Client(**client_kwargs)
 
-            # 检查并建立连接
+            # 检查并建立连接 - 简化版本
             if not self.client.is_connected:
                 logger.debug("🔗 启动 Pyrofork 客户端连接...")
 
                 try:
-                    # 启动客户端，增加超时时间
-                    await asyncio.wait_for(self.client.start(), timeout=90)
+                    # 启动客户端 - 添加超时控制
+                    logger.debug("🔗 正在启动 Pyrofork 客户端（30秒超时）...")
+                    await asyncio.wait_for(self.client.start(), timeout=30.0)
                     logger.debug("✅ Pyrofork 客户端启动成功")
 
-                    # 验证连接 - 获取机器人信息
+                    # 简单验证连接 - 添加超时
                     try:
-                        bot_info = await asyncio.wait_for(self.client.get_me(), timeout=15)
+                        bot_info = await asyncio.wait_for(self.client.get_me(), timeout=10.0)
                         logger.debug(f"✅ Pyrofork 客户端验证成功: @{bot_info.username}")
+                    except asyncio.TimeoutError:
+                        logger.warning("⚠️ 客户端验证超时，但连接可能已建立")
                     except Exception as verify_error:
                         logger.warning(f"⚠️ 客户端验证失败，但连接已建立: {verify_error}")
 
                 except asyncio.TimeoutError:
-                    logger.error("❌ Pyrofork 客户端启动超时（90秒）")
+                    logger.error("❌ Pyrofork 客户端启动超时（30秒）")
                     await self._cleanup_failed_client()
                     return None
-
                 except Exception as start_error:
-                    error_msg = str(start_error).lower()
-                    if "bound to a different event loop" in error_msg or "queue" in error_msg:
-                        logger.error(f"❌ Pyrofork 客户端启动失败（队列绑定错误）: {start_error}")
-                        await self._cleanup_failed_client()
-                        # 强制重置客户端状态
-                        self.client = None
-                        return None
-                    else:
-                        logger.error(f"❌ Pyrofork 客户端启动失败: {start_error}")
-                        await self._cleanup_failed_client()
-                        return None
+                    logger.error(f"❌ Pyrofork 客户端启动失败: {start_error}")
+                    await self._cleanup_failed_client()
+                    return None
+                    return None
 
             return self.client
 
@@ -475,46 +628,48 @@ class PyroForkUploader(BaseUploader):
         logger.debug("🔄 重置 Pyrofork 客户端状态")
         self.client = None
 
+    def _calculate_upload_timeout(self, coro) -> int:
+        """根据文件大小计算上传超时时间"""
+        try:
+            # 默认超时时间（30分钟）
+            base_timeout = 1800
+
+            # 尝试从协程中获取文件路径
+            file_path = None
+            if hasattr(coro, 'cr_frame') and hasattr(coro.cr_frame, 'f_locals'):
+                locals_dict = coro.cr_frame.f_locals
+                file_path = locals_dict.get('file_path')
+
+            if file_path and Path(file_path).exists():
+                file_size_mb = Path(file_path).stat().st_size / 1024 / 1024
+
+                # 根据文件大小动态计算超时时间
+                if file_size_mb <= 50:          # 小文件 (≤50MB)
+                    timeout = 600               # 10分钟
+                elif file_size_mb <= 200:      # 中等文件 (≤200MB)
+                    timeout = 1200              # 20分钟
+                elif file_size_mb <= 500:      # 大文件 (≤500MB)
+                    timeout = 1800              # 30分钟
+                elif file_size_mb <= 1000:     # 很大文件 (≤1GB)
+                    timeout = 3600              # 60分钟
+                else:                           # 超大文件 (>1GB)
+                    timeout = 5400              # 90分钟
+
+                logger.info(f"🕐 文件大小: {file_size_mb:.1f}MB，设置超时时间: {timeout/60:.0f}分钟")
+                return timeout
+
+            logger.debug(f"🕐 使用默认超时时间: {base_timeout/60:.0f}分钟")
+            return base_timeout
+
+        except Exception as e:
+            logger.debug(f"⚠️ 计算超时时间失败，使用默认值: {e}")
+            return 1800  # 30分钟默认超时
+
     def _get_proxy_config(self) -> Optional[Dict[str, Any]]:
         """获取代理配置 - 使用项目统一的代理转换器"""
         try:
             from core.proxy_converter import ProxyConverter
-
-            # 获取原始代理配置
-            proxy_config = ProxyConverter.get_proxy_config()
-            if not proxy_config:
-                return None
-
-            proxy_type = proxy_config.get('proxy_type', 'http')
-            host = proxy_config.get('host')
-            port = proxy_config.get('port')
-            username = proxy_config.get('username')
-            password = proxy_config.get('password')
-
-            if not host or not port:
-                return None
-
-            # 转换为Pyrogram需要的格式
-            if proxy_type == 'socks5':
-                return {
-                    'scheme': 'socks5',
-                    'hostname': host,
-                    'port': int(port),
-                    'username': username,
-                    'password': password
-                }
-            elif proxy_type in ['http', 'https']:
-                return {
-                    'scheme': 'http',
-                    'hostname': host,
-                    'port': int(port),
-                    'username': username,
-                    'password': password
-                }
-            else:
-                logger.warning(f"⚠️ PyroFork不支持的代理协议: {proxy_type}")
-                return None
-
+            return ProxyConverter.get_pyrogram_proxy("PyroFork")
         except Exception as e:
             logger.debug(f"🔍 PyroFork获取代理配置失败: {e}")
             return None
@@ -544,16 +699,17 @@ class PyroForkUploader(BaseUploader):
                 logger.debug("🔧 创建新的事件循环用于 Pyrofork 操作")
 
                 try:
-                    # 设置合理的超时时间
-                    timeout = 300  # 5分钟超时
+                    # 根据文件大小动态设置超时时间
+                    timeout = self._calculate_upload_timeout(coro)
+
                     result[0] = loop.run_until_complete(asyncio.wait_for(coro, timeout=timeout))
                     completed[0] = True
                     logger.debug("✅ Pyrofork 异步操作完成")
 
                 except asyncio.TimeoutError:
-                    exception[0] = Exception("Pyrofork 操作超时（5分钟）")
+                    exception[0] = Exception(f"Pyrofork 操作超时（{timeout/60:.0f}分钟）")
                     completed[0] = True
-                    logger.error("❌ Pyrofork 操作超时")
+                    logger.error(f"❌ Pyrofork 操作超时（{timeout/60:.0f}分钟）")
 
                 except Exception as e:
                     # 检查是否是队列绑定错误
@@ -689,16 +845,38 @@ class PyroForkUploader(BaseUploader):
         except Exception as e:
             logger.error(f"❌ Pyrofork 上传器清理失败: {e}")
 
+    async def _diagnose_network(self) -> bool:
+        """诊断网络连接"""
+        try:
+            import aiohttp
+            import time
+
+            start_time = time.time()
+            timeout = aiohttp.ClientTimeout(total=10)
+
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get("https://api.telegram.org") as response:
+                    latency = time.time() - start_time
+
+                    if response.status == 200:
+                        logger.info(f"🌐 网络诊断: Telegram API延迟 {latency*1000:.0f}ms")
+                        return latency < 5.0  # 5秒内正常
+                    else:
+                        logger.warning(f"⚠️ 网络诊断: Telegram API返回状态 {response.status}")
+                        return False
+
+        except Exception as e:
+            logger.warning(f"⚠️ 网络诊断失败: {e}")
+            return False
+
     def set_progress_callback(self, callback: Callable[[int, int], None]):
         """设置进度回调函数"""
         self._progress_callback = callback
 
-    def _update_progress_display(self, current: int, total: int):
+    def _update_progress_display(self, text: str, file_id: str = None):
         """更新进度显示（实现抽象方法）"""
         try:
-            # 计算进度百分比
-            if total > 0:
-                progress = int((current / total) * 100)
-                logger.debug(f"📊 Pyrofork 上传进度: {progress}% ({current}/{total})")
+            # 简单的日志记录，Pyrofork 主要通过回调处理进度
+            logger.debug(f"📊 Pyrofork 进度: {text}")
         except Exception as e:
             logger.debug(f"进度显示更新失败: {e}")

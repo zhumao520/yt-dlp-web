@@ -489,9 +489,9 @@ class CoreDownloadManager:
                     'socket_timeout': 60,
                     'fragment_retries': 8,
                     'http_chunk_size': 10485760,  # 10MB chunks
-                    # 增强重试策略
-                    'retries': 8,
-                    'extractor_retries': 5,
+                    # 优化重试策略 - 减少重试次数避免叠加
+                    'retries': 3,
+                    'extractor_retries': 2,
                     # 错误处理
                     'ignoreerrors': False,
                     'no_warnings': False,

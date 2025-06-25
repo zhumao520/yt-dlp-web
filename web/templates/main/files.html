@@ -285,7 +285,7 @@
                                 </button>
 
                                 <!-- 下载 -->
-                                <button class="video-control-btn" onclick="app.downloadFile(app.currentVideo?.name)" title="下载">
+                                <button class="video-control-btn" onclick="app.downloadCurrentVideo()" title="下载">
                                     <i class="bi bi-download"></i>
                                 </button>
                             </div>
@@ -381,7 +381,7 @@
 
                             <!-- 功能按钮 -->
                             <div class="action-buttons">
-                                <button type="button" class="btn btn-outline-light btn-sm me-2" onclick="app.downloadFile(app.currentAudio?.name)">
+                                <button type="button" class="btn btn-outline-light btn-sm me-2" onclick="app.downloadCurrentAudio()">
                                     <i class="bi bi-download"></i> 下载
                                 </button>
                                 <button type="button" class="btn btn-outline-light btn-sm" onclick="app.toggleLyrics()">
@@ -2585,48 +2585,165 @@ class FilesApp {
         return null;
     }
 
+    downloadCurrentVideo() {
+        // 获取当前播放的视频文件名
+        let filename = null;
+
+        // 方法1: 从currentVideo获取
+        if (this.currentVideo && this.currentVideo.name) {
+            filename = this.currentVideo.name;
+        }
+
+        // 方法2: 从视频播放器src获取
+        if (!filename) {
+            const video = document.getElementById('videoPlayer');
+            if (video && video.src) {
+                const url = new URL(video.src);
+                const pathParts = url.pathname.split('/');
+                if (pathParts.length > 0) {
+                    filename = decodeURIComponent(pathParts[pathParts.length - 1]);
+                }
+            }
+        }
+
+        // 方法3: 从视频标题获取
+        if (!filename) {
+            const fileName = document.getElementById('videoFileName');
+            if (fileName && fileName.textContent) {
+                filename = fileName.textContent;
+            }
+        }
+
+        if (!filename) {
+            showNotification('无法获取当前视频文件名，请稍后重试', 'warning');
+            return;
+        }
+
+        console.log('下载当前视频:', filename);
+        this.downloadFile(filename);
+    }
+
+    downloadCurrentAudio() {
+        // 获取当前播放的音频文件名
+        let filename = null;
+
+        // 方法1: 从currentAudio获取
+        if (this.currentAudio && this.currentAudio.name) {
+            filename = this.currentAudio.name;
+        }
+
+        // 方法2: 从音频播放器src获取
+        if (!filename) {
+            const audio = document.getElementById('audioPlayer');
+            if (audio && audio.src) {
+                const url = new URL(audio.src);
+                const pathParts = url.pathname.split('/');
+                if (pathParts.length > 0) {
+                    filename = decodeURIComponent(pathParts[pathParts.length - 1]);
+                }
+            }
+        }
+
+        if (!filename) {
+            showNotification('无法获取当前音频文件名，请稍后重试', 'warning');
+            return;
+        }
+
+        console.log('下载当前音频:', filename);
+        this.downloadFile(filename);
+    }
+
     downloadFile(filename) {
-        window.open(`/files/download/${encodeURIComponent(filename)}`, '_blank');
+        if (!filename) {
+            showNotification('请选择要下载的文件', 'warning');
+            return;
+        }
+
+        try {
+            // 显示下载开始通知
+            showNotification(`开始下载: ${filename}`, 'info');
+
+            // 创建隐藏的下载链接
+            const downloadLink = document.createElement('a');
+            downloadLink.href = `/files/download/${encodeURIComponent(filename)}`;
+            downloadLink.download = filename;
+            downloadLink.style.display = 'none';
+
+            // 添加到页面并触发点击
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+
+            // 清理
+            setTimeout(() => {
+                document.body.removeChild(downloadLink);
+            }, 100);
+
+            // 延迟显示完成通知
+            setTimeout(() => {
+                showNotification(`下载已启动: ${filename}`, 'success');
+            }, 500);
+
+        } catch (error) {
+            console.error('下载失败:', error);
+            showNotification(`下载失败: ${filename}`, 'danger');
+        }
     }
     
     async deleteFile(filename) {
         if (!confirm(`确定要删除文件 "${filename}" 吗？`)) return;
-        
+
         try {
-            const response = await apiRequest(`/api/files/delete/${filename}`, {
+            // 正确编码文件名，处理中文字符
+            const encodedFilename = encodeURIComponent(filename);
+            console.log('删除文件:', filename, '编码后:', encodedFilename);
+
+            const response = await apiRequest(`/api/files/delete/${encodedFilename}`, {
                 method: 'DELETE'
             });
-            
+
             if (response.ok) {
                 showNotification('文件删除成功', 'success');
                 this.selectedFiles.delete(filename);
                 await this.loadFiles();
             } else {
-                showNotification('删除失败', 'danger');
+                const errorData = await response.json().catch(() => ({}));
+                const errorMessage = errorData.error || '删除失败';
+                console.error('删除文件失败:', response.status, errorMessage);
+                showNotification(`删除失败: ${errorMessage}`, 'danger');
             }
         } catch (error) {
+            console.error('删除文件异常:', error);
             showNotification('网络错误', 'danger');
         }
     }
     
     async deleteSelected() {
         if (this.selectedFiles.size === 0) return;
-        
+
         const fileList = Array.from(this.selectedFiles).join('\n');
         if (!confirm(`确定要删除以下 ${this.selectedFiles.size} 个文件吗？\n\n${fileList}`)) return;
-        
-        const promises = Array.from(this.selectedFiles).map(filename => 
-            apiRequest(`/api/files/delete/${filename}`, { method: 'DELETE' })
-        );
-        
+
+        const promises = Array.from(this.selectedFiles).map(filename => {
+            const encodedFilename = encodeURIComponent(filename);
+            console.log('批量删除文件:', filename, '编码后:', encodedFilename);
+            return apiRequest(`/api/files/delete/${encodedFilename}`, { method: 'DELETE' });
+        });
+
         try {
             const results = await Promise.allSettled(promises);
-            const successful = results.filter(r => r.status === 'fulfilled').length;
-            
-            showNotification(`成功删除 ${successful} 个文件`, 'success');
+            const successful = results.filter(r => r.status === 'fulfilled' && r.value.ok).length;
+            const failed = results.length - successful;
+
+            if (successful > 0) {
+                showNotification(`成功删除 ${successful} 个文件${failed > 0 ? `，${failed} 个失败` : ''}`, 'success');
+            } else {
+                showNotification('批量删除失败', 'danger');
+            }
+
             this.selectedFiles.clear();
             await this.loadFiles();
         } catch (error) {
+            console.error('批量删除异常:', error);
             showNotification('批量删除失败', 'danger');
         }
     }
@@ -2636,13 +2753,6 @@ class FilesApp {
 let app;
 document.addEventListener('DOMContentLoaded', function() {
     app = new FilesApp();
-
-    // 绑定下载按钮事件
-    document.getElementById('downloadVideoBtn').addEventListener('click', () => {
-        if (app.currentVideo) {
-            app.downloadFile(app.currentVideo.name);
-        }
-    });
 
     // 模态框关闭时完整清理视频资源
     document.getElementById('videoModal').addEventListener('hidden.bs.modal', () => {

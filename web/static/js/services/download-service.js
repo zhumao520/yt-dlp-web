@@ -61,7 +61,7 @@ class DownloadService extends BaseService {
             }
 
             const downloadOptions = {
-                quality: options.quality || 'medium',
+                quality: options.quality || 'high',
                 audio_only: options.audio_only || false,
                 telegram_push: options.telegram_push || false,
                 ...options

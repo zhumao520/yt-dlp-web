@@ -17,7 +17,12 @@ class YouTubeStrategies:
     
     def __init__(self):
         self.strategies = []
+        self.progress_callback = None  # 进度回调函数
         self._initialize_strategies()
+
+    def set_progress_callback(self, callback):
+        """设置进度回调函数"""
+        self.progress_callback = callback
     
     def _initialize_strategies(self):
         """初始化下载策略"""
@@ -161,7 +166,7 @@ class YouTubeStrategies:
             return None
 
     def _download_with_pytubefix(self, download_id: str, url: str, video_info: Dict[str, Any], options: Dict[str, Any], output_dir: Path) -> Optional[str]:
-        """使用PyTubeFix下载"""
+        """使用PyTubeFix下载（优化版，复用已提取的信息）"""
         try:
             # 检查PyTubeFix是否可用
             try:
@@ -176,27 +181,52 @@ class YouTubeStrategies:
             # 创建PyTubeFix下载器
             downloader = PyTubeFixDownloader(proxy=proxy)
 
-            # 执行下载
+            # 设置进度回调
+            def pytubefix_progress_callback(progress_data):
+                """PyTubeFix进度回调"""
+                try:
+                    if self.progress_callback:
+                        # 转换为标准格式
+                        self.progress_callback({
+                            'status': progress_data.get('status', 'downloading'),
+                            'downloaded_bytes': progress_data.get('downloaded_bytes', 0),
+                            'total_bytes': progress_data.get('total_bytes', 0),
+                            '_percent_str': f"{progress_data.get('progress_percent', 0)}%"
+                        })
+                except Exception as e:
+                    logger.debug(f"⚠️ PyTubeFix进度回调转发失败: {e}")
+
+            downloader.set_progress_callback(pytubefix_progress_callback, download_id)
+
+            # 执行下载 - 使用优化的缓存下载方法
             import asyncio
 
             async def async_download():
                 quality = options.get('quality', '720')
-                return await downloader.download(url, str(output_dir), quality)
+                # 使用新的缓存下载方法，传入已提取的视频信息
+                return await downloader.download_with_cached_info(url, str(output_dir), quality, video_info)
 
-            # 在新的事件循环中运行
+            # 安全的异步处理，避免死锁
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # 如果已有事件循环在运行，创建新的线程
+                # 检查是否在异步上下文中
+                try:
+                    loop = asyncio.get_running_loop()
+                    # 在运行的事件循环中，使用线程池避免死锁
                     import concurrent.futures
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                         future = executor.submit(asyncio.run, async_download())
-                        result = future.result(timeout=60)
-                else:
-                    result = loop.run_until_complete(async_download())
-            except RuntimeError:
-                # 没有事件循环，直接运行
-                result = asyncio.run(async_download())
+                        result = future.result(timeout=120)  # 增加超时时间
+
+                except RuntimeError:
+                    # 没有运行的事件循环，直接运行
+                    result = asyncio.run(async_download())
+
+            except concurrent.futures.TimeoutError:
+                logger.error("❌ PyTubeFix下载超时（120秒）")
+                return None
+            except Exception as e:
+                logger.error(f"❌ PyTubeFix异步处理异常: {e}")
+                return None
 
             if result and result.get('success'):
                 logger.info(f"✅ PyTubeFix下载成功: {result.get('filename')}")
@@ -280,13 +310,9 @@ class YouTubeStrategies:
         return output_dir
     
     def _get_proxy_config(self) -> Optional[str]:
-        """获取代理配置 - 使用统一的代理转换器"""
-        try:
-            from core.proxy_converter import ProxyConverter
-            return ProxyConverter.get_ytdlp_proxy("YouTubeStrategies")
-        except Exception as e:
-            logger.debug(f"🔍 获取代理配置失败: {e}")
-            return None
+        """获取代理配置 - 使用统一的代理助手"""
+        from core.proxy_helper import ProxyHelper
+        return ProxyHelper.get_ytdlp_proxy("YouTubeStrategies")
 
     def _get_ffmpeg_path(self) -> Optional[str]:
         """获取FFmpeg路径"""
@@ -326,13 +352,9 @@ class YouTubeStrategies:
             return None
 
     def _get_pytubefix_proxy_config(self) -> Optional[str]:
-        """获取PyTubeFix专用的代理配置 - 使用统一的代理转换器"""
-        try:
-            from core.proxy_converter import ProxyConverter
-            return ProxyConverter.get_pytubefix_proxy("YouTubeStrategies-PyTubeFix")
-        except Exception as e:
-            logger.debug(f"🔍 获取PyTubeFix代理配置失败: {e}")
-            return None
+        """获取PyTubeFix专用的代理配置 - 使用统一的代理助手"""
+        from core.proxy_helper import ProxyHelper
+        return ProxyHelper.get_pytubefix_proxy("YouTubeStrategies-PyTubeFix")
     
     def _get_cookies_path(self) -> Optional[str]:
         """获取Cookies路径"""
@@ -447,19 +469,22 @@ class YouTubeStrategies:
         """默认下载选项"""
         # 智能格式选择，优先使用兼容性好的格式
         quality = options.get('quality', 'best')
-        if quality == 'best':
-            format_selector = 'best[height<=2160]/best[height<=1440]/best[height<=1080]/best'
+        if quality == '4k':
+            # 4K优先，使用最佳编码
+            format_selector = 'bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160]/best'
+        elif quality == 'best':
+            format_selector = 'bestvideo[height<=2160]+bestaudio/bestvideo[height<=1440]+bestaudio/bestvideo[height<=1080]+bestaudio/best'
         elif quality == 'high':
-            format_selector = 'best[height<=2160]/best[height<=1440]/best[height<=1080]/best'
+            format_selector = 'bestvideo[height<=1080]+bestaudio/bestvideo[height<=720]+bestaudio/best[height<=1080]/best'
         elif quality == 'medium':
-            format_selector = 'best[height<=720]/best[height<=480]/best'
+            format_selector = 'bestvideo[height<=720]+bestaudio/bestvideo[height<=480]+bestaudio/best[height<=720]/best'
         elif quality == 'low':
-            format_selector = 'best[height<=480]/best[height<=360]/best'
+            format_selector = 'bestvideo[height<=480]+bestaudio/bestvideo[height<=360]+bestaudio/best[height<=480]/best'
         elif quality.isdigit():
-            format_selector = f'best[height<={quality}]/best'
+            format_selector = f'bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/best'
         else:
             # 对于未知质量参数，使用高质量的默认值
-            format_selector = 'best[height<=2160]/best[height<=1080]/best'
+            format_selector = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
 
         opts = {
             'format': format_selector,
@@ -579,6 +604,10 @@ class YouTubeStrategies:
         else:
             logger.warning("⚠️ 未找到FFmpeg，高质量合并和音频修复可能失败")
 
+        # 应用统一的 PO Token 配置
+        from core.po_token_manager import apply_po_token_to_ytdlp
+        opts = apply_po_token_to_ytdlp(opts, url, "YouTubeStrategies")
+
         return opts
     
     def _get_high_quality_opts(self, download_id: str, url: str, options: Dict[str, Any]) -> Dict[str, Any]:
@@ -616,15 +645,9 @@ class YouTubeStrategies:
             })
             logger.warning("⚠️ FFmpeg不可用，使用单一格式下载")
 
-        # 添加PO Token支持以访问高质量格式
-        po_token = self._get_po_token()
-        if po_token:
-            opts['extractor_args'] = {
-                'youtube': {
-                    'po_token': po_token
-                }
-            }
-            logger.info("✅ 高质量下载使用PO Token")
+        # 注意：PO Token 配置已在 _get_default_opts 中通过统一管理器应用
+        # 这里不需要重复配置，避免覆盖统一管理器的配置
+        logger.info("✅ 高质量下载策略已配置（PO Token 由统一管理器处理）")
 
         return opts
     
@@ -802,15 +825,9 @@ class YouTubeStrategies:
             }
         }
 
-        # 添加PO Token支持
-        po_token = self._get_po_token()
-        if po_token:
-            extractor_args['youtube']['po_token'] = po_token
-            logger.info("✅ 移动客户端使用PO Token")
-        else:
-            # 如果没有PO Token，跳过需要认证的格式
-            extractor_args['youtube']['formats'] = 'missing_pot'
-            logger.warning("⚠️ 移动客户端缺少PO Token，跳过高级格式")
+        # 注意：PO Token 配置已在 _get_default_opts 中通过统一管理器应用
+        # 这里不需要重复配置，避免覆盖统一管理器的配置
+        logger.info("✅ 移动客户端策略已配置（PO Token 由统一管理器处理）")
 
         opts.update({
             'extractor_args': extractor_args
