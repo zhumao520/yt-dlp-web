@@ -1,0 +1,1458 @@
+{% extends "base_modern.html" %}
+
+{% block title %}设置 - YT-DLP Web{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <h2 class="mb-4">
+                <i class="bi bi-gear me-2 text-primary"></i>系统设置
+            </h2>
+
+    <!-- 简洁的选项卡设计 - 强制内联样式 -->
+    <div style="background: var(--bg-primary); border-radius: 8px; box-shadow: var(--shadow); overflow: hidden; margin: 0; padding: 0;">
+        <!-- 选项卡按钮 -->
+        <div style="display: flex; background: var(--bg-secondary); margin: 0; padding: 0; border-bottom: 1px solid var(--border-color);">
+            <button class="settings-tab active" data-target="general" style="flex: 1; padding: 1rem; background: var(--bg-primary); border: none; cursor: pointer; font-weight: 500; color: #0d6efd; border-bottom: 2px solid #0d6efd; margin: 0;">
+                <i class="bi bi-gear me-2"></i>基础设置
+            </button>
+            <button class="settings-tab" data-target="download" style="flex: 1; padding: 1rem; background: none; border: none; cursor: pointer; font-weight: 500; color: var(--text-secondary); margin: 0;">
+                <i class="bi bi-download me-2"></i>下载配置
+            </button>
+            <button class="settings-tab" data-target="security" style="flex: 1; padding: 1rem; background: none; border: none; cursor: pointer; font-weight: 500; color: var(--text-secondary); margin: 0;">
+                <i class="bi bi-shield me-2"></i>安全设置
+            </button>
+            <button class="settings-tab" data-target="shortcuts" style="flex: 1; padding: 1rem; background: none; border: none; cursor: pointer; font-weight: 500; color: var(--text-secondary); margin: 0;">
+                <i class="bi bi-phone me-2"></i>iOS快捷指令
+            </button>
+            <button class="settings-tab" data-target="advanced" style="flex: 1; padding: 1rem; background: none; border: none; cursor: pointer; font-weight: 500; color: var(--text-secondary); margin: 0;">
+                <i class="bi bi-lightning me-2"></i>高级功能
+            </button>
+        </div>
+
+        <!-- 选项卡内容 -->
+        <div style="padding: 1.5rem; background: var(--bg-primary); margin: 0;">
+            <!-- 基础设置 -->
+            <div class="settings-panel active" id="general">
+                <h5 class="mb-3 fw-bold">
+                    <i class="bi bi-gear me-2 text-primary"></i>基础设置
+                </h5>
+                <form id="generalForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="appName" class="form-label fw-bold">
+                                <i class="bi bi-app me-1 text-primary"></i>应用名称
+                            </label>
+                            <input type="text" class="form-control modern-input" id="appName" value="YT-DLP Web">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="sessionTimeout" class="form-label fw-bold">
+                                <i class="bi bi-clock me-1 text-success"></i>会话超时 (小时)
+                            </label>
+                            <input type="number" class="form-control modern-input" id="sessionTimeout" value="24" min="1" max="168">
+                        </div>
+                        <div class="col-12">
+                            <label for="secretKey" class="form-label fw-bold">
+                                <i class="bi bi-key me-1 text-warning"></i>应用密钥
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control modern-input" id="secretKey" placeholder="点击生成新密钥" autocomplete="new-password">
+                                <button type="button" class="btn btn-outline-secondary modern-btn" id="toggleSecretKey">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary modern-btn" id="generateSecretKey">
+                                    生成新密钥
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>用于会话加密，修改后所有用户需要重新登录
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="debugMode">
+                                <label class="form-check-label" for="debugMode">
+                                    启用调试模式
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary modern-btn py-3 px-5"
+                                    style="background: var(--gradient-primary); border: none; font-size: 1.1rem;">
+                                <i class="bi bi-check-lg me-2"></i>保存基础设置
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 下载配置 -->
+            <div class="settings-panel" id="download">
+                <h5 class="mb-3 fw-bold">
+                    <i class="bi bi-download me-2 text-primary"></i>下载配置
+                </h5>
+                <form id="downloadForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="outputDir" class="form-label fw-bold">
+                                <i class="bi bi-folder me-1 text-primary"></i>下载目录
+                            </label>
+                            <input type="text" class="form-control modern-input" id="outputDir" name="outputDir" value="/downloads">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="maxConcurrent" class="form-label fw-bold">
+                                <i class="bi bi-layers me-1 text-success"></i>最大并发下载数
+                            </label>
+                            <input type="number" class="form-control modern-input" id="maxConcurrent" name="maxConcurrent" value="3" min="1" max="10">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="downloadTimeout" class="form-label fw-bold">
+                                <i class="bi bi-clock me-1 text-warning"></i>下载超时 (秒)
+                            </label>
+                            <input type="number" class="form-control modern-input" id="downloadTimeout" name="downloadTimeout" value="300" min="60" max="3600">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="defaultQuality" class="form-label fw-bold">
+                                <i class="bi bi-badge-hd me-1 text-info"></i>默认视频质量
+                            </label>
+                            <select class="form-select modern-input" id="defaultQuality" name="defaultQuality">
+                                <option value="best" selected>🏆 最高质量 (4K/1080p)</option>
+                                <option value="medium">⚡ 中等质量 (720p)</option>
+                                <option value="low">💾 低质量 (360p)</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="autoCleanup" name="autoCleanup">
+                                <label class="form-check-label fw-bold" for="autoCleanup">
+                                    <i class="bi bi-trash me-1 text-danger"></i>启用自动清理
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12" id="cleanupOptions" style="display: none;">
+                            <div class="modern-card p-3" style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px;">
+                                <h6 class="fw-bold mb-3">
+                                    <i class="bi bi-gear me-1 text-primary"></i>自动清理选项
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="fileRetention" class="form-label fw-bold">
+                                            <i class="bi bi-clock-history me-1 text-warning"></i>文件保留时间 (小时)
+                                        </label>
+                                        <input type="number" class="form-control modern-input" id="fileRetention" name="fileRetention" value="72" min="1" max="8760">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="cleanupInterval" class="form-label fw-bold">
+                                            <i class="bi bi-arrow-repeat me-1 text-info"></i>清理间隔 (小时)
+                                        </label>
+                                        <input type="number" class="form-control modern-input" id="cleanupInterval" name="cleanupInterval" value="6" min="1" max="168">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="maxStorage" class="form-label fw-bold">
+                                            <i class="bi bi-hdd me-1 text-success"></i>最大存储空间 (MB)
+                                        </label>
+                                        <input type="number" class="form-control modern-input" id="maxStorage" name="maxStorage" value="5000" min="100">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="keepRecentFiles" class="form-label fw-bold">
+                                            <i class="bi bi-files me-1 text-primary"></i>保留最近文件数
+                                        </label>
+                                        <input type="number" class="form-control modern-input" id="keepRecentFiles" name="keepRecentFiles" value="10" min="1" max="100">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary modern-btn py-3 px-5"
+                                    style="background: var(--gradient-primary); border: none; font-size: 1.1rem;">
+                                <i class="bi bi-check-lg me-2"></i>保存下载配置
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 安全设置 -->
+            <div class="settings-panel" id="security">
+                <div class="row g-3">
+                    <!-- 修改用户名 -->
+                    <div class="col-12">
+                        <div class="modern-card p-4">
+                            <h5 class="mb-3 fw-bold">
+                                <i class="bi bi-person me-2 text-primary"></i>修改管理员用户名
+                            </h5>
+                            <form id="usernameForm">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="currentUsernamePassword" class="form-label fw-bold">
+                                            <i class="bi bi-lock me-1 text-warning"></i>当前密码
+                                        </label>
+                                        <input type="password" class="form-control modern-input" id="currentUsernamePassword" autocomplete="current-password" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="newUsername" class="form-label fw-bold">
+                                            <i class="bi bi-person me-1 text-primary"></i>新用户名
+                                        </label>
+                                        <input type="text" class="form-control modern-input" id="newUsername" autocomplete="username" minlength="3" required>
+                                    </div>
+                                    <div class="col-12">
+                                        <button type="submit" class="btn btn-warning modern-btn py-2 px-4">
+                                            <i class="bi bi-person me-2"></i>修改用户名
+                                        </button>
+                                        <small class="text-muted ms-2">
+                                            <i class="bi bi-info-circle me-1"></i>修改后需要重新登录
+                                        </small>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- 修改密码 -->
+                    <div class="col-12">
+                        <div class="modern-card p-4">
+                            <h5 class="mb-3 fw-bold">
+                                <i class="bi bi-key me-2 text-primary"></i>修改管理员密码
+                            </h5>
+                            <form id="passwordForm">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label for="currentPassword" class="form-label fw-bold">
+                                            <i class="bi bi-lock me-1 text-warning"></i>当前密码
+                                        </label>
+                                        <input type="password" class="form-control modern-input" id="currentPassword" autocomplete="current-password" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="newPassword" class="form-label fw-bold">
+                                            <i class="bi bi-key me-1 text-success"></i>新密码
+                                        </label>
+                                        <input type="password" class="form-control modern-input" id="newPassword" autocomplete="new-password" minlength="6" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="confirmPassword" class="form-label fw-bold">
+                                            <i class="bi bi-shield-check me-1 text-info"></i>确认新密码
+                                        </label>
+                                        <input type="password" class="form-control modern-input" id="confirmPassword" autocomplete="new-password" required>
+                                    </div>
+                                    <div class="col-12">
+                                        <button type="submit" class="btn btn-primary modern-btn py-2 px-4"
+                                                style="background: var(--gradient-primary); border: none;">
+                                            <i class="bi bi-key me-2"></i>修改密码
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- API访问控制 -->
+                    <div class="col-12">
+                        <div class="modern-card p-4">
+                            <h5 class="mb-3 fw-bold">
+                                <i class="bi bi-shield-check me-2 text-primary"></i>API访问控制
+                            </h5>
+                            <form id="apiForm">
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="apiEnabled">
+                                            <label class="form-check-label fw-bold" for="apiEnabled">
+                                                <i class="bi bi-toggle-on me-1 text-success"></i>启用API访问
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12" id="apiKeySection" style="display: none;">
+                                        <label for="apiKey" class="form-label fw-bold">
+                                            <i class="bi bi-key me-1 text-primary"></i>API密钥
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control modern-input" id="apiKey" readonly>
+                                            <button type="button" class="btn btn-outline-secondary modern-btn" id="generateApiKey">
+                                                重新生成
+                                            </button>
+                                        </div>
+                                        <div class="modern-card p-3 mt-3" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                                            <div class="text-white">
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                此API密钥可用于iOS快捷指令等第三方应用访问下载服务
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <button type="submit" class="btn btn-primary modern-btn py-2 px-4"
+                                                style="background: var(--gradient-primary); border: none;">
+                                            <i class="bi bi-check-lg me-2"></i>保存API设置
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- iOS快捷指令 -->
+            <div class="settings-panel" id="shortcuts">
+                <div class="modern-card p-4">
+                    <h5 class="mb-3 fw-bold">
+                        <i class="bi bi-phone me-2 text-primary"></i>iOS快捷指令集成
+                    </h5>
+
+                    <!-- 服务状态 -->
+                    <div class="modern-card p-4 mb-4" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        <div class="d-flex text-white">
+                            <i class="bi bi-check-circle me-3 mt-1"></i>
+                            <div>
+                                <h6 class="fw-bold">iOS快捷指令API已就绪</h6>
+                                <p class="mb-0">您可以使用以下信息配置iOS快捷指令来下载视频</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API配置信息 -->
+                    <div class="mb-4">
+                        <h6 class="mb-3">API配置信息</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-server me-1 text-primary"></i>服务器地址
+                                </label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control modern-input" id="serverUrl" readonly>
+                                    <button type="button" class="btn btn-outline-secondary modern-btn" onclick="copyToClipboard('serverUrl')">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-link me-1 text-success"></i>下载API端点
+                                </label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control modern-input" id="downloadEndpoint" readonly>
+                                    <button type="button" class="btn btn-outline-secondary modern-btn" onclick="copyToClipboard('downloadEndpoint')">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-12" id="apiKeySection2" style="display: none;">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-key me-1 text-warning"></i>API密钥
+                                </label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control modern-input" id="apiKeyDisplay" readonly>
+                                    <button type="button" class="btn btn-outline-secondary modern-btn" onclick="copyToClipboard('apiKeyDisplay')">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>在快捷指令中使用此API密钥进行认证
+                                </div>
+                            </div>
+                            <div class="col-12" id="apiKeyWarning2">
+                                <div class="modern-card p-3" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                    <div class="text-white">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>
+                                        请先在"安全设置"中启用API访问并生成API密钥
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 高级功能 -->
+            <div class="settings-panel" id="advanced">
+                <div class="modern-card p-4">
+                    <h5 class="mb-3 fw-bold">
+                        <i class="bi bi-lightning me-2 text-primary"></i>高级功能
+                    </h5>
+
+                    <!-- 引擎管理 - 紧凑方块布局 -->
+                    <div class="row g-2 mb-4">
+                        <!-- yt-dlp管理 -->
+                        <div class="col-md-6">
+                            <div class="modern-card p-3" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); min-height: 200px; display: flex; flex-direction: column; justify-content: space-between;">
+                                <div class="text-center text-white">
+                                    <h6 class="mb-2 fw-bold">
+                                        <i class="bi bi-youtube me-2"></i>yt-dlp 管理
+                                    </h6>
+                                    <div class="mb-2">
+                                        <strong>当前版本</strong>
+                                        <div class="small" id="ytdlpVersion">检测中...</div>
+                                    </div>
+                                </div>
+                                <div class="d-grid gap-1">
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="checkYtdlpInfo">
+                                        <i class="bi bi-info-circle me-1"></i>检查信息
+                                    </button>
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="updateYtdlp">
+                                        <i class="bi bi-download me-1"></i>更新
+                                    </button>
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="installYtdlp">
+                                        <i class="bi bi-box me-1"></i>重装
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PyTubeFix管理 -->
+                        <div class="col-md-6">
+                            <div class="modern-card p-3" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); min-height: 200px; display: flex; flex-direction: column; justify-content: space-between;">
+                                <div class="text-center text-white">
+                                    <h6 class="mb-2 fw-bold">
+                                        <i class="bi bi-play-circle me-2"></i>PyTubeFix 管理
+                                    </h6>
+                                    <div class="mb-2">
+                                        <strong>当前版本</strong>
+                                        <div class="small" id="pytubefixVersion">检测中...</div>
+                                    </div>
+                                </div>
+                                <div class="d-grid gap-1">
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="checkPytubefixInfo">
+                                        <i class="bi bi-info-circle me-1"></i>检查信息
+                                    </button>
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="updatePytubefix">
+                                        <i class="bi bi-download me-1"></i>更新
+                                    </button>
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="installPytubefix">
+                                        <i class="bi bi-box me-1"></i>重装
+                                    </button>
+
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 统一引擎管理 -->
+                    <div class="mb-4">
+                        <h6>引擎管理</h6>
+                        <div class="modern-card p-4" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                            <div class="d-flex justify-content-between align-items-center text-white">
+                                <div>
+                                    <strong>双引擎系统</strong>
+                                    <div class="small">yt-dlp + PyTubeFix 双引擎冗余下载</div>
+                                </div>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="checkAllEngines">
+                                        <i class="bi bi-speedometer2"></i> 检查状态
+                                    </button>
+                                    <button type="button" class="btn btn-outline-light btn-sm" id="updateAllEngines">
+                                        <i class="bi bi-arrow-repeat"></i> 一键更新所有
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 系统信息 -->
+                    <div class="mb-4">
+                        <h6>系统信息</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="card" style="background-color: var(--bg-tertiary); border-color: var(--border-color);">
+                                    <div class="card-body">
+                                        <h6 class="card-title">存储空间</h6>
+                                        <div id="storageInfo">
+                                            <div class="d-flex justify-content-between">
+                                                <span>已用空间:</span>
+                                                <span id="usedSpace">计算中...</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span>可用空间:</span>
+                                                <span id="freeSpace">计算中...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card" style="background-color: var(--bg-tertiary); border-color: var(--border-color);">
+                                    <div class="card-body">
+                                        <h6 class="card-title">运行状态</h6>
+                                        <div id="systemStatus">
+                                            <div class="d-flex justify-content-between">
+                                                <span>运行时间:</span>
+                                                <span id="uptime">计算中...</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span>活跃下载:</span>
+                                                <span id="activeDownloads">0</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 代理设置 -->
+                    <div class="mb-4">
+                        <h6>代理设置</h6>
+                        <form id="proxyForm">
+                            <div class="row">
+                                <div class="col-12 mb-3">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="proxyEnabled">
+                                        <label class="form-check-label" for="proxyEnabled">
+                                            启用代理
+                                        </label>
+                                    </div>
+                                    <div class="form-text">启用后，所有下载请求将通过代理服务器</div>
+                                </div>
+                            </div>
+
+                            <div id="proxySettings" style="display: none;">
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="proxyType" class="form-label">代理类型</label>
+                                        <select class="form-select" id="proxyType">
+                                            <option value="http">HTTP</option>
+                                            <option value="https">HTTPS</option>
+                                            <option value="socks4">SOCKS4</option>
+                                            <option value="socks5">SOCKS5</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="proxyHost" class="form-label">代理地址</label>
+                                        <input type="text" class="form-control" id="proxyHost"
+                                               placeholder="例如: 127.0.0.1 或 proxy.example.com">
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="proxyPort" class="form-label">端口</label>
+                                        <input type="number" class="form-control" id="proxyPort"
+                                               placeholder="8080" min="1" max="65535">
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="proxyUsername" class="form-label">用户名 <span class="text-muted">(可选)</span></label>
+                                        <input type="text" class="form-control" id="proxyUsername"
+                                               placeholder="代理认证用户名">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="proxyPassword" class="form-label">密码 <span class="text-muted">(可选)</span></label>
+                                        <input type="password" class="form-control" id="proxyPassword"
+                                               placeholder="代理认证密码" autocomplete="new-password">
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <button type="button" class="btn btn-outline-primary" onclick="testProxy()">
+                                            <i class="bi bi-wifi me-1"></i>测试连接
+                                        </button>
+                                        <span id="proxyTestResult" class="ms-2"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-check-lg me-1"></i>保存代理设置
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 维护操作 -->
+                    <div>
+                        <h6>维护操作</h6>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-warning" id="cleanupFiles">
+                                <i class="bi bi-trash"></i> 清理文件
+                            </button>
+                            <button type="button" class="btn btn-outline-info" id="refreshSystem">
+                                <i class="bi bi-arrow-clockwise"></i> 刷新系统
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="restartService">
+                                <i class="bi bi-power"></i> 重启服务
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+</div>
+
+<script>
+class SettingsApp {
+    constructor() {
+        this.settings = {
+            general: {
+                app_name: 'YT-DLP Web',
+                session_timeout: 24,
+                secret_key: '',
+                debug_mode: false
+            },
+            download: {
+                output_dir: '/downloads',
+                max_concurrent: 3,
+                timeout: 300,
+                default_quality: 'medium',
+                auto_cleanup: false,
+                file_retention_hours: 72,
+                cleanup_interval: 6,
+                max_storage_mb: 5000,
+                keep_recent_files: 10
+            },
+            security: {
+                api_enabled: false,
+                api_key: ''
+            },
+            proxy: {
+                enabled: false,
+                proxy_type: 'http',
+                host: '',
+                port: null,
+                username: '',
+                password: ''
+            }
+        };
+
+        this.init();
+    }
+
+    init() {
+        this.bindEvents();
+        this.loadSettings();
+        this.checkSystemInfo();
+        this.updateShortcutInfo();
+        this.initTabs();
+    }
+
+    initTabs() {
+        const tabs = document.querySelectorAll('.settings-tab');
+        const panels = document.querySelectorAll('.settings-panel');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const target = this.getAttribute('data-target');
+
+                // 重置所有选项卡样式
+                tabs.forEach(t => {
+                    t.classList.remove('active');
+                    t.style.background = 'none';
+                    t.style.color = 'var(--text-secondary)';
+                    t.style.borderBottom = 'none';
+                });
+
+                // 隐藏所有面板
+                panels.forEach(p => p.classList.remove('active'));
+
+                // 激活当前选项卡
+                this.classList.add('active');
+                this.style.background = 'var(--bg-primary)';
+                this.style.color = '#0d6efd';
+                this.style.borderBottom = '2px solid #0d6efd';
+
+                // 显示对应面板
+                document.getElementById(target).classList.add('active');
+            });
+        });
+    }
+
+    bindEvents() {
+        // 基础设置表单
+        document.getElementById('generalForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveGeneralSettings();
+        });
+
+        // 下载配置表单
+        document.getElementById('downloadForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveDownloadSettings();
+        });
+
+        // 用户名修改表单
+        document.getElementById('usernameForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.changeUsername();
+        });
+
+        // 密码修改表单
+        document.getElementById('passwordForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.changePassword();
+        });
+
+        // API设置表单
+        document.getElementById('apiForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveApiSettings();
+        });
+
+        // 密钥显示/隐藏
+        document.getElementById('toggleSecretKey').addEventListener('click', () => {
+            this.toggleSecretKeyVisibility();
+        });
+
+        // 生成密钥
+        document.getElementById('generateSecretKey').addEventListener('click', () => {
+            this.generateSecretKey();
+        });
+
+        // 自动清理选项
+        document.getElementById('autoCleanup').addEventListener('change', (e) => {
+            this.toggleCleanupOptions(e.target.checked);
+        });
+
+        // API启用选项
+        document.getElementById('apiEnabled').addEventListener('change', (e) => {
+            this.toggleApiKeySection(e.target.checked);
+        });
+
+        // 生成API密钥
+        document.getElementById('generateApiKey').addEventListener('click', () => {
+            this.generateApiKey();
+        });
+
+        // 代理设置表单
+        document.getElementById('proxyForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveProxySettings();
+        });
+
+        // 代理启用选项
+        document.getElementById('proxyEnabled').addEventListener('change', (e) => {
+            this.toggleProxySettings(e.target.checked);
+        });
+
+        // yt-dlp管理
+        document.getElementById('checkYtdlpInfo').addEventListener('click', () => {
+            this.checkYtdlpInfo();
+        });
+
+        document.getElementById('updateYtdlp').addEventListener('click', () => {
+            this.updateYtdlp();
+        });
+
+        document.getElementById('installYtdlp').addEventListener('click', () => {
+            this.installYtdlp();
+        });
+
+        // PyTubeFix管理
+        document.getElementById('checkPytubefixInfo').addEventListener('click', () => {
+            this.checkPytubefixInfo();
+        });
+
+        document.getElementById('updatePytubefix').addEventListener('click', () => {
+            this.updatePytubefix();
+        });
+
+        document.getElementById('installPytubefix').addEventListener('click', () => {
+            this.installPytubefix();
+        });
+
+        // 统一引擎管理
+        document.getElementById('checkAllEngines').addEventListener('click', () => {
+            this.checkAllEngines();
+        });
+
+        document.getElementById('updateAllEngines').addEventListener('click', () => {
+            this.updateAllEngines();
+        });
+
+        // 维护操作
+        document.getElementById('cleanupFiles').addEventListener('click', () => {
+            this.cleanupFiles();
+        });
+
+        document.getElementById('refreshSystem').addEventListener('click', () => {
+            this.refreshSystem();
+        });
+
+        document.getElementById('restartService').addEventListener('click', () => {
+            this.restartService();
+        });
+    }
+
+    async loadSettings() {
+        try {
+            // 加载基础设置
+            const generalResponse = await apiRequest('/api/settings/general');
+            if (generalResponse.ok) {
+                const generalData = await generalResponse.json();
+                if (generalData.success) {
+                    this.settings.general = { ...this.settings.general, ...generalData.settings };
+                }
+            }
+
+            // 加载下载设置
+            const downloadResponse = await apiRequest('/api/settings/download');
+            if (downloadResponse.ok) {
+                const downloadData = await downloadResponse.json();
+                if (downloadData.success) {
+                    this.settings.download = { ...this.settings.download, ...downloadData.settings };
+                }
+            }
+
+            // 加载API密钥设置
+            const apiKeyResponse = await apiRequest('/api/settings/api-key');
+            if (apiKeyResponse.ok) {
+                const apiKeyData = await apiKeyResponse.json();
+                if (apiKeyData.success) {
+                    this.settings.security.api_key = apiKeyData.api_key;
+                    this.settings.security.api_enabled = apiKeyData.has_key;
+                }
+            }
+
+            // 加载代理设置
+            const proxyResponse = await apiRequest('/api/settings/proxy');
+            if (proxyResponse.ok) {
+                const proxyData = await proxyResponse.json();
+                if (proxyData.success) {
+                    this.settings.proxy = { ...this.settings.proxy, ...proxyData.proxy };
+                }
+            }
+
+            this.updateUI();
+        } catch (error) {
+            console.error('加载设置失败:', error);
+        }
+    }
+
+    updateUI() {
+        // 更新基础设置
+        document.getElementById('appName').value = this.settings.general.app_name;
+        document.getElementById('sessionTimeout').value = this.settings.general.session_timeout;
+        document.getElementById('secretKey').value = this.settings.general.secret_key;
+        document.getElementById('debugMode').checked = this.settings.general.debug_mode;
+
+        // 更新下载配置
+        document.getElementById('outputDir').value = this.settings.download.output_dir;
+        document.getElementById('maxConcurrent').value = this.settings.download.max_concurrent;
+        document.getElementById('downloadTimeout').value = this.settings.download.timeout;
+        document.getElementById('defaultQuality').value = this.settings.download.default_quality;
+        document.getElementById('autoCleanup').checked = this.settings.download.auto_cleanup;
+        document.getElementById('fileRetention').value = this.settings.download.file_retention_hours;
+        document.getElementById('cleanupInterval').value = this.settings.download.cleanup_interval;
+        document.getElementById('maxStorage').value = this.settings.download.max_storage_mb;
+        document.getElementById('keepRecentFiles').value = this.settings.download.keep_recent_files;
+
+        // 更新安全设置
+        document.getElementById('apiEnabled').checked = this.settings.security.api_enabled;
+        document.getElementById('apiKey').value = this.settings.security.api_key;
+
+        // 更新代理设置
+        document.getElementById('proxyEnabled').checked = this.settings.proxy.enabled;
+        document.getElementById('proxyType').value = this.settings.proxy.proxy_type;
+        document.getElementById('proxyHost').value = this.settings.proxy.host;
+        document.getElementById('proxyPort').value = this.settings.proxy.port || '';
+        document.getElementById('proxyUsername').value = this.settings.proxy.username;
+        document.getElementById('proxyPassword').value = this.settings.proxy.password;
+
+        // 更新UI状态
+        this.toggleCleanupOptions(this.settings.download.auto_cleanup);
+        this.toggleApiKeySection(this.settings.security.api_enabled);
+        this.toggleProxySettings(this.settings.proxy.enabled);
+        this.updateShortcutInfo();
+    }
+
+    toggleSecretKeyVisibility() {
+        const input = document.getElementById('secretKey');
+        const icon = document.querySelector('#toggleSecretKey i');
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'bi bi-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'bi bi-eye';
+        }
+    }
+
+    generateSecretKey() {
+        const key = this.generateRandomString(32);
+        document.getElementById('secretKey').value = key;
+        showNotification('新密钥已生成', 'success');
+    }
+
+    generateRandomString(length) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    }
+
+    toggleCleanupOptions(show) {
+        const options = document.getElementById('cleanupOptions');
+        options.style.display = show ? 'block' : 'none';
+    }
+
+    toggleApiKeySection(show) {
+        const section = document.getElementById('apiKeySection');
+        section.style.display = show ? 'block' : 'none';
+    }
+
+    toggleProxySettings(show) {
+        const settings = document.getElementById('proxySettings');
+        settings.style.display = show ? 'block' : 'none';
+    }
+
+    async saveGeneralSettings() {
+        const formData = {
+            app_name: document.getElementById('appName').value,
+            session_timeout: parseInt(document.getElementById('sessionTimeout').value),
+            secret_key: document.getElementById('secretKey').value,
+            debug_mode: document.getElementById('debugMode').checked
+        };
+
+        try {
+            const response = await apiRequest('/api/settings/general', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                showNotification('基础设置保存成功', 'success');
+                this.settings.general = formData;
+            } else {
+                showNotification('保存失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async saveDownloadSettings() {
+        const formData = {
+            output_dir: document.getElementById('outputDir').value,
+            max_concurrent: parseInt(document.getElementById('maxConcurrent').value),
+            timeout: parseInt(document.getElementById('downloadTimeout').value),
+            default_quality: document.getElementById('defaultQuality').value,
+            auto_cleanup: document.getElementById('autoCleanup').checked,
+            file_retention_hours: parseInt(document.getElementById('fileRetention').value),
+            cleanup_interval: parseInt(document.getElementById('cleanupInterval').value),
+            max_storage_mb: parseInt(document.getElementById('maxStorage').value),
+            keep_recent_files: parseInt(document.getElementById('keepRecentFiles').value)
+        };
+
+        try {
+            const response = await apiRequest('/api/settings/download', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                showNotification('下载配置保存成功', 'success');
+                this.settings.download = formData;
+            } else {
+                showNotification('保存失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async changeUsername() {
+        const currentPassword = document.getElementById('currentUsernamePassword').value;
+        const newUsername = document.getElementById('newUsername').value;
+
+        if (!currentPassword || !newUsername) {
+            showNotification('请填写所有字段', 'warning');
+            return;
+        }
+
+        if (newUsername.length < 3) {
+            showNotification('用户名长度不能少于3个字符', 'warning');
+            return;
+        }
+
+        if (!confirm('修改用户名后需要重新登录，确定要继续吗？')) {
+            return;
+        }
+
+        try {
+            const response = await apiRequest('/api/auth/change-username', {
+                method: 'POST',
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_username: newUsername
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                showNotification('用户名修改成功，即将跳转到登录页面', 'success');
+                document.getElementById('usernameForm').reset();
+
+                // 3秒后跳转到登录页面
+                setTimeout(() => {
+                    window.location.href = '/auth/logout';
+                }, 3000);
+            } else {
+                const data = await response.json();
+                showNotification(data.error || '用户名修改失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async changePassword() {
+        const current = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const confirm = document.getElementById('confirmPassword').value;
+
+        if (newPassword !== confirm) {
+            showNotification('新密码和确认密码不匹配', 'danger');
+            return;
+        }
+
+        try {
+            const response = await apiRequest('/api/auth/change-password', {
+                method: 'POST',
+                body: JSON.stringify({
+                    current_password: current,
+                    new_password: newPassword
+                })
+            });
+
+            if (response.ok) {
+                showNotification('密码修改成功', 'success');
+                document.getElementById('passwordForm').reset();
+            } else {
+                const data = await response.json();
+                showNotification(data.error || '密码修改失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async generateApiKey() {
+        try {
+            const response = await apiRequest('/api/settings/api-key/generate', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    this.settings.security.api_key = data.api_key;
+                    this.settings.security.api_enabled = true;
+                    document.getElementById('apiKey').value = data.api_key;
+                    document.getElementById('apiEnabled').checked = true;
+                    this.toggleApiKeySection(true);
+                    this.updateShortcutInfo();
+                    showNotification(data.message || '新API密钥已生成', 'success');
+                }
+            } else {
+                const data = await response.json();
+                showNotification(data.error || 'API密钥生成失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async saveApiSettings() {
+        const formData = {
+            api_key: document.getElementById('apiEnabled').checked ? document.getElementById('apiKey').value : ''
+        };
+
+        try {
+            const response = await apiRequest('/api/settings/api-key', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                showNotification(data.message || 'API设置保存成功', 'success');
+                this.settings.security.api_enabled = Boolean(formData.api_key);
+                this.settings.security.api_key = formData.api_key;
+                this.updateShortcutInfo();
+            } else {
+                const data = await response.json();
+                showNotification(data.error || '保存失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    updateShortcutInfo() {
+        const serverUrl = window.location.origin;
+        const downloadEndpoint = serverUrl + '/api/shortcuts/download';
+
+        document.getElementById('serverUrl').value = serverUrl;
+        document.getElementById('downloadEndpoint').value = downloadEndpoint;
+
+        // 更新API密钥显示
+        if (this.settings.security.api_enabled && this.settings.security.api_key) {
+            document.getElementById('apiKeyDisplay').value = this.settings.security.api_key;
+            document.getElementById('apiKeySection2').style.display = 'block';
+            document.getElementById('apiKeyWarning2').style.display = 'none';
+        } else {
+            document.getElementById('apiKeySection2').style.display = 'none';
+            document.getElementById('apiKeyWarning2').style.display = 'block';
+        }
+    }
+
+    async checkSystemInfo() {
+        try {
+            const response = await apiRequest('/api/system/info');
+            if (response.ok) {
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('usedSpace').textContent = this.formatSize(data.storage?.used || 0);
+                    document.getElementById('freeSpace').textContent = this.formatSize(data.storage?.free || 0);
+                    document.getElementById('uptime').textContent = this.formatUptime(data.uptime || 0);
+                    document.getElementById('activeDownloads').textContent = data.active_downloads || 0;
+                } else {
+                    // 显示错误状态
+                    document.getElementById('usedSpace').textContent = '获取失败';
+                    document.getElementById('freeSpace').textContent = '获取失败';
+                    document.getElementById('uptime').textContent = '获取失败';
+                    document.getElementById('activeDownloads').textContent = '0';
+                }
+            }
+        } catch (error) {
+            console.error('获取系统信息失败:', error);
+            // 显示错误状态
+            document.getElementById('usedSpace').textContent = '网络错误';
+            document.getElementById('freeSpace').textContent = '网络错误';
+            document.getElementById('uptime').textContent = '网络错误';
+            document.getElementById('activeDownloads').textContent = '0';
+        }
+    }
+
+    formatSize(bytes) {
+        if (!bytes) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    formatUptime(seconds) {
+        if (!seconds) return '0秒';
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+
+        if (days > 0) return `${days}天 ${hours}小时`;
+        if (hours > 0) return `${hours}小时 ${minutes}分钟`;
+        return `${minutes}分钟`;
+    }
+
+    // 简化的引擎管理方法
+    async checkYtdlpInfo() {
+        try {
+            const response = await apiRequest('/api/system/ytdlp/info');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.info) {
+                    document.getElementById('ytdlpVersion').textContent = data.info.version || '未知版本';
+                } else {
+                    document.getElementById('ytdlpVersion').textContent = '未安装';
+                }
+            }
+        } catch (error) {
+            console.error('检查yt-dlp信息失败:', error);
+            document.getElementById('ytdlpVersion').textContent = '检查失败';
+        }
+    }
+
+    async updateYtdlp() {
+        if (!confirm('确定要更新yt-dlp吗？这可能需要几分钟时间。')) return;
+
+        try {
+            const response = await apiRequest('/api/system/update-ytdlp', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                showNotification('yt-dlp更新已开始', 'info');
+                setTimeout(() => this.checkYtdlpInfo(), 5000);
+            } else {
+                showNotification('更新失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async installYtdlp() {
+        if (!confirm('确定要重新安装yt-dlp吗？这将覆盖当前版本。')) return;
+
+        try {
+            const response = await apiRequest('/api/system/install-ytdlp', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                showNotification('yt-dlp重新安装已开始', 'info');
+                setTimeout(() => this.checkYtdlpInfo(), 10000);
+            } else {
+                showNotification('安装失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async checkPytubefixInfo() {
+        try {
+            const response = await apiRequest('/api/system/pytubefix/info');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.pytubefix_info) {
+                    document.getElementById('pytubefixVersion').textContent = data.pytubefix_info.version || '未知版本';
+                } else {
+                    document.getElementById('pytubefixVersion').textContent = '未安装';
+                }
+            }
+        } catch (error) {
+            console.error('检查PyTubeFix信息失败:', error);
+            document.getElementById('pytubefixVersion').textContent = '检查失败';
+        }
+    }
+
+    async updatePytubefix() {
+        if (!confirm('确定要更新PyTubeFix吗？这可能需要几分钟时间。')) return;
+
+        try {
+            const response = await apiRequest('/api/system/update-pytubefix', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                showNotification('PyTubeFix更新已开始', 'info');
+                setTimeout(() => this.checkPytubefixInfo(), 5000);
+            } else {
+                showNotification('更新失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async installPytubefix() {
+        if (!confirm('确定要重新安装PyTubeFix吗？这将覆盖当前版本。')) return;
+
+        try {
+            const response = await apiRequest('/api/system/install-pytubefix', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                showNotification('PyTubeFix重新安装已开始', 'info');
+                setTimeout(() => this.checkPytubefixInfo(), 10000);
+            } else {
+                showNotification('安装失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async checkAllEngines() {
+        try {
+            const response = await apiRequest('/api/system/engines/status');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.engines) {
+                    // 更新yt-dlp版本显示
+                    if (data.engines.ytdlp) {
+                        document.getElementById('ytdlpVersion').textContent = data.engines.ytdlp.version || '未知版本';
+                    }
+                    // 更新PyTubeFix版本显示
+                    if (data.engines.pytubefix) {
+                        document.getElementById('pytubefixVersion').textContent = data.engines.pytubefix.version || '未知版本';
+                    }
+
+                    showNotification('引擎状态检查完成', 'success');
+                } else {
+                    showNotification('获取引擎状态失败', 'danger');
+                }
+            }
+        } catch (error) {
+            console.error('检查引擎状态失败:', error);
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async updateAllEngines() {
+        if (!confirm('确定要更新所有下载引擎吗？这可能需要几分钟时间。')) return;
+
+        try {
+            const response = await apiRequest('/api/system/engines/update-all', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(`引擎更新完成: ${data.summary.successful}/${data.summary.total} 成功`, 'success');
+                    // 5秒后刷新状态
+                    setTimeout(() => this.checkAllEngines(), 5000);
+                } else {
+                    showNotification('引擎更新失败', 'danger');
+                }
+            } else {
+                showNotification('更新失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async saveProxySettings() {
+        const formData = {
+            enabled: document.getElementById('proxyEnabled').checked,
+            proxy_type: document.getElementById('proxyType').value,
+            host: document.getElementById('proxyHost').value.trim(),
+            port: parseInt(document.getElementById('proxyPort').value) || null,
+            username: document.getElementById('proxyUsername').value.trim(),
+            password: document.getElementById('proxyPassword').value
+        };
+
+        try {
+            const response = await apiRequest('/api/settings/proxy', {
+                method: 'POST',
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                showNotification(data.message || '代理设置保存成功', 'success');
+                this.settings.proxy = formData;
+            } else {
+                const data = await response.json();
+                showNotification(data.error || '保存失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async cleanupFiles() {
+        if (!confirm('确定要清理过期文件吗？此操作不可恢复。')) return;
+
+        try {
+            const response = await apiRequest('/api/system/cleanup', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                showNotification('文件清理完成', 'success');
+                this.checkSystemInfo();
+            } else {
+                showNotification('清理失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async refreshSystem() {
+        try {
+            await this.checkSystemInfo();
+            await this.checkYtdlpInfo();
+            await this.checkPytubefixInfo();
+            showNotification('系统信息已刷新', 'success');
+        } catch (error) {
+            showNotification('刷新失败', 'danger');
+        }
+    }
+
+    async restartService() {
+        if (!confirm('确定要重启服务吗？这将中断所有正在进行的下载。')) return;
+
+        try {
+            const response = await apiRequest('/api/system/restart', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                showNotification('服务重启中...', 'info');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            } else {
+                showNotification('重启失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+}
+
+// 全局函数
+async function testProxy() {
+    const formData = {
+        proxy_type: document.getElementById('proxyType').value,
+        host: document.getElementById('proxyHost').value.trim(),
+        port: parseInt(document.getElementById('proxyPort').value) || null,
+        username: document.getElementById('proxyUsername').value.trim(),
+        password: document.getElementById('proxyPassword').value
+    };
+
+    // 验证必填字段
+    if (!formData.host || !formData.port) {
+        showNotification('请填写代理地址和端口', 'warning');
+        return;
+    }
+
+    const resultSpan = document.getElementById('proxyTestResult');
+    resultSpan.innerHTML = '<span class="text-info">测试中...</span>';
+
+    try {
+        const response = await apiRequest('/api/settings/proxy/test', {
+            method: 'POST',
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                resultSpan.innerHTML = `<span class="text-success">✅ 连接成功 (IP: ${data.ip}, 响应时间: ${data.response_time})</span>`;
+            } else {
+                resultSpan.innerHTML = `<span class="text-danger">❌ ${data.error}</span>`;
+            }
+        } else {
+            const data = await response.json();
+            resultSpan.innerHTML = `<span class="text-danger">❌ ${data.error}</span>`;
+        }
+    } catch (error) {
+        resultSpan.innerHTML = '<span class="text-danger">❌ 网络错误</span>';
+    }
+}
+
+async function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    const text = element.value;
+
+    try {
+        await navigator.clipboard.writeText(text);
+        showNotification('已复制到剪贴板', 'success');
+    } catch (error) {
+        // 降级处理
+        element.select();
+        document.execCommand('copy');
+        showNotification('已复制到剪贴板', 'success');
+    }
+}
+
+// 初始化应用
+document.addEventListener('DOMContentLoaded', function() {
+    new SettingsApp();
+});
+</script>
+{% endblock %}

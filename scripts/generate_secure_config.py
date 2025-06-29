@@ -58,9 +58,10 @@ def create_production_config():
             "name": "YT-DLP Web",
             "version": "2.0.0",
             "host": "0.0.0.0",
-            "port": 8080,
+            "port": 8090,
             "debug": False,  # 生产环境必须为False
-            "secret_key": secret_key
+            "secret_key": secret_key,
+            "ipv6_enabled": True  # 启用IPv6支持
         },
         "database": {
             "url": "sqlite:///data/app.db",

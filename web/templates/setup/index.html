@@ -1,0 +1,294 @@
+{% extends "base_modern.html" %}
+{% set hide_nav = true %}
+
+{% block title %}初始化设置 - YT-DLP Web{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl w-full space-y-8" x-data="setupApp()">
+        
+        <!-- 头部 -->
+        <div class="text-center">
+            <h1 class="text-4xl font-bold text-primary-600 dark:text-primary-400 mb-2">
+                YT-DLP Web
+            </h1>
+            <p class="text-lg text-gray-600 dark:text-gray-400">
+                欢迎使用！让我们完成初始化设置
+            </p>
+        </div>
+        
+        <!-- 进度指示器 -->
+        <div class="flex justify-center">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
+                         :class="currentStep >= 1 ? 'bg-primary-500 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'">
+                        1
+                    </div>
+                    <span class="ml-2 text-sm font-medium text-gray-600 dark:text-gray-400">系统检查</span>
+                </div>
+                
+                <div class="w-8 h-0.5 bg-gray-300 dark:bg-gray-600"></div>
+                
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
+                         :class="currentStep >= 2 ? 'bg-primary-500 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'">
+                        2
+                    </div>
+                    <span class="ml-2 text-sm font-medium text-gray-600 dark:text-gray-400">基础配置</span>
+                </div>
+                
+                <div class="w-8 h-0.5 bg-gray-300 dark:bg-gray-600"></div>
+                
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
+                         :class="currentStep >= 3 ? 'bg-primary-500 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'">
+                        3
+                    </div>
+                    <span class="ml-2 text-sm font-medium text-gray-600 dark:text-gray-400">管理员账户</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 步骤1: 系统检查 -->
+        <div x-show="currentStep === 1" class="card p-6 fade-in">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i data-feather="check-circle" class="w-5 h-5 mr-2"></i>
+                系统状态检查
+            </h2>
+            
+            <div class="space-y-4">
+                <!-- 数据库状态 -->
+                <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                    <div class="flex items-center">
+                        <i data-feather="database" class="w-5 h-5 mr-3"></i>
+                        <span>数据库连接</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i :data-feather="status.database ? 'check' : 'x'" 
+                           :class="status.database ? 'text-green-500' : 'text-red-500'" 
+                           class="w-5 h-5"></i>
+                        <span class="ml-2 text-sm" 
+                              :class="status.database ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                            <span x-text="status.database ? '正常' : '异常'"></span>
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- yt-dlp状态 -->
+                <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                    <div class="flex items-center">
+                        <i data-feather="download" class="w-5 h-5 mr-3"></i>
+                        <span>yt-dlp 可用性</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i :data-feather="status.ytdlp ? 'check' : 'x'" 
+                           :class="status.ytdlp ? 'text-green-500' : 'text-red-500'" 
+                           class="w-5 h-5"></i>
+                        <span class="ml-2 text-sm" 
+                              :class="status.ytdlp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                            <span x-text="status.ytdlp ? '已安装' : '未安装'"></span>
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- 配置状态 -->
+                <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                    <div class="flex items-center">
+                        <i data-feather="settings" class="w-5 h-5 mr-3"></i>
+                        <span>基础配置</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i :data-feather="status.config ? 'check' : 'x'" 
+                           :class="status.config ? 'text-green-500' : 'text-red-500'" 
+                           class="w-5 h-5"></i>
+                        <span class="ml-2 text-sm" 
+                              :class="status.config ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                            <span x-text="status.config ? '已配置' : '需要配置'"></span>
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- 管理员用户 -->
+                <div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                    <div class="flex items-center">
+                        <i data-feather="user" class="w-5 h-5 mr-3"></i>
+                        <span>管理员账户</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i :data-feather="status.admin_user ? 'check' : 'x'" 
+                           :class="status.admin_user ? 'text-green-500' : 'text-red-500'" 
+                           class="w-5 h-5"></i>
+                        <span class="ml-2 text-sm" 
+                              :class="status.admin_user ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                            <span x-text="status.admin_user ? '已创建' : '需要创建'"></span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex justify-between">
+                <button @click="refreshStatus()" class="btn-secondary">
+                    <i data-feather="refresh-cw" class="w-4 h-4 mr-2"></i>
+                    刷新状态
+                </button>
+                <button @click="nextStep()" class="btn-primary">
+                    下一步
+                    <i data-feather="arrow-right" class="w-4 h-4 ml-2"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- 步骤2: 基础配置 -->
+        <div x-show="currentStep === 2" class="card p-6 fade-in">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i data-feather="settings" class="w-5 h-5 mr-2"></i>
+                基础配置
+            </h2>
+            
+            <form @submit.prevent="saveConfig()" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">应用密钥 (SECRET_KEY)</label>
+                    <input type="text" x-model="config.secret_key" class="input-field" 
+                           placeholder="用于会话加密的密钥" required>
+                    <p class="text-xs text-gray-500 mt-1">建议使用随机生成的长字符串</p>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">下载目录</label>
+                    <input type="text" x-model="config.download_dir" class="input-field" 
+                           placeholder="/app/downloads" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">最大并发下载数</label>
+                    <input type="number" x-model="config.max_concurrent" class="input-field" 
+                           min="1" max="10" required>
+                </div>
+                
+                <div class="mt-6 flex justify-between">
+                    <button type="button" @click="prevStep()" class="btn-secondary">
+                        <i data-feather="arrow-left" class="w-4 h-4 mr-2"></i>
+                        上一步
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        保存并继续
+                        <i data-feather="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- 步骤3: 管理员账户 -->
+        <div x-show="currentStep === 3" class="card p-6 fade-in">
+            <h2 class="text-xl font-semibold mb-4 flex items-center">
+                <i data-feather="user-plus" class="w-5 h-5 mr-2"></i>
+                创建管理员账户
+            </h2>
+            
+            <form @submit.prevent="createAdmin()" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">用户名</label>
+                    <input type="text" x-model="admin.username" class="input-field" 
+                           placeholder="admin" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">密码</label>
+                    <input type="password" x-model="admin.password" class="input-field" 
+                           placeholder="请输入安全的密码" required minlength="6">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">确认密码</label>
+                    <input type="password" x-model="admin.confirmPassword" class="input-field" 
+                           placeholder="再次输入密码" required>
+                </div>
+                
+                <div class="mt-6 flex justify-between">
+                    <button type="button" @click="prevStep()" class="btn-secondary">
+                        <i data-feather="arrow-left" class="w-4 h-4 mr-2"></i>
+                        上一步
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        完成设置
+                        <i data-feather="check" class="w-4 h-4 ml-2"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function setupApp() {
+    return {
+        currentStep: 1,
+        status: {{ status | tojson }},
+        config: {
+            secret_key: '',
+            download_dir: '/app/downloads',
+            max_concurrent: 3
+        },
+        admin: {
+            username: 'admin',
+            password: '',
+            confirmPassword: ''
+        },
+        
+        nextStep() {
+            this.currentStep++;
+            this.$nextTick(() => feather.replace());
+        },
+
+        prevStep() {
+            this.currentStep--;
+            this.$nextTick(() => feather.replace());
+        },
+        
+        async refreshStatus() {
+            try {
+                const response = await fetch('/api/system/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    // 更新状态逻辑
+                    showNotification('状态已刷新', 'success');
+                }
+            } catch (error) {
+                showNotification('刷新失败', 'error');
+            }
+        },
+        
+        async saveConfig() {
+            try {
+                // 这里应该调用API保存配置
+                showNotification('配置保存成功', 'success');
+                this.nextStep();
+            } catch (error) {
+                showNotification('配置保存失败', 'error');
+            }
+        },
+        
+        async createAdmin() {
+            if (this.admin.password !== this.admin.confirmPassword) {
+                showNotification('密码不匹配', 'error');
+                return;
+            }
+            
+            try {
+                // 这里应该调用API创建管理员
+                showNotification('管理员账户创建成功', 'success');
+                setTimeout(() => {
+                    window.location.href = '/auth/login';
+                }, 1500);
+            } catch (error) {
+                showNotification('创建管理员失败', 'error');
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

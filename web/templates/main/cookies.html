@@ -1,0 +1,1391 @@
+{% extends "base_modern.html" %}
+
+{% block title %}Cookies 管理中心 - YT-DLP Web{% endblock %}
+
+{% block content %}
+<div class="container-fluid" id="cookiesApp">
+    
+    <!-- 🎨 现代化页面标题 -->
+    <div class="row mb-3">
+        <div class="col-lg-8 mx-auto">
+            <div class="text-center animate-fade-in-up">
+                <h1 class="display-5 fw-bold text-gradient mb-2">
+                    <i class="bi bi-cookie me-3"></i>Cookies 管理中心
+                </h1>
+                <p class="lead text-muted mb-3">
+                    管理网站Cookies以获得最佳下载体验和访问权限
+                </p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-primary); color: white;">
+                        <i class="bi bi-upload me-1"></i>文件上传
+                    </span>
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-success); color: white;">
+                        <i class="bi bi-check-circle me-1"></i>格式验证
+                    </span>
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-warning); color: white;">
+                        <i class="bi bi-shield me-1"></i>安全存储
+                    </span>
+                    <span class="badge rounded-pill px-3 py-2" style="background: var(--gradient-danger); color: white;">
+                        <i class="bi bi-tools me-1"></i>自动修复
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 📤 现代化上传Cookies -->
+    <div class="row mb-3">
+        <div class="col-lg-8 mx-auto">
+            <div class="modern-card p-4">
+                <h5 class="mb-3 fw-bold">
+                    <i class="bi bi-upload me-2 text-primary"></i>上传Cookies文件
+                </h5>
+                    
+                    <form id="cookiesForm">
+                        <div class="row g-3 mb-2">
+                        <!-- 🌐 网站选择 -->
+                        <div class="col-md-6">
+                            <label for="website" class="form-label fw-bold">
+                                <i class="bi bi-globe me-1 text-primary"></i>目标网站
+                            </label>
+                            <select class="form-select modern-input" id="website">
+                                <option value="">🌐 选择网站</option>
+                                <option value="youtube">📺 YouTube</option>
+                                <option value="bilibili">🎬 Bilibili</option>
+                                <option value="twitter">🐦 Twitter/X</option>
+                                <option value="instagram">📷 Instagram</option>
+                                <option value="tiktok">🎵 TikTok</option>
+                                <option value="custom">⚙️ 自定义</option>
+                            </select>
+                        </div>
+
+                        <!-- 🔧 自定义网站名 -->
+                        <div class="col-md-6" id="customWebsiteDiv" style="display: none;">
+                            <label for="customWebsite" class="form-label fw-bold">
+                                <i class="bi bi-pencil me-1 text-success"></i>自定义网站名
+                            </label>
+                            <input type="text" class="form-control modern-input" id="customWebsite" placeholder="例如: example.com">
+                        </div>
+                        </div>
+                        
+                        <!-- 上传方式选择 -->
+                        <div class="mb-2">
+                            <label class="form-label">上传方式</label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="uploadMethod" id="fileMethod" value="file" checked>
+                                    <label class="form-check-label" for="fileMethod">文件上传</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="uploadMethod" id="textMethod" value="text">
+                                    <label class="form-check-label" for="textMethod">文本粘贴</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 文件上传 -->
+                        <div id="fileUploadDiv" class="mb-2">
+                            <label for="cookiesFile" class="form-label">Cookies文件</label>
+                            <div class="border border-2 border-dashed rounded p-4 text-center" style="min-height: 200px;">
+                                <input type="file" class="form-control d-none" id="cookiesFile" accept=".txt,.json">
+                                <div id="fileDropZone" class="d-flex flex-column justify-content-center h-100">
+                                    <i class="bi bi-cloud-upload display-4 text-muted mb-3"></i>
+                                    <p class="text-muted mb-2">
+                                        拖拽文件到此处或 
+                                        <button type="button" class="btn btn-link p-0" id="selectFileBtn">点击选择文件</button>
+                                    </p>
+                                    <small class="text-muted">支持 .txt 和 .json 格式</small>
+                                    <div class="mt-2">
+                                        <small class="text-muted d-block">• 支持Netscape格式 (浏览器导出)</small>
+                                        <small class="text-muted d-block">• 支持JSON格式 (开发者工具)</small>
+                                        <small class="text-muted d-block">• 支持键值对格式 (name=value)</small>
+                                    </div>
+                                </div>
+                                <div id="fileSelected" class="d-none">
+                                    <i class="bi bi-file-earmark-text display-4 text-success mb-2"></i>
+                                    <p class="mb-0" id="fileName"></p>
+                                    <button type="button" class="btn btn-sm btn-outline-danger mt-2" id="clearFileBtn">
+                                        <i class="bi bi-x"></i> 清除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 文本粘贴 -->
+                        <div id="textUploadDiv" class="mb-2" style="display: none;">
+                            <label for="cookiesContent" class="form-label">Cookies内容</label>
+                            <textarea class="form-control" id="cookiesContent" rows="10" 
+                                      placeholder="粘贴Cookies内容...&#10;&#10;支持以下格式:&#10;1. Netscape格式 (浏览器导出)&#10;2. JSON格式 (开发者工具)&#10;3. 键值对格式 (name=value)"></textarea>
+                            <div class="d-flex justify-content-between mt-2">
+                                <small class="text-muted" id="charCount">0 字符</small>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-secondary" id="clearTextBtn">清空</button>
+                                    <button type="button" class="btn btn-outline-primary" id="formatBtn">格式化</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 格式说明 -->
+                        <div class="modern-card p-4" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+                            <div class="d-flex justify-content-between align-items-center text-white">
+                                <h6 class="mb-0 fw-bold">支持的格式</h6>
+                                <button type="button" class="btn btn-sm btn-outline-light" id="toggleExamples">
+                                    查看示例
+                                </button>
+                            </div>
+                            <ul class="mb-0 mt-2 text-white">
+                                <li><strong>Netscape格式</strong>: 浏览器导出的标准格式</li>
+                                <li><strong>JSON格式</strong>: 开发者工具导出的格式</li>
+                                <li><strong>键值对格式</strong>: 简单的 name=value 格式</li>
+                                <li><strong>自动检测</strong>: 系统会自动识别格式并转换</li>
+                            </ul>
+
+                            <!-- 格式示例 -->
+                            <div id="formatExamples" class="mt-3" style="display: none;">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <h6 class="text-white">Netscape格式:</h6>
+                                        <pre class="small bg-white bg-opacity-25 text-white p-2 rounded"># Netscape HTTP Cookie File
+.youtube.com	TRUE	/	FALSE	1234567890	session_token	abc123</pre>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <h6 class="text-white">JSON格式:</h6>
+                                        <pre class="small bg-white bg-opacity-25 text-white p-2 rounded">[{
+  "name": "session_token",
+  "value": "abc123",
+  "domain": ".youtube.com"
+}]</pre>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <h6 class="text-white">键值对格式:</h6>
+                                        <pre class="small bg-white bg-opacity-25 text-white p-2 rounded">session_token=abc123
+secure_token=def456
+user_id=12345</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    <!-- 🎛️ 操作按钮 -->
+                    <div class="d-flex gap-3 flex-wrap">
+                        <button type="button" class="btn btn-outline-success modern-btn" id="validateBtn">
+                            <i class="bi bi-check-circle me-2"></i>验证格式
+                        </button>
+                        <button type="submit" class="btn btn-primary modern-btn py-3 px-5"
+                                style="background: var(--gradient-primary); border: none; font-size: 1.1rem;">
+                            <i class="bi bi-upload me-2"></i>上传Cookies
+                        </button>
+                    </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 🔑 YouTube认证配置 -->
+    <div class="row mb-3" id="auth-config">
+        <div class="col-lg-8 mx-auto">
+            <div class="modern-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-key me-2 text-warning"></i>YouTube 认证配置
+                        <span class="badge rounded-pill ms-2" style="background: var(--gradient-warning); color: white;" id="authStatusBadge">未配置</span>
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-info modern-btn" id="authGuideBtn">
+                            <i class="bi bi-book me-1"></i>获取指南
+                        </button>
+                        <button type="button" class="btn btn-outline-success modern-btn" id="testAuthBtn">
+                            <i class="bi bi-play-circle me-1"></i>测试配置
+                        </button>
+                    </div>
+                </div>
+
+                <!-- YouTube认证配置表单 -->
+                <form id="authConfigForm">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-key me-1 text-primary"></i>PO Token
+                            </label>
+                            <textarea class="form-control modern-input" id="poToken" rows="3"
+                                      placeholder="请输入从YouTube获取的PO Token..."></textarea>
+                            <div class="form-text">用于绕过YouTube访问限制，支持高分辨率视频下载</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">
+                                <i class="bi bi-person-badge me-1 text-success"></i>Visitor Data
+                            </label>
+                            <input type="text" class="form-control modern-input" id="visitorData"
+                                   placeholder="请输入Visitor Data...">
+                            <div class="form-text">用于身份验证，提高下载成功率</div>
+
+                            <label class="form-label fw-bold mt-3">
+                                <i class="bi bi-shield-check me-1 text-info"></i>OAuth2 Token (可选)
+                            </label>
+                            <input type="text" class="form-control modern-input" id="oauth2Token"
+                                   placeholder="请输入OAuth2 Token (可选)...">
+                            <div class="form-text">可进一步提高下载成功率，但不是必需的</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-3 flex-wrap">
+                        <button type="submit" class="btn btn-primary modern-btn">
+                            <i class="bi bi-check-circle me-1"></i>保存配置
+                        </button>
+                        <button type="button" class="btn btn-outline-success modern-btn" id="autoGenerateBtn">
+                            <i class="bi bi-magic me-1"></i>自动获取
+                        </button>
+                        <button type="button" class="btn btn-outline-info modern-btn" id="manualGuideBtn">
+                            <i class="bi bi-book me-1"></i>手动指南
+                        </button>
+                        <button type="button" class="btn btn-outline-danger modern-btn" id="clearAuthBtn">
+                            <i class="bi bi-trash me-1"></i>清除配置
+                        </button>
+                    </div>
+                </form>
+
+                <!-- 认证状态显示 -->
+                <div id="authStatus" class="mt-4">
+                    <h6 class="fw-bold mb-3">配置状态</h6>
+                    <div class="row g-3" id="authStatusCards">
+                        <!-- 动态生成状态卡片 -->
+                    </div>
+
+                    <!-- PO Token详细信息 -->
+                    <div id="poTokenDetails" class="mt-3" style="display: none;">
+                        <div class="card" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="bi bi-info-circle me-2"></i>PO Token 详细信息
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <small class="text-muted">生成时间:</small>
+                                        <div id="poTokenGeneratedTime">-</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted">最后验证:</small>
+                                        <div id="poTokenLastValidated">-</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted">状态:</small>
+                                        <div id="poTokenStatus">
+                                            <span class="badge bg-secondary">未知</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted">来源:</small>
+                                        <div id="poTokenSource">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 💾 现代化已保存的Cookies -->
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="modern-card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bi bi-database me-2 text-primary"></i>已保存的Cookies
+                        <span class="badge rounded-pill ms-2" style="background: var(--gradient-secondary); color: white;" id="cookiesCount">0</span>
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary modern-btn" id="refreshBtn">
+                            <i class="bi bi-arrow-clockwise me-1"></i>刷新
+                        </button>
+                        <button type="button" class="btn btn-outline-warning modern-btn" id="fixBtn">
+                            <i class="bi bi-tools me-1"></i>修复格式
+                        </button>
+                    </div>
+                </div>
+
+                    <!-- 空状态 -->
+                    <div id="emptyState" class="text-center py-5">
+                        <i class="bi bi-cookie display-4 text-muted"></i>
+                        <h6 class="mt-3 text-muted">暂无保存的Cookies</h6>
+                        <p class="text-muted">上传一些Cookies文件来开始使用</p>
+                    </div>
+
+                    <!-- Cookies列表 -->
+                    <div id="cookiesList" class="d-none">
+                        <!-- 动态生成的内容 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+class CookiesApp {
+    constructor() {
+        this.uploadForm = {
+            website: '',
+            customWebsite: '',
+            method: 'file',
+            file: null,
+            content: ''
+        };
+        this.cookies = [];
+        this.showExamples = false;
+        this.authConfig = {
+            po_token: '',
+            visitor_data: '',
+            oauth2_token: ''
+        };
+
+        this.init();
+    }
+
+    init() {
+        this.bindEvents();
+        this.loadCookies();
+        this.loadAuthConfig();
+    }
+
+    bindEvents() {
+        // 表单提交
+        document.getElementById('cookiesForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.uploadCookies();
+        });
+
+        // 网站选择
+        document.getElementById('website').addEventListener('change', (e) => {
+            this.uploadForm.website = e.target.value;
+            this.toggleCustomWebsite(e.target.value === 'custom');
+        });
+
+        // 自定义网站名
+        document.getElementById('customWebsite').addEventListener('input', (e) => {
+            this.uploadForm.customWebsite = e.target.value;
+        });
+
+        // 上传方式切换
+        document.querySelectorAll('input[name="uploadMethod"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                this.uploadForm.method = e.target.value;
+                this.toggleUploadMethod(e.target.value);
+            });
+        });
+
+        // 文件选择
+        document.getElementById('selectFileBtn').addEventListener('click', () => {
+            document.getElementById('cookiesFile').click();
+        });
+
+        document.getElementById('cookiesFile').addEventListener('change', (e) => {
+            this.handleFileSelect(e.target.files[0]);
+        });
+
+        // 清除文件
+        document.getElementById('clearFileBtn').addEventListener('click', () => {
+            this.clearFile();
+        });
+
+        // 文本内容
+        document.getElementById('cookiesContent').addEventListener('input', (e) => {
+            this.uploadForm.content = e.target.value;
+            this.updateCharCount();
+        });
+
+        // 文本操作按钮
+        document.getElementById('clearTextBtn').addEventListener('click', () => {
+            document.getElementById('cookiesContent').value = '';
+            this.uploadForm.content = '';
+            this.updateCharCount();
+        });
+
+        document.getElementById('formatBtn').addEventListener('click', () => {
+            this.formatContent();
+        });
+
+        // 示例切换
+        document.getElementById('toggleExamples').addEventListener('click', () => {
+            this.toggleExamples();
+        });
+
+        // 验证按钮
+        document.getElementById('validateBtn').addEventListener('click', () => {
+            this.validateCookies();
+        });
+
+        // 刷新按钮
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            this.loadCookies();
+        });
+
+        // 修复按钮
+        document.getElementById('fixBtn').addEventListener('click', () => {
+            this.fixCookies();
+        });
+
+        // YouTube认证配置事件
+        document.getElementById('authConfigForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveAuthConfig();
+        });
+
+        document.getElementById('authGuideBtn').addEventListener('click', () => {
+            window.open('/cookies/auth-guide', '_blank');
+        });
+
+        document.getElementById('testAuthBtn').addEventListener('click', () => {
+            this.testAuthConfig();
+        });
+
+        document.getElementById('clearAuthBtn').addEventListener('click', () => {
+            this.clearAuthConfig();
+        });
+
+        document.getElementById('autoGenerateBtn').addEventListener('click', () => {
+            this.autoGeneratePOToken();
+        });
+
+        document.getElementById('manualGuideBtn').addEventListener('click', () => {
+            this.showManualGuide();
+        });
+
+        // 认证配置输入事件
+        ['poToken', 'visitorData', 'oauth2Token'].forEach(id => {
+            document.getElementById(id).addEventListener('input', (e) => {
+                this.authConfig[id.replace(/([A-Z])/g, '_$1').toLowerCase()] = e.target.value;
+            });
+        });
+
+        // 拖拽支持
+        const dropZone = document.getElementById('fileDropZone');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-primary');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-primary');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-primary');
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                this.handleFileSelect(file);
+            }
+        });
+    }
+
+    toggleCustomWebsite(show) {
+        const div = document.getElementById('customWebsiteDiv');
+        div.style.display = show ? 'block' : 'none';
+    }
+
+    toggleUploadMethod(method) {
+        const fileDiv = document.getElementById('fileUploadDiv');
+        const textDiv = document.getElementById('textUploadDiv');
+
+        if (method === 'file') {
+            fileDiv.style.display = 'block';
+            textDiv.style.display = 'none';
+        } else {
+            fileDiv.style.display = 'none';
+            textDiv.style.display = 'block';
+        }
+    }
+
+    handleFileSelect(file) {
+        if (file) {
+            this.uploadForm.file = file;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileDropZone').classList.add('d-none');
+            document.getElementById('fileSelected').classList.remove('d-none');
+        }
+    }
+
+    clearFile() {
+        this.uploadForm.file = null;
+        document.getElementById('cookiesFile').value = '';
+        document.getElementById('fileDropZone').classList.remove('d-none');
+        document.getElementById('fileSelected').classList.add('d-none');
+    }
+
+    updateCharCount() {
+        const count = this.uploadForm.content.length;
+        document.getElementById('charCount').textContent = `${count} 字符`;
+    }
+
+    toggleExamples() {
+        const examples = document.getElementById('formatExamples');
+        const btn = document.getElementById('toggleExamples');
+
+        this.showExamples = !this.showExamples;
+        examples.style.display = this.showExamples ? 'block' : 'none';
+        btn.textContent = this.showExamples ? '隐藏示例' : '查看示例';
+    }
+
+    formatContent() {
+        const content = this.uploadForm.content.trim();
+        if (!content) return;
+
+        try {
+            // 尝试格式化JSON
+            const parsed = JSON.parse(content);
+            document.getElementById('cookiesContent').value = JSON.stringify(parsed, null, 2);
+            this.uploadForm.content = document.getElementById('cookiesContent').value;
+            this.updateCharCount();
+            showNotification('内容已格式化', 'success');
+        } catch (error) {
+            showNotification('无法格式化内容，请检查格式', 'warning');
+        }
+    }
+
+    async validateCookies() {
+        if (!this.hasContent()) {
+            showNotification('请先输入或选择Cookies内容', 'warning');
+            return;
+        }
+
+        try {
+            let content = '';
+
+            if (this.uploadForm.method === 'file' && this.uploadForm.file) {
+                content = await this.readFileContent(this.uploadForm.file);
+            } else {
+                content = this.uploadForm.content;
+            }
+
+            const response = await apiRequest('/cookies/api/validate', {
+                method: 'POST',
+                body: JSON.stringify({ cookies: content })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(
+                        `验证成功！格式: ${data.format}，包含 ${data.count} 个Cookie`,
+                        'success'
+                    );
+                } else {
+                    showNotification(data.error || '验证失败', 'danger');
+                }
+            } else {
+                const data = await response.json();
+                showNotification(data.error || '验证失败', 'danger');
+            }
+        } catch (error) {
+            console.error('验证失败:', error);
+            showNotification('验证过程中发生错误', 'danger');
+        }
+    }
+
+    async readFileContent(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(file);
+        });
+    }
+
+    hasContent() {
+        return this.uploadForm.method === 'file' ?
+               this.uploadForm.file :
+               this.uploadForm.content.trim();
+    }
+
+    canUpload() {
+        const hasWebsite = this.uploadForm.website &&
+                          (this.uploadForm.website !== 'custom' || this.uploadForm.customWebsite);
+        const hasContent = this.hasContent();
+        return hasWebsite && hasContent;
+    }
+
+    async uploadCookies() {
+        if (!this.canUpload()) {
+            showNotification('请完整填写表单', 'warning');
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('website', this.uploadForm.website === 'custom' ?
+                           this.uploadForm.customWebsite : this.uploadForm.website);
+
+            if (this.uploadForm.method === 'file') {
+                formData.append('file', this.uploadForm.file);
+            } else {
+                formData.append('content', this.uploadForm.content);
+            }
+
+            const response = await apiRequest('/cookies/api/upload', {
+                method: 'POST',
+                body: formData,
+                headers: {} // 让浏览器自动设置Content-Type
+            });
+
+            if (response.ok) {
+                showNotification('Cookies上传成功', 'success');
+                this.resetForm();
+                await this.loadCookies();
+            } else {
+                const data = await response.json();
+                showNotification(data.error || 'Cookies上传失败', 'danger');
+            }
+        } catch (error) {
+            console.error('上传失败:', error);
+            showNotification('上传过程中发生错误', 'danger');
+        }
+    }
+
+    resetForm() {
+        this.uploadForm = {
+            website: '',
+            customWebsite: '',
+            method: 'file',
+            file: null,
+            content: ''
+        };
+
+        document.getElementById('cookiesForm').reset();
+        this.clearFile();
+        this.toggleCustomWebsite(false);
+        this.updateCharCount();
+    }
+
+    async loadCookies() {
+        try {
+            const response = await apiRequest('/cookies/api/list');
+            if (response.ok) {
+                const data = await response.json();
+                this.cookies = data.cookies || [];
+                this.renderCookies();
+            }
+        } catch (error) {
+            console.error('加载Cookies失败:', error);
+        }
+    }
+
+    renderCookies() {
+        const emptyState = document.getElementById('emptyState');
+        const cookiesList = document.getElementById('cookiesList');
+        const countBadge = document.getElementById('cookiesCount');
+
+        countBadge.textContent = this.cookies.length;
+
+        if (this.cookies.length === 0) {
+            emptyState.classList.remove('d-none');
+            cookiesList.classList.add('d-none');
+            return;
+        }
+
+        emptyState.classList.add('d-none');
+        cookiesList.classList.remove('d-none');
+
+        cookiesList.innerHTML = this.cookies.map(cookie => `
+            <div class="border rounded p-3 mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3"
+                             style="width: 40px; height: 40px;">
+                            ${cookie.website.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <h6 class="mb-1">${this.getWebsiteName(cookie.website)}</h6>
+                            <small class="text-muted">
+                                ${cookie.count} 个Cookie • 上传于 ${this.formatDate(cookie.created_at)}
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="app.testCookies('${cookie.website}')" title="测试">
+                            <i class="bi bi-check-circle"></i>
+                        </button>
+                        <button class="btn btn-outline-success" onclick="app.downloadCookies('${cookie.website}')" title="导出">
+                            <i class="bi bi-download"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="app.deleteCookies('${cookie.website}')" title="删除">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    getWebsiteName(website) {
+        const names = {
+            'youtube': 'YouTube',
+            'bilibili': 'Bilibili',
+            'twitter': 'Twitter/X',
+            'instagram': 'Instagram',
+            'tiktok': 'TikTok'
+        };
+        return names[website] || website;
+    }
+
+    // 使用服务层的格式化函数
+    formatDate(dateString) {
+        return window.appManager?.services?.download?.formatDate(dateString) || '';
+    }
+
+    async testCookies(website) {
+        try {
+            const response = await apiRequest(`/cookies/api/test/${website}`, {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                showNotification(data.success ? 'Cookies测试成功' : 'Cookies测试失败',
+                               data.success ? 'success' : 'warning');
+            } else {
+                showNotification('测试失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    downloadCookies(website) {
+        window.open(`/cookies/api/download/${website}`, '_blank');
+    }
+
+    async deleteCookies(website) {
+        if (!confirm(`确定要删除 ${this.getWebsiteName(website)} 的Cookies吗？`)) return;
+
+        try {
+            const response = await apiRequest(`/cookies/api/delete/${website}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                showNotification('Cookies删除成功', 'success');
+                await this.loadCookies();
+            } else {
+                showNotification('删除失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    async fixCookies() {
+        if (!confirm('确定要修复所有Cookies格式吗？')) return;
+
+        try {
+            const response = await apiRequest('/cookies/api/fix-cookies', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                showNotification('Cookies格式修复完成', 'success');
+                await this.loadCookies();
+            } else {
+                showNotification('修复失败', 'danger');
+            }
+        } catch (error) {
+            showNotification('网络错误', 'danger');
+        }
+    }
+
+    // YouTube认证配置方法
+    async loadAuthConfig() {
+        try {
+            const response = await apiRequest('/cookies/api/youtube-auth/get');
+            const data = await response.json();
+
+            if (data.success) {
+                // 注意：API返回的是预览数据，需要获取完整数据
+                this.authConfig = {
+                    po_token: data.po_token || '',
+                    visitor_data: data.visitor_data || '',
+                    oauth2_token: data.oauth2_token || ''
+                };
+
+                // 更新表单 - 如果有预览数据，显示预览，否则为空
+                document.getElementById('poToken').value = this.authConfig.po_token;
+                document.getElementById('visitorData').value = this.authConfig.visitor_data;
+                document.getElementById('oauth2Token').value = this.authConfig.oauth2_token;
+
+                // 更新状态
+                this.updateAuthStatus(data);
+            }
+        } catch (error) {
+            console.error('加载认证配置失败:', error);
+        }
+    }
+
+    async saveAuthConfig() {
+        try {
+            const config = {
+                po_token: document.getElementById('poToken').value.trim(),
+                visitor_data: document.getElementById('visitorData').value.trim(),
+                oauth2_token: document.getElementById('oauth2Token').value.trim()
+            };
+
+            const response = await apiRequest('/cookies/api/youtube-auth/save', {
+                method: 'POST',
+                body: JSON.stringify(config)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('YouTube认证配置已保存', 'success');
+                this.authConfig = config;
+                this.updateAuthStatus(data);
+            } else {
+                showNotification('保存失败: ' + data.error, 'danger');
+            }
+        } catch (error) {
+            showNotification('保存失败: ' + error.message, 'danger');
+        }
+    }
+
+    async testAuthConfig() {
+        try {
+            const response = await apiRequest('/cookies/api/youtube-auth/test', {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('认证配置测试完成', 'success');
+                this.showTestResults(data);
+            } else {
+                showNotification('测试失败: ' + data.error, 'danger');
+            }
+        } catch (error) {
+            showNotification('测试失败: ' + error.message, 'danger');
+        }
+    }
+
+    async clearAuthConfig() {
+        if (!confirm('确定要清除YouTube认证配置吗？')) return;
+
+        try {
+            const response = await apiRequest('/cookies/api/youtube-auth/delete', {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification('认证配置已清除', 'success');
+
+                // 清空表单
+                document.getElementById('poToken').value = '';
+                document.getElementById('visitorData').value = '';
+                document.getElementById('oauth2Token').value = '';
+
+                // 重置配置
+                this.authConfig = { po_token: '', visitor_data: '', oauth2_token: '' };
+                this.updateAuthStatus({ po_token_available: false, visitor_data_available: false, oauth2_available: false });
+            } else {
+                showNotification('清除失败: ' + data.error, 'danger');
+            }
+        } catch (error) {
+            showNotification('清除失败: ' + error.message, 'danger');
+        }
+    }
+
+    async autoGeneratePOToken() {
+        try {
+            // 显示加载状态
+            const autoGenerateBtn = document.getElementById('autoGenerateBtn');
+            const originalText = autoGenerateBtn.innerHTML;
+            autoGenerateBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>生成中...';
+            autoGenerateBtn.disabled = true;
+
+            showNotification('正在自动生成PO Token，请稍候...', 'info');
+
+            const response = await apiRequest('/cookies/api/youtube-auth/auto-generate', {
+                method: 'POST',
+                body: JSON.stringify({})
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // 自动填入表单
+                if (data.po_token) {
+                    document.getElementById('poToken').value = data.po_token;
+                    this.authConfig.po_token = data.po_token;
+                }
+                if (data.visitor_data) {
+                    document.getElementById('visitorData').value = data.visitor_data;
+                    this.authConfig.visitor_data = data.visitor_data;
+                }
+
+                // 自动保存配置
+                await this.saveAuthConfig();
+
+                showNotification('PO Token自动生成成功！已自动保存配置', 'success');
+
+                // 刷新状态显示
+                await this.loadAuthConfig();
+            } else {
+                showNotification('自动生成失败: ' + (data.error || '未知错误'), 'danger');
+            }
+
+        } catch (error) {
+            console.error('自动生成错误:', error);
+            showNotification('自动生成失败: ' + error.message, 'danger');
+        } finally {
+            // 恢复按钮状态
+            const autoGenerateBtn = document.getElementById('autoGenerateBtn');
+            autoGenerateBtn.innerHTML = '<i class="bi bi-magic me-1"></i>自动获取';
+            autoGenerateBtn.disabled = false;
+        }
+    }
+
+    async showManualGuide() {
+        try {
+            // 显示加载状态
+            const manualGuideBtn = document.getElementById('manualGuideBtn');
+            const originalText = manualGuideBtn.innerHTML;
+            manualGuideBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>加载中...';
+            manualGuideBtn.disabled = true;
+
+            showNotification('正在获取PO Token手动获取指南...', 'info');
+
+            const response = await apiRequest('/cookies/api/youtube-auth/auto-extract', {
+                method: 'POST',
+                body: JSON.stringify({})
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.guide) {
+                this.showManualGuideModal(data.guide);
+                showNotification('已显示手动获取指南', 'success');
+            } else {
+                showNotification('获取指南失败: ' + (data.error || '未知错误'), 'danger');
+            }
+
+        } catch (error) {
+            console.error('获取指南错误:', error);
+            showNotification('获取指南失败: ' + error.message, 'danger');
+        } finally {
+            // 恢复按钮状态
+            const manualGuideBtn = document.getElementById('manualGuideBtn');
+            manualGuideBtn.innerHTML = '<i class="bi bi-book me-1"></i>手动指南';
+            manualGuideBtn.disabled = false;
+        }
+    }
+
+    async showSetupDialog(method) {
+        // 显示设置对话框的实现
+        const modal = document.createElement('div');
+        modal.className = 'modal fade';
+
+        let setupContent = '';
+        if (method === 'bgutil') {
+            setupContent = `
+                <p>BgUtils Provider是官方推荐的PO Token提供器，有两种安装方式：</p>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">🐳 Docker方式 (推荐)</h6>
+                                <p class="card-text">最简单的安装方式，一键启动：</p>
+                                <code>docker run -d -p 4416:4416 --name bgutil-provider brainicism/bgutil-ytdlp-pot-provider</code>
+                                <div class="mt-2">
+                                    <button class="btn btn-primary btn-sm setup-method-btn" data-method="bgutil" data-type="docker">
+                                        <i class="bi bi-play me-1"></i>使用Docker安装
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">🔧 原生方式</h6>
+                                <p class="card-text">需要Node.js和Yarn环境：</p>
+                                <ol class="small">
+                                    <li>安装Node.js (>=18) 和 Yarn</li>
+                                    <li>克隆仓库并构建</li>
+                                    <li>启动服务器</li>
+                                </ol>
+                                <div class="mt-2">
+                                    <button class="btn btn-outline-primary btn-sm setup-method-btn" data-method="bgutil" data-type="native">
+                                        <i class="bi bi-gear me-1"></i>使用原生安装
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (method === 'selenium') {
+            setupContent = `
+                <p>Selenium需要安装浏览器驱动：</p>
+                <div class="alert alert-info">
+                    <h6>安装步骤：</h6>
+                    <ol>
+                        <li>安装Selenium: <code>pip install selenium</code></li>
+                        <li>下载对应的浏览器驱动</li>
+                        <li>确保驱动在PATH中</li>
+                    </ol>
+                </div>
+                <button class="btn btn-primary setup-method-btn" data-method="selenium" data-type="install">
+                    <i class="bi bi-download me-1"></i>安装Selenium
+                </button>
+            `;
+        }
+
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-content modern-card">
+                    <div class="modal-header">
+                        <h5 class="modal-title">设置 ${method} 方法</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${setupContent}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+
+        modal.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('setup-method-btn')) {
+                const method = e.target.dataset.method;
+                const type = e.target.dataset.type;
+
+                bsModal.hide();
+                await this.executeSetup(method, type);
+            }
+        });
+
+        modal.addEventListener('hidden.bs.modal', () => {
+            document.body.removeChild(modal);
+        });
+    }
+
+    async executeSetup(method, type) {
+        try {
+            showNotification(`正在设置${method}方法...`, 'info');
+
+            const response = await apiRequest('/cookies/api/youtube-auth/setup', {
+                method: 'POST',
+                body: JSON.stringify({
+                    method: method,
+                    method: type  // docker, native, install
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showNotification(`${method}设置成功！`, 'success');
+            } else {
+                showNotification(`${method}设置失败: ${data.error}`, 'danger');
+            }
+        } catch (error) {
+            showNotification(`设置失败: ${error.message}`, 'danger');
+        }
+    }
+
+    showManualGuideModal(guide) {
+        const modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.innerHTML = `
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content modern-card">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-book me-2"></i>${guide.title}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- 自动生成方法 -->
+                        <div class="card border-success mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0">${guide.auto_method.title}</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">${guide.auto_method.description}</p>
+
+                                <h6 class="text-primary">📋 要求：</h6>
+                                <ul class="list-group list-group-flush mb-3">
+                                    ${guide.auto_method.requirements.map(req => `
+                                        <li class="list-group-item">${req}</li>
+                                    `).join('')}
+                                </ul>
+
+                                <h6 class="text-primary">💻 代码示例：</h6>
+                                <pre class="bg-light p-3 rounded"><code>${guide.auto_method.code_example}</code></pre>
+
+                                <h6 class="text-success">✅ 优势：</h6>
+                                <ul class="list-group list-group-flush mb-3">
+                                    ${guide.auto_method.advantages.map(adv => `
+                                        <li class="list-group-item">${adv}</li>
+                                    `).join('')}
+                                </ul>
+
+                                <h6 class="text-warning">⚠️ 限制：</h6>
+                                <ul class="list-group list-group-flush">
+                                    ${guide.auto_method.limitations.map(limit => `
+                                        <li class="list-group-item">${limit}</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Node.js 安装指南 -->
+                        <div class="card border-info mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h6 class="mb-0">${guide.nodejs_install.title}</h6>
+                            </div>
+                            <div class="card-body">
+                                <ol class="list-group list-group-numbered">
+                                    ${guide.nodejs_install.steps.map(step => `
+                                        <li class="list-group-item">${step}</li>
+                                    `).join('')}
+                                </ol>
+                            </div>
+                        </div>
+
+                        <!-- 手动获取方法 -->
+                        <div class="card border-warning mb-4">
+                            <div class="card-header bg-warning text-dark">
+                                <h6 class="mb-0">${guide.manual_method.title}</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">${guide.manual_method.description}</p>
+
+                                <h6 class="text-primary">📋 详细步骤：</h6>
+                                <ol class="list-group list-group-numbered mb-3">
+                                    ${guide.manual_method.steps.map(step => `
+                                        <li class="list-group-item">${step}</li>
+                                    `).join('')}
+                                </ol>
+
+                                <div class="alert alert-warning">
+                                    <h6 class="text-warning">⚠️ 重要注意事项：</h6>
+                                    <ul class="mb-0">
+                                        ${guide.manual_method.important_notes.map(note => `
+                                            <li>${note}</li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 代理环境特别说明 -->
+                        <div class="card border-danger mb-4">
+                            <div class="card-header bg-danger text-white">
+                                <h6 class="mb-0">${guide.proxy_environment.title}</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">${guide.proxy_environment.description}</p>
+
+                                <h6 class="text-danger">❌ 已知问题：</h6>
+                                <ul class="list-group list-group-flush mb-3">
+                                    ${guide.proxy_environment.issues.map(issue => `
+                                        <li class="list-group-item">${issue}</li>
+                                    `).join('')}
+                                </ul>
+
+                                <h6 class="text-success">✅ 解决方案：</h6>
+                                <ul class="list-group list-group-flush mb-3">
+                                    ${guide.proxy_environment.solutions.map(solution => `
+                                        <li class="list-group-item">${solution}</li>
+                                    `).join('')}
+                                </ul>
+
+                                <h6 class="text-primary">📋 推荐工作流程：</h6>
+                                <ol class="list-group list-group-numbered">
+                                    ${guide.proxy_environment.workflow.map(step => `
+                                        <li class="list-group-item">${step}</li>
+                                    `).join('')}
+                                </ol>
+                            </div>
+                        </div>
+
+                        <!-- 通用提示 -->
+                        <div class="alert alert-info">
+                            <h6 class="text-info">💡 通用提示：</h6>
+                            <ul class="mb-0">
+                                ${guide.tips.map(tip => `
+                                    <li>${tip}</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>代理配置：</strong>确保您已在设置页面配置了代理，这样获取的PO Token才能在下载时正常使用。
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                        <button type="button" class="btn btn-info" onclick="window.open('https://nodejs.org/', '_blank')">
+                            <i class="bi bi-download me-1"></i>下载 Node.js
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="window.open('https://www.youtube.com/embed/aqz-KE-bpKQ', '_blank')">
+                            <i class="bi bi-youtube me-1"></i>打开 YouTube Embedded
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+
+        modal.addEventListener('hidden.bs.modal', () => {
+            document.body.removeChild(modal);
+        });
+    }
+
+
+
+    updateAuthStatus(data) {
+        const badge = document.getElementById('authStatusBadge');
+        const statusCards = document.getElementById('authStatusCards');
+
+        const hasPoToken = data.po_token_available;
+        const hasVisitorData = data.visitor_data_available;
+        const hasOAuth2 = data.oauth2_available;
+
+        // 更新状态徽章
+        if (hasPoToken && hasVisitorData) {
+            badge.textContent = '已配置';
+            badge.style.background = 'var(--gradient-success)';
+        } else if (hasPoToken || hasVisitorData) {
+            badge.textContent = '部分配置';
+            badge.style.background = 'var(--gradient-warning)';
+        } else {
+            badge.textContent = '未配置';
+            badge.style.background = 'var(--gradient-danger)';
+        }
+
+        // 更新状态卡片
+        statusCards.innerHTML = `
+            <div class="col-md-4">
+                <div class="card h-100 text-center" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                    <div class="card-body">
+                        <i class="bi bi-key fs-1 ${hasPoToken ? 'text-success' : 'text-muted'}"></i>
+                        <h6 class="card-title mt-2">PO Token</h6>
+                        <p class="card-text">${hasPoToken ? '已配置' : '未配置'}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                    <div class="card-body">
+                        <i class="bi bi-person-badge fs-1 ${hasVisitorData ? 'text-success' : 'text-muted'}"></i>
+                        <h6 class="card-title mt-2">Visitor Data</h6>
+                        <p class="card-text">${hasVisitorData ? '已配置' : '未配置'}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center" style="background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);">
+                    <div class="card-body">
+                        <i class="bi bi-shield-check fs-1 ${hasOAuth2 ? 'text-success' : 'text-muted'}"></i>
+                        <h6 class="card-title mt-2">OAuth2 Token</h6>
+                        <p class="card-text">${hasOAuth2 ? '已配置' : '未配置'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 更新PO Token详细信息
+        this.updatePOTokenDetails(data);
+    }
+
+    updatePOTokenDetails(data) {
+        const detailsContainer = document.getElementById('poTokenDetails');
+
+        if (data.po_token_available || data.visitor_data_available) {
+            // 显示详细信息
+            detailsContainer.style.display = 'block';
+
+            // 更新生成时间
+            const generatedTime = data.generated_time || data.timestamp;
+            if (generatedTime) {
+                const date = new Date(generatedTime * 1000);
+                document.getElementById('poTokenGeneratedTime').textContent = date.toLocaleString();
+            } else {
+                document.getElementById('poTokenGeneratedTime').textContent = '未知';
+            }
+
+            // 更新最后验证时间
+            const lastValidated = data.last_validated;
+            if (lastValidated) {
+                const date = new Date(lastValidated * 1000);
+                document.getElementById('poTokenLastValidated').textContent = date.toLocaleString();
+            } else {
+                document.getElementById('poTokenLastValidated').textContent = '未验证';
+            }
+
+            // 更新状态
+            const statusElement = document.getElementById('poTokenStatus');
+            if (data.po_token_available && data.visitor_data_available) {
+                statusElement.innerHTML = '<span class="badge bg-success">完整配置</span>';
+            } else if (data.po_token_available || data.visitor_data_available) {
+                statusElement.innerHTML = '<span class="badge bg-warning">部分配置</span>';
+            } else {
+                statusElement.innerHTML = '<span class="badge bg-secondary">未配置</span>';
+            }
+
+            // 更新来源
+            const source = data.source || '手动配置';
+            document.getElementById('poTokenSource').textContent = source;
+
+        } else {
+            // 隐藏详细信息
+            detailsContainer.style.display = 'none';
+        }
+    }
+
+    showTestResults(data) {
+        if (data.details) {
+            let message = '测试结果:\n';
+            Object.keys(data.details).forEach(key => {
+                const config = data.details[key];
+                const name = key === 'po_token' ? 'PO Token' :
+                           key === 'visitor_data' ? 'Visitor Data' : 'OAuth2 Token';
+                message += `${name}: ${config.available ? '✓ 已配置' : '✗ 未配置'}\n`;
+            });
+
+            if (data.recommendation && data.recommendation.length > 0) {
+                message += '\n建议:\n' + data.recommendation.join('\n');
+            }
+
+            alert(message);
+        }
+    }
+}
+
+// 初始化应用
+let app;
+document.addEventListener('DOMContentLoaded', () => {
+    app = new CookiesApp();
+});
+</script>
+{% endblock %}
