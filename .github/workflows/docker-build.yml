@@ -17,6 +17,11 @@ on:
         required: true
         default: false
         type: boolean
+      enable_ipv6:
+        description: '是否启用IPv6双栈支持'
+        required: true
+        default: true
+        type: boolean
       push_image:
         description: '是否推送镜像'
         required: true
@@ -30,7 +35,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}${{ inputs.install_warp && '-warp' || '' }}
+  IMAGE_NAME: ${{ github.repository }}${{ inputs.install_warp && '-warp' || '' }}${{ inputs.enable_ipv6 && '-ipv6' || '' }}
 
 jobs:
   build:
@@ -104,6 +109,7 @@ jobs:
 
         build-args: |
           INSTALL_WARP=${{ inputs.install_warp == true && 'true' || 'false' }}
+          ENABLE_IPV6=${{ inputs.enable_ipv6 == true && 'true' || 'false' }}
           GOST_VERSION=${{ steps.get-gost-version.outputs.GOST_VERSION }}
           WARP_VERSION=${{ steps.get-warp-version.outputs.WARP_VERSION || 'none' }}
           BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
@@ -113,9 +119,11 @@ jobs:
       run: |
         echo "🎯 构建平台: ${{ inputs.build_platforms }}"
         echo "🌐 WARP 支持: ${{ inputs.install_warp && '是' || '否' }}"
-        echo "� WARP 原始值: ${{ inputs.install_warp }}"
+        echo "🌐 IPv6 双栈: ${{ inputs.enable_ipv6 && '是' || '否' }}"
+        echo "  WARP 原始值: ${{ inputs.install_warp }}"
         echo "🔧 WARP 构建参数: ${{ inputs.install_warp == true && 'true' || 'false' }}"
-        echo "�📦 镜像标签: ${{ steps.meta.outputs.tags }}"
+        echo "🔧 IPv6 构建参数: ${{ inputs.enable_ipv6 == true && 'true' || 'false' }}"
+        echo " 📦 镜像标签: ${{ steps.meta.outputs.tags }}"
         echo "🚀 推送状态: ${{ inputs.push_image }}"
 
   test:
@@ -172,6 +180,7 @@ jobs:
 
         build-args: |
           INSTALL_WARP=${{ inputs.install_warp == true && 'true' || 'false' }}
+          ENABLE_IPV6=${{ inputs.enable_ipv6 == true && 'true' || 'false' }}
 
     - name: 🌐 创建测试网络
       run: docker network create yt-dlp-test
@@ -192,10 +201,11 @@ jobs:
             --sysctl net.ipv4.conf.all.src_valid_mark=1 \
             --sysctl net.ipv6.conf.all.disable_ipv6=0 \
             --sysctl net.ipv6.conf.all.forwarding=1 \
-            -p 8080:8080 \
+            -p 8090:8090 \
             -e SECRET_KEY=test-secret-key \
             -e DATABASE_URL=sqlite:///data/test.db \
             -e ENABLE_WARP=false \
+            -e ENABLE_IPV6=${{ inputs.enable_ipv6 == true && 'true' || 'false' }} \
             -v /tmp/yt-dlp-test:/app/downloads \
             yt-dlp-web-v2:test
         else
@@ -203,9 +213,10 @@ jobs:
           docker run -d \
             --name yt-dlp-test \
             --network yt-dlp-test \
-            -p 8080:8080 \
+            -p 8090:8090 \
             -e SECRET_KEY=test-secret-key \
             -e DATABASE_URL=sqlite:///data/test.db \
+            -e ENABLE_IPV6=${{ inputs.enable_ipv6 == true && 'true' || 'false' }} \
             -v /tmp/yt-dlp-test:/app/downloads \
             yt-dlp-web-v2:test
         fi
@@ -231,7 +242,7 @@ jobs:
         # 🔍 健康检查
         echo "🔍 执行健康检查..."
         for i in {1..10}; do
-          if curl -f http://localhost:8080/api/health; then
+          if curl -f http://localhost:8090/api/health; then
             echo "✅ 健康检查通过"
             break
           fi
@@ -250,7 +261,7 @@ jobs:
 
         # 测试首页访问
         echo "🏠 测试首页访问..."
-        if curl -f http://localhost:8080/; then
+        if curl -f http://localhost:8090/; then
           echo "✅ 首页访问正常"
         else
           echo "❌ 首页访问失败"
@@ -259,7 +270,7 @@ jobs:
 
         # 测试API接口 (使用无需认证的健康检查端点)
         echo "🔌 测试API接口..."
-        if curl -f http://localhost:8080/api/health; then
+        if curl -f http://localhost:8090/api/health; then
           echo "✅ API接口正常"
         else
           echo "❌ API接口失败"
@@ -268,7 +279,7 @@ jobs:
 
         # 测试静态文件
         echo "📁 测试静态文件服务..."
-        if curl -f http://localhost:8080/static/ || curl -I http://localhost:8080/static/; then
+        if curl -f http://localhost:8090/static/ || curl -I http://localhost:8090/static/; then
           echo "✅ 静态文件服务正常"
         else
           echo "⚠️ 静态文件服务可能有问题（非致命）"
@@ -276,7 +287,7 @@ jobs:
 
         # 测试数据库连接 (通过健康检查端点)
         echo "🗄️ 测试数据库连接..."
-        if curl -s http://localhost:8080/api/health | grep -q "database"; then
+        if curl -s http://localhost:8090/api/health | grep -q "database"; then
           echo "✅ 数据库连接正常"
         else
           echo "⚠️ 数据库连接测试跳过（非致命）"
@@ -329,6 +340,7 @@ jobs:
       run: |
         echo "🎯 构建平台: ${{ inputs.build_platforms }}"
         echo "🌐 WARP 支持: ${{ inputs.install_warp && '是' || '否' }}"
+        echo "🌐 IPv6 双栈: ${{ inputs.enable_ipv6 && '是' || '否' }}"
         echo "🚀 推送状态: ${{ inputs.push_image }}"
         echo "🧪 测试状态: ${{ inputs.run_tests }}"
         echo ""
