@@ -174,13 +174,6 @@ class PyTubeFixDownloader:
             else:
                 return 'ANDROID', reason
 
-            # 本地环境检查nodejs
-            nodejs_available = self._check_nodejs_available()
-            if nodejs_available:
-                return 'WEB', '本地环境+nodejs，支持PO Token'
-            else:
-                return 'ANDROID', '本地环境无nodejs，使用稳定模式'
-
         except Exception as e:
             logger.warning(f"⚠️ 客户端选择失败，使用默认: {e}")
             return 'ANDROID', '默认稳定模式'
@@ -578,16 +571,31 @@ class PyTubeFixDownloader:
             elif quality == 'audio':
                 return yt.streams.get_audio_only()
 
-            # 优先尝试Progressive格式（预合并，更简单）
+            # 对于高分辨率（1080p+），直接降级到Progressive格式以避免网络问题
+            if target_res in ['2160p', '1440p', '1080p']:
+                logger.info(f"🔄 高分辨率{target_res}降级到Progressive格式以提高稳定性")
+                fallback_progressive = self._get_progressive_fallback(yt, target_res)
+                if fallback_progressive:
+                    logger.info(f"✅ 找到Progressive降级流: {fallback_progressive.resolution}")
+                    return fallback_progressive
+
+            # 优先尝试Progressive格式（预合并，更稳定）
             progressive_stream = yt.streams.filter(progressive=True, res=target_res).first()
             if progressive_stream:
                 logger.info(f"✅ 找到Progressive流: {target_res}")
                 return progressive_stream
 
-            # 如果没有Progressive格式，检查是否需要Adaptive格式
+            # 如果没有Progressive格式，尝试稍低分辨率的Progressive格式
+            if target_res in ['720p', '480p', '360p']:
+                fallback_progressive = self._get_progressive_fallback(yt, target_res)
+                if fallback_progressive:
+                    logger.info(f"✅ 找到Progressive降级流: {fallback_progressive.resolution}")
+                    return fallback_progressive
+
+            # 最后才考虑Adaptive格式（网络要求高，容易失败）
             adaptive_video = yt.streams.filter(adaptive=True, type='video', res=target_res).first()
             if adaptive_video:
-                logger.info(f"🔧 找到Adaptive视频流: {target_res}，需要合并音频")
+                logger.warning(f"⚠️ 使用Adaptive视频流: {target_res}，网络要求较高")
                 # 标记这是一个需要合并的流
                 adaptive_video._needs_merge = True
                 return adaptive_video
@@ -603,6 +611,39 @@ class PyTubeFixDownloader:
 
         except Exception as e:
             logger.error(f"❌ 获取质量流失败: {e}")
+            return None
+
+    def _get_progressive_fallback(self, yt, target_res: str):
+        """获取Progressive格式的降级流（优化版，更多降级选项）"""
+        try:
+            # Progressive降级顺序（包含更多选项，优先稳定性）
+            progressive_fallback = {
+                '2160p': ['720p', '480p', '360p'],  # 4K直接降到720p
+                '1440p': ['720p', '480p', '360p'],  # 2K直接降到720p
+                '1080p': ['720p', '480p', '360p'],  # 1080p直接降到720p
+                '720p': ['480p', '360p'],
+                '480p': ['360p'],
+                '360p': []
+            }
+
+            fallback_list = progressive_fallback.get(target_res, ['720p', '480p', '360p'])
+
+            for fallback_res in fallback_list:
+                progressive_stream = yt.streams.filter(progressive=True, res=fallback_res).first()
+                if progressive_stream:
+                    logger.info(f"✅ Progressive降级: {target_res} -> {fallback_res}")
+                    return progressive_stream
+
+            # 如果还是没有找到，尝试获取任何可用的Progressive流
+            any_progressive = yt.streams.filter(progressive=True).order_by('resolution').desc().first()
+            if any_progressive:
+                logger.info(f"✅ 使用最高可用Progressive流: {any_progressive.resolution}")
+                return any_progressive
+
+            return None
+
+        except Exception as e:
+            logger.error(f"❌ Progressive降级失败: {e}")
             return None
 
     def _fallback_stream_selection(self, yt, original_quality: str):
@@ -710,6 +751,42 @@ class PyTubeFixDownloader:
         except Exception as e:
             logger.error(f"❌ Adaptive下载失败: {e}")
             return None
+
+    def _download_stream_with_retry(self, stream, output_dir: str, filename_prefix: str, max_retries: int = 3) -> Optional[str]:
+        """带重试机制的流下载"""
+        import time
+
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"🔄 尝试下载流 (第 {attempt + 1}/{max_retries} 次): {filename_prefix}")
+
+                # 尝试下载
+                result = stream.download(output_path=output_dir, filename_prefix=filename_prefix)
+
+                if result:
+                    logger.info(f"✅ 流下载成功: {filename_prefix}")
+                    return result
+                else:
+                    logger.warning(f"⚠️ 流下载返回空结果: {filename_prefix}")
+
+            except Exception as e:
+                error_msg = str(e)
+                logger.warning(f"⚠️ 流下载失败 (第 {attempt + 1}/{max_retries} 次): {error_msg}")
+
+                # 检查是否是网络相关错误
+                if "Maximum reload attempts" in error_msg or "timeout" in error_msg.lower() or "connection" in error_msg.lower():
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 2  # 递增等待时间
+                        logger.info(f"⏱️ 等待 {wait_time} 秒后重试...")
+                        time.sleep(wait_time)
+                        continue
+
+                # 如果是最后一次尝试或非网络错误，直接抛出
+                if attempt == max_retries - 1:
+                    logger.error(f"❌ 流下载最终失败: {error_msg}")
+                    raise e
+
+        return None
 
     def _merge_video_audio(self, video_path: str, audio_path: str, output_path: str) -> bool:
         """使用FFmpeg合并视频和音频"""
@@ -908,18 +985,18 @@ class PyTubeFixDownloader:
         """更新下载进度"""
         if self._progress_callback:
             try:
-                # 处理除零和边界情况
-                if total <= 0:
-                    progress = 0
-                else:
-                    progress = max(0, min(100, int((current / total) * 100)))
+                # 使用统一的进度处理工具
+                from core.file_utils import ProgressUtils
 
-                self._progress_callback({
-                    'status': 'downloading',
-                    'downloaded_bytes': max(0, current),
-                    'total_bytes': max(0, total),
-                    'progress_percent': progress
-                })
+                # 格式化进度数据
+                progress_data = ProgressUtils.format_progress_data(
+                    max(0, current), max(0, total), 'downloading'
+                )
+
+                # 安全的进度回调
+                ProgressUtils.safe_progress_callback(self._progress_callback, progress_data)
+
+                progress = progress_data['progress_percent']
                 logger.debug(f"📊 PyTubeFix进度: {progress}% ({current}/{total})")
             except Exception as e:
                 logger.debug(f"⚠️ PyTubeFix进度回调失败: {e}")

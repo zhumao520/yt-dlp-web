@@ -6,6 +6,13 @@ set -e
 echo "🚀 启动 YT-DLP Web WARP 版..."
 echo "📋 版本: WARP 版（支持机器人检测规避）"
 
+# 显示IPv6配置状态
+if [ "${ENABLE_IPV6:-true}" = "true" ]; then
+    echo "🌐 网络: IPv4+IPv6双栈支持"
+else
+    echo "🌐 网络: 仅IPv4支持"
+fi
+
 # 环境变量
 ENABLE_WARP=${ENABLE_WARP:-true}
 WARP_PROXY_PORT=${WARP_PROXY_PORT:-1080}

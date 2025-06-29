@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import quote
 from flask import Blueprint, send_file, jsonify, abort
 from core.auth import auth_required
+from core.path_constants import get_default_download_dir
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ def download_file(filename):
         from flask import request
 
         # 获取下载目录
-        download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+        download_dir = Path(get_config('downloader.output_dir', get_default_download_dir()))
         file_path = download_dir / filename
 
         # 增强的安全检查：防止路径遍历攻击
@@ -110,7 +111,7 @@ def stream_file(filename):
         import os
 
         # 获取下载目录
-        download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+        download_dir = Path(get_config('downloader.output_dir', get_default_download_dir()))
         file_path = download_dir / filename
 
         # 增强的安全检查
@@ -208,7 +209,7 @@ def list_files():
     try:
         from core.config import get_config
         
-        download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
+        download_dir = Path(get_config('downloader.output_dir', get_default_download_dir()))
         
         if not download_dir.exists():
             return jsonify({'files': []})
@@ -241,7 +242,7 @@ def delete_file(filename):
     try:
         from core.config import get_config
         
-        download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+        download_dir = Path(get_config('downloader.output_dir', get_default_download_dir()))
         file_path = download_dir / filename
         
         # 增强的安全检查
@@ -529,7 +530,7 @@ def debug_file(filename):
         from core.config import get_config
         import mimetypes
 
-        download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+        download_dir = Path(get_config('downloader.output_dir', get_default_download_dir()))
         file_path = download_dir / filename
 
         if not file_path.exists():

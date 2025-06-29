@@ -253,12 +253,21 @@ class CookiesManager:
         try:
             oauth2_file = self.cookies_dir / 'youtube_oauth2.json'
 
-            # 准备保存数据
+            # 准备保存数据（兼容PyTubeFix和yt-dlp格式）
             oauth2_data = {
+                # 我们的内部格式
                 'oauth2_token': oauth2_token.strip(),
                 'visitor_data': visitor_data.strip(),
                 'po_token': po_token.strip(),
-                'updated_at': self._get_current_timestamp()
+                'updated_at': self._get_current_timestamp(),
+
+                # PyTubeFix兼容格式
+                'visitorData': visitor_data.strip(),   # PyTubeFix期望的格式
+                'poToken': po_token.strip(),            # PyTubeFix期望的格式
+
+                # yt-dlp兼容格式（用于配置文件生成）
+                'yt_dlp_po_token_gvs': f"mweb.gvs+{po_token.strip()}" if po_token.strip() else "",
+                'yt_dlp_visitor_data': visitor_data.strip()
             }
 
             # 写入文件

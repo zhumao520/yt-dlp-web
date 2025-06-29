@@ -101,7 +101,56 @@ class BilibiliPlatform(BasePlatform):
 
         # 返回用斜杠分隔的格式选择器字符串
         return '/'.join(all_selectors)
-    
+
+    def get_enhanced_format_selector(self, quality: str) -> str:
+        """增强的格式选择器 - 遵循yt-dlp最佳实践，提供更多回退选项"""
+        # Bilibili增强格式选择策略：更宽松的选择，确保能下载到内容
+        base_selectors = [
+            'best',  # 最优先：任何最佳格式
+            'worst',  # 最终回退：任何最差格式
+            'best[ext=mp4]',  # MP4格式
+            'best[ext=flv]',  # FLV格式
+            'best[ext=webm]',  # WebM格式
+            'best[protocol=https]',  # HTTPS协议
+            'best[protocol=http]',  # HTTP协议
+            'best[height<=720]+bestaudio/best[height<=720]',  # 合并格式回退
+            'best[height<=480]+bestaudio/best[height<=480]',  # 更低质量合并
+        ]
+
+        if quality == 'high':
+            quality_selectors = [
+                'best[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]',
+                'best[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]',
+                'best[height<=1080]',
+                'best[height<=720]',
+                'best[width<=1920]',
+                'best[width<=1280]',
+            ]
+        elif quality == 'medium':
+            quality_selectors = [
+                'best[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]',
+                'best[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]',
+                'best[height<=720]',
+                'best[height<=480]',
+                'best[width<=1280]',
+                'best[width<=854]',
+            ]
+        elif quality == 'low':
+            quality_selectors = [
+                'best[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]',
+                'best[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]',
+                'best[height<=480]',
+                'best[height<=360]',
+                'best[width<=854]',
+                'best[width<=640]',
+            ]
+        else:
+            quality_selectors = []
+
+        # 组合所有选择器，确保有足够的备选方案
+        all_selectors = quality_selectors + base_selectors
+        return '/'.join(all_selectors)
+
     def get_config(self, url: str, quality: str = 'best') -> Dict[str, Any]:
         """获取 Bilibili 完整配置 - 包含FFmpeg自动合并"""
         config = self.get_base_config()

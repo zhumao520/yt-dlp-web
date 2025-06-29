@@ -30,112 +30,157 @@ class ModernTelegramCommandService:
         return self.notifier
     
     def handle_start_command(self) -> str:
-        """处理/start命令 - 现代化帮助信息"""
-        return """🤖 **YT-DLP Web 机器人**
+        """处理/start命令 - 简洁实用的帮助信息"""
+        # 获取服务器URL
+        server_url = self._get_server_url()
 
-欢迎使用！我可以帮您下载视频并智能发送文件。
+        return f"""🎬 **YT-DLP 下载机器人**
 
-**📥 下载功能：**
-• 发送视频链接即可开始下载
-• 支持 YouTube、Bilibili、Twitter 等平台
-• 自动选择最佳质量和格式
-• 实时进度更新
+👋 **欢迎使用！** 发送视频链接即可开始下载
 
-**🎛️ 交互命令：**
-• `/status` - 查看系统状态
-• `/downloads` - 查看下载列表
-• `/files` - 查看可用文件
-• `/send <序号|文件名>` - 发送指定文件
-• `/delete <序号|文件名>` - 删除指定文件
-• `/cancel <下载ID>` - 取消正在下载的任务
-• `/cleanup` - 清理旧文件
+🌐 **支持平台**
+YouTube • B站 • 抖音 • Twitter 等1000+网站
 
-**🔧 系统特性：**
-• 智能文件发送（自动选择 Bot API 或 Pyrofork）
-• 大文件支持（最大 2GB）
-• 自动回退机制
-• 进度实时更新
+🎛️ **交互命令**
+• /status - 查看系统状态
+• /downloads - 查看下载列表
+• /files - 查看可用文件
+• /send <序号|文件名> - 发送指定文件
+• /delete <序号|文件名> - 删除指定文件
+• /cancel <下载ID> - 取消正在下载的任务
+• /cleanup - 清理旧文件
 
-**💡 使用提示：**
-• 大文件会自动使用 Pyrofork 发送
-• 可以随时取消正在进行的下载
-• 文件会保留一段时间供您下载
+🔗 **相关链接**
+• 📱 Web面板: `{server_url}`
+• 📋 项目地址: https://github.com/zhumao520/yt-dlp-web
 
-开始使用吧！发送一个视频链接试试 🚀"""
+🚀 **开始使用**
+直接发送视频链接，例如：
+`https://www.youtube.com/watch?v=dQw4w9WgXcQ`"""
 
     def handle_status_command(self) -> str:
-        """处理/status命令 - 显示系统状态"""
+        """处理/status命令 - 显示VPS系统状态和应用状态"""
         try:
-            notifier = self.get_notifier()
-            status = notifier.get_status()
+            # 获取VPS系统状态
+            vps_status = self._get_vps_status()
+
+            # 获取应用状态
+            app_status = self._get_app_status()
+
+            # 获取文件统计
+            files_info = self._get_files_info()
+
+            # 构建状态消息
+            status_msg = f"""🖥️ **VPS系统状态**
+💻 **CPU**: {vps_status['cpu']:.1f}% | 🧠 **内存**: {vps_status['memory']:.1f}% ({vps_status['memory_used']:.1f}/{vps_status['memory_total']:.1f}GB)
+💾 **磁盘**: {vps_status['disk']:.1f}% ({vps_status['disk_used']:.1f}/{vps_status['disk_total']:.1f}GB) | ⏰ **运行**: {vps_status['uptime']}
+
+🤖 **Telegram模块**: ✅ 正常运行
+📥 **下载管理器**: ✅ 正常运行
+
+📁 **下载统计**
+• 文件数量: {files_info['count']}个 | 占用空间: {files_info['total_size_gb']:.2f}GB
+• 活跃下载: {app_status['active_downloads']}个任务
+
+🕐 **更新时间**: {time.strftime('%Y-%m-%d %H:%M:%S')}"""
             
+            return status_msg
+
+        except Exception as e:
+            logger.error(f"❌ 获取状态失败: {e}")
+            return f"❌ **状态获取失败**\n\n错误: {str(e)}"
+
+    def _get_vps_status(self) -> Dict[str, Any]:
+        """获取VPS系统状态"""
+        try:
+            import psutil
+
+            # CPU使用率
+            cpu_percent = psutil.cpu_percent(interval=1)
+
+            # 内存信息
+            memory = psutil.virtual_memory()
+            memory_used_gb = memory.used / (1024**3)
+            memory_total_gb = memory.total / (1024**3)
+
+            # 磁盘信息
+            disk = psutil.disk_usage('/')
+            disk_used_gb = disk.used / (1024**3)
+            disk_total_gb = disk.total / (1024**3)
+
+            # 系统运行时间
+            try:
+                boot_time = psutil.boot_time()
+                uptime_seconds = time.time() - boot_time
+                uptime_days = int(uptime_seconds // 86400)
+                uptime_hours = int((uptime_seconds % 86400) // 3600)
+                uptime_str = f"{uptime_days}天{uptime_hours}小时"
+            except:
+                uptime_str = "未知"
+
+            return {
+                'cpu': cpu_percent,
+                'memory': memory.percent,
+                'memory_used': memory_used_gb,
+                'memory_total': memory_total_gb,
+                'disk': disk.percent,
+                'disk_used': disk_used_gb,
+                'disk_total': disk_total_gb,
+                'uptime': uptime_str
+            }
+
+        except ImportError:
+            # psutil未安装时的回退
+            return {
+                'cpu': 0.0,
+                'memory': 0.0,
+                'memory_used': 0.0,
+                'memory_total': 0.0,
+                'disk': 0.0,
+                'disk_used': 0.0,
+                'disk_total': 0.0,
+                'uptime': '未知（需要psutil）'
+            }
+        except Exception as e:
+            logger.error(f"获取VPS状态失败: {e}")
+            return {
+                'cpu': 0.0,
+                'memory': 0.0,
+                'memory_used': 0.0,
+                'memory_total': 0.0,
+                'disk': 0.0,
+                'disk_used': 0.0,
+                'disk_total': 0.0,
+                'uptime': f'错误: {e}'
+            }
+
+    def _get_app_status(self) -> Dict[str, Any]:
+        """获取应用状态"""
+        try:
             # 获取下载管理器状态
             from modules.downloader.manager import get_download_manager
             download_manager = get_download_manager()
 
-            # 兼容性处理 - 适配不同的 API
+            # 获取活跃下载数量
             try:
                 if hasattr(download_manager, 'get_active_downloads'):
                     active_downloads = download_manager.get_active_downloads()
                 else:
-                    # 回退到获取所有下载并过滤活跃的
                     all_downloads = download_manager.get_all_downloads()
                     active_downloads = [d for d in all_downloads if d.get('status') in ['pending', 'downloading']]
             except Exception as e:
                 logger.warning(f"获取活跃下载失败: {e}")
                 active_downloads = []
-            
-            # 获取文件统计
-            files_info = self._get_files_info()
-            
-            # 构建状态消息
-            status_msg = f"""📊 **系统状态报告**
 
-**🤖 Telegram 模块:**
-• 状态: {status['status']}
-• 实现: {status['implementation']}
-• 活跃下载: {status.get('active_downloads', 0)} 个
+            return {
+                'active_downloads': len(active_downloads)
+            }
 
-**📥 下载管理器:**
-• 活跃任务: {len(active_downloads)} 个
-• 队列状态: {'正常' if len(active_downloads) < 5 else '繁忙'}
-
-**📁 文件管理:**
-• 可用文件: {files_info['count']} 个
-• 总大小: {files_info['total_size_mb']:.1f} MB
-• 最新文件: {files_info['latest_file']}
-
-**⚙️ 上传器状态:**"""
-
-            # 添加上传器状态
-            uploaders = status.get('uploaders', {})
-            if uploaders.get('bot_api_available'):
-                status_msg += "\n• Bot API: ✅ 可用"
-            else:
-                status_msg += "\n• Bot API: ❌ 不可用"
-                
-            if uploaders.get('pyrofork_available'):
-                status_msg += "\n• Pyrofork: ✅ 可用"
-            else:
-                status_msg += "\n• Pyrofork: ⚠️ 不可用（影响大文件发送）"
-            
-            # 添加配置信息
-            config = status.get('config', {})
-            status_msg += f"""
-
-**🔧 配置状态:**
-• Bot Token: {'✅' if config.get('bot_token_configured') else '❌'}
-• Chat ID: {'✅' if config.get('chat_id_configured') else '❌'}
-• API 凭据: {'✅' if config.get('api_credentials_configured') else '⚠️ 未配置（影响大文件）'}
-• 自动回退: {'✅' if config.get('auto_fallback') else '❌'}
-
-🕐 **更新时间**: {time.strftime('%Y-%m-%d %H:%M:%S')}"""
-            
-            return status_msg
-            
         except Exception as e:
-            logger.error(f"❌ 获取状态失败: {e}")
-            return f"❌ **状态获取失败**\n\n错误: {str(e)}"
+            logger.error(f"获取应用状态失败: {e}")
+            return {
+                'active_downloads': 0
+            }
 
     def handle_downloads_command(self) -> str:
         """处理/downloads命令 - 显示下载列表"""
@@ -398,7 +443,7 @@ class ModernTelegramCommandService:
         try:
             downloads_dir = Path("downloads")
             if not downloads_dir.exists():
-                return {'count': 0, 'total_size_mb': 0, 'latest_file': '无', 'files': []}
+                return {'count': 0, 'total_size_mb': 0, 'total_size_gb': 0, 'latest_file': '无', 'files': []}
             
             files = []
             total_size = 0
@@ -430,16 +475,36 @@ class ModernTelegramCommandService:
             return {
                 'count': len(files),
                 'total_size_mb': total_size,
+                'total_size_gb': total_size / 1024,  # 添加GB单位
                 'latest_file': latest_file,
                 'files': files
             }
             
         except Exception as e:
             logger.error(f"❌ 获取文件信息失败: {e}")
-            return {'count': 0, 'total_size_mb': 0, 'latest_file': '错误', 'files': []}
+            return {'count': 0, 'total_size_mb': 0, 'total_size_gb': 0, 'latest_file': '错误', 'files': []}
 
     def _generate_mini_progress_bar(self, progress: int, length: int = 10) -> str:
         """生成迷你进度条"""
         filled = int(length * progress / 100)
         bar = '█' * filled + '░' * (length - filled)
         return f"[{bar}]"
+
+    def _get_server_url(self) -> str:
+        """获取服务器Web面板URL"""
+        import os
+
+        # 优先使用环境变量
+        server_url = os.getenv('SERVER_URL', '')
+
+        if not server_url or server_url == 'http://localhost:8090':
+            try:
+                # 尝试从Flask请求中获取
+                from flask import request
+                if request:
+                    server_url = request.url_root.rstrip('/')
+            except:
+                # 如果Flask不可用，使用默认值
+                server_url = 'http://localhost:8090'
+
+        return server_url

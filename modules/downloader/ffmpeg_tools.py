@@ -64,8 +64,10 @@ class FFmpegTools:
         try:
             result = subprocess.run(
                 [ffmpeg_path, '-version'],
-                capture_output=True, 
-                text=True, 
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='ignore',
                 timeout=5
             )
             
@@ -197,6 +199,8 @@ class FFmpegTools:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
+                errors='ignore',
                 timeout=timeout
             )
             
@@ -506,3 +510,24 @@ class FFmpegTools:
             'system': self._system_type,
             'executable': self.get_ffmpeg_executable()
         }
+
+
+# 全局实例和便捷函数
+_ffmpeg_tools = None
+
+def get_ffmpeg_tools() -> FFmpegTools:
+    """获取FFmpeg工具实例"""
+    global _ffmpeg_tools
+    if _ffmpeg_tools is None:
+        _ffmpeg_tools = FFmpegTools()
+    return _ffmpeg_tools
+
+def get_ffmpeg_path() -> Optional[str]:
+    """获取FFmpeg路径的便捷函数"""
+    tools = get_ffmpeg_tools()
+    return tools.get_ffmpeg_path()
+
+def get_ffmpeg_executable() -> str:
+    """获取FFmpeg可执行文件的便捷函数"""
+    tools = get_ffmpeg_tools()
+    return tools.get_ffmpeg_executable()

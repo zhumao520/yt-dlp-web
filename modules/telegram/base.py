@@ -175,7 +175,7 @@ class BaseUploader(ABC):
                 '-show_streams', '-show_format', file_path
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=30)
             if result.returncode == 0:
                 data = json.loads(result.stdout)
                 
@@ -233,7 +233,7 @@ class BaseUploader(ABC):
                 str(thumb_path), '-y'
             ]
             
-            result = subprocess.run(cmd, capture_output=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=30)
             if result.returncode == 0 and thumb_path.exists():
                 return str(thumb_path)
             

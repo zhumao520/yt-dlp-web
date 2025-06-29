@@ -50,7 +50,7 @@ class UnifiedTelegramNotifier:
                         'api_id': db_config.get('api_id'),
                         'api_hash': db_config.get('api_hash'),
                         'auto_fallback': True,  # 默认启用
-                        'prefer_pyrofork': True,  # 默认优先使用 Pyrofork
+                        'prefer_pyrofork': False,  # 默认优先使用 Bot API（更稳定）
                         'use_modern': True  # 默认使用现代化实现
                     }
                     logger.info("✅ 从数据库加载 Telegram 配置成功")
@@ -70,7 +70,7 @@ class UnifiedTelegramNotifier:
                     'api_id': get_config('telegram.api_id'),
                     'api_hash': get_config('telegram.api_hash'),
                     'auto_fallback': get_config('telegram.auto_fallback', True),
-                    'prefer_pyrofork': get_config('telegram.prefer_pyrofork', True),
+                    'prefer_pyrofork': get_config('telegram.prefer_pyrofork', False),  # 默认优先Bot API
                     'use_modern': get_config('telegram.use_modern', True)
                 }
                 logger.info("✅ 从环境变量/配置文件加载 Telegram 配置")
@@ -425,8 +425,9 @@ def get_telegram_notifier() -> UnifiedTelegramNotifier:
     return _unified_notifier_instance
 
 
-# 为了兼容性，提供旧的函数名
+# 为了兼容性，提供旧的函数名和类名
 get_modern_telegram_notifier = get_telegram_notifier
+TelegramNotifier = UnifiedTelegramNotifier  # 兼容性别名
 
 
 # ==================== 现代化事件监听器 ====================
@@ -457,26 +458,22 @@ def handle_download_started(data):
             logger.debug(f"📡 Telegram 未启用，跳过下载开始事件: {download_id}")
             return
 
-        # 获取下载信息
-        from modules.downloader.manager import get_download_manager
-        download_manager = get_download_manager()
-
-        # 安全地处理下载信息和选项
-        title = 'Unknown'
+        # 智能获取标题 - 优先使用事件数据，回退到自定义文件名或默认值
+        title = data.get('title')  # 可能是自定义文件名或None
         source = 'web'
 
-        # 安全地获取选项
+        # 安全地处理选项
         if options and isinstance(options, dict):
             source = options.get('source', 'web')
 
-        # 安全地获取下载信息
-        try:
-            download_info = download_manager.get_download(download_id)
-            if download_info and isinstance(download_info, dict):
-                title = download_info.get('title', 'Unknown')
-        except Exception as e:
-            logger.debug(f"⚠️ 获取下载信息失败: {e}")
-            # 使用默认值继续处理
+            # 如果事件中没有标题，尝试从选项中获取自定义文件名
+            if not title and options.get('custom_filename'):
+                title = options['custom_filename']
+                logger.debug(f"📝 从选项中获取自定义文件名作为标题: {title}")
+
+        # 最后的默认值
+        if not title:
+            title = 'Unknown'
 
         # 创建跟踪记录
         with notifier._lock:
@@ -503,14 +500,18 @@ def handle_download_started(data):
 
 @on(Events.DOWNLOAD_PROGRESS)
 def handle_download_progress(data):
-    """处理下载进度事件 - 暂时禁用以减少日志噪音"""
+    """处理下载进度事件"""
     # 检查数据有效性
     if not data or not isinstance(data, dict):
         logger.debug(f"📡 收到无效的下载进度事件数据: {data}")
         return
 
-    # 暂时禁用进度通知，专注于m3u8下载功能
-    return
+    # 进度事件已重新启用，支持Web界面实时进度显示
+    download_id = data.get('download_id')
+    progress = data.get('progress', 0)
+    status = data.get('status', 'downloading')
+
+    logger.debug(f"📊 下载进度更新: {download_id} - {progress}% ({status})")
 
 
 @on(Events.DOWNLOAD_COMPLETED)
@@ -568,8 +569,14 @@ def handle_download_completed(data):
                 if success:
                     logger.info(f"✅ 文件自动发送成功: {title}")
                 else:
-                    # 发送失败，提供详细的帮助信息
+                    # 发送失败，提供Web下载链接
                     file_size_mb = Path(file_path).stat().st_size / (1024 * 1024) if Path(file_path).exists() else 0
+                    filename = Path(file_path).name
+
+                    # 获取Web面板URL
+                    web_url = self._get_web_panel_url()
+                    # 使用无需认证的API路径，避免登录重定向
+                    download_url = f"{web_url}/api/shortcuts/file/{filename}"
 
                     if file_size_mb > 50:
                         # 大文件特殊处理
@@ -577,21 +584,28 @@ def handle_download_completed(data):
 
 ❌ **文件发送失败** (文件过大: {file_size_mb:.1f}MB)
 
-🔧 **解决方案**:
+📥 **直接下载链接**:
+`{download_url}`
+
+🔧 **其他解决方案**:
 1. **配置 Pyrofork**: 支持最大 2GB 文件
    • 获取 API 凭据: https://my.telegram.org
    • 在网页管理界面配置 API ID 和 API Hash
 
 2. **使用文件管理**:
    • 发送 `/files` 查看所有文件
-   • 发送 `/send 文件名` 尝试发送
-
-3. **下载选择**:
-   • 下次选择较低质量以减小文件大小
+   • 发送 `/send {filename}` 尝试发送
 
 💡 **当前限制**: Bot API 最大 50MB，Client API 最大 2GB"""
                     else:
-                        help_message = f"{caption}\n\n⚠️ 文件发送失败，请使用 `/files` 查看"
+                        help_message = f"""{caption}
+
+❌ **文件发送失败**
+
+📥 **直接下载链接**:
+`{download_url}`
+
+💡 **提示**: 点击链接直接下载文件到您的设备"""
 
                     notifier.send_message(help_message)
             finally:
@@ -608,6 +622,26 @@ def handle_download_completed(data):
 
     except Exception as e:
         logger.error(f"❌ 处理下载完成事件失败: {e}")
+
+
+def _get_web_panel_url() -> str:
+    """获取Web面板URL"""
+    import os
+
+    # 优先使用环境变量
+    web_url = os.getenv('SERVER_URL', '')
+
+    if not web_url or web_url == 'http://localhost:8090':
+        try:
+            # 尝试从Flask请求中获取
+            from flask import request
+            if request:
+                web_url = request.url_root.rstrip('/')
+        except:
+            # 如果Flask不可用，使用默认值
+            web_url = 'http://localhost:8090'
+
+    return web_url
 
 
 @on(Events.DOWNLOAD_FAILED)
@@ -637,14 +671,19 @@ def handle_download_failed(data):
 
         logger.info(f"📡 收到下载失败事件: {url}")
 
-        # 发送详细的失败通知
-        message = f"""❌ **下载失败**
+        # 发送详细的失败通知 - 安全的消息格式
+        # 清理标题和URL中的特殊字符
+        safe_title = str(title)[:50].replace('*', '').replace('_', '').replace('[', '').replace(']', '')
+        safe_url = str(url)[:50].replace('*', '').replace('_', '').replace('[', '').replace(']', '')
+        safe_error = str(error)[:100].replace('*', '').replace('_', '').replace('[', '').replace(']', '')
 
-📹 **标题**: {title[:50]}
-🔗 **链接**: {url[:50]}...
-🔍 **错误**: {error[:100]}
+        message = f"""❌ 下载失败
 
-💡 **建议**:
+📹 标题: {safe_title}
+🔗 链接: {safe_url}...
+🔍 错误: {safe_error}
+
+💡 建议:
 • 检查链接是否有效
 • 稍后重试
 • 联系管理员"""

@@ -26,6 +26,73 @@ from .video_extractor import VideoExtractor
 logger = logging.getLogger(__name__)
 
 
+# 常量定义
+class DownloadConstants:
+    """下载相关常量"""
+
+    # YouTube 域名列表
+    YOUTUBE_DOMAINS = [
+        'youtube.com',
+        'youtu.be',
+        'www.youtube.com',
+        'm.youtube.com',
+        'music.youtube.com',
+        'youtube-nocookie.com'
+    ]
+
+    # 进度日志间隔（百分比）
+    PROGRESS_LOG_INTERVAL = 10
+
+    # 默认重试次数
+    DEFAULT_RETRIES = 5
+    DEFAULT_FRAGMENT_RETRIES = 10
+
+
+class ImportHelper:
+    """统一的导入助手，消除重复的导入逻辑"""
+
+    @staticmethod
+    def safe_import(module_paths: List[str], fallback_func=None):
+        """安全导入模块，支持多个路径尝试"""
+        for module_path in module_paths:
+            try:
+                parts = module_path.split('.')
+                module = __import__(module_path, fromlist=[parts[-1]])
+                return getattr(module, parts[-1])
+            except ImportError:
+                continue
+
+        if fallback_func:
+            return fallback_func
+
+        raise ImportError(f"无法导入任何模块: {module_paths}")
+
+    @staticmethod
+    def get_config():
+        """获取配置函数"""
+        def fallback_get_config(key, default=None):
+            return os.getenv(key.upper().replace('.', '_'), default)
+
+        return ImportHelper.safe_import([
+            'core.config.get_config',
+            'app.core.config.get_config'
+        ], fallback_get_config)
+
+    @staticmethod
+    def get_database():
+        """获取数据库函数"""
+        try:
+            from core.database import get_database
+            return get_database
+        except ImportError:
+            try:
+                from app.core.database import get_database
+                return get_database
+            except ImportError:
+                logger.error("❌ 无法导入数据库模块")
+                return None
+
+
 class DownloadManagerV2:
     """下载管理器 V2 - 模块化版本"""
     
@@ -33,7 +100,17 @@ class DownloadManagerV2:
         self.downloads: Dict[str, Dict[str, Any]] = {}
         self.lock = threading.RLock()
         self.executor = None
-        
+
+        # 性能统计
+        self.stats = {
+            'total_downloads': 0,
+            'successful_downloads': 0,
+            'failed_downloads': 0,
+            'cancelled_downloads': 0,
+            'total_bytes_downloaded': 0,
+            'start_time': datetime.now()
+        }
+
         # 初始化模块化组件
         self._initialize_components()
         self._initialize()
@@ -56,21 +133,13 @@ class DownloadManagerV2:
     def _initialize(self):
         """初始化下载管理器"""
         try:
-            # 灵活的配置导入
-            try:
-                from core.config import get_config
-            except ImportError:
-                try:
-                    from app.core.config import get_config
-                except ImportError:
-                    def get_config(key, default=None):
-                        logger.warning(f"⚠️ 无法导入配置模块，使用默认值: {key} = {default}")
-                        return default
+            # 使用统一的配置导入
+            get_config = ImportHelper.get_config()
 
-            # 获取配置
-            max_concurrent = get_config('downloader.max_concurrent', 3)
-            self.output_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
-            self.temp_dir = Path(get_config('downloader.temp_dir', '/app/temp'))
+            # 获取并验证配置
+            max_concurrent = self._validate_config_int(get_config('downloader.max_concurrent', 3), 'max_concurrent', 1, 10)
+            self.output_dir = self._validate_config_path(get_config('downloader.output_dir', 'data/downloads'), 'output_dir')
+            self.temp_dir = self._validate_config_path(get_config('downloader.temp_dir', 'data/temp'), 'temp_dir')
 
             # 创建目录
             self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -97,17 +166,13 @@ class DownloadManagerV2:
     def _cleanup_orphaned_downloads(self):
         """清理遗留的下载任务"""
         try:
-            # 灵活的数据库导入
+            # 使用统一的数据库导入
             try:
-                from core.database import get_database
+                get_database = ImportHelper.get_database()
+                db = get_database()
             except ImportError:
-                try:
-                    from app.core.database import get_database
-                except ImportError:
-                    logger.warning("⚠️ 无法导入数据库模块，跳过清理遗留任务")
-                    return
-            
-            db = get_database()
+                logger.warning("⚠️ 无法导入数据库模块，跳过清理遗留任务")
+                return
             orphaned_downloads = db.execute_query('''
                 SELECT id, url FROM downloads
                 WHERE status IN ('pending', 'downloading')
@@ -165,12 +230,18 @@ class DownloadManagerV2:
                     return existing_download['id']
 
             # 创建下载记录
+            # 如果有自定义文件名，优先使用作为显示标题
+            initial_title = None
+            if options and options.get('custom_filename'):
+                initial_title = options['custom_filename']
+                logger.info(f"🎯 使用自定义文件名作为初始标题: {initial_title}")
+
             download_info = {
                 'id': download_id,
                 'url': url,
                 'status': 'pending',
                 'progress': 0,
-                'title': None,
+                'title': initial_title,
                 'file_path': None,
                 'file_size': None,
                 'error_message': None,
@@ -186,10 +257,14 @@ class DownloadManagerV2:
             # 保存到数据库
             self._save_to_database(download_id, url)
 
+            # 更新统计
+            self._update_stats('download_started')
+
             # 发送事件
             self._emit_event('DOWNLOAD_STARTED', {
                 'download_id': download_id,
                 'url': url,
+                'title': initial_title,
                 'options': options
             })
 
@@ -242,7 +317,7 @@ class DownloadManagerV2:
                         return download_info
 
             # 2. 检查是否有部分下载的文件
-            url_hash_files = list(self.output_dir.glob(f"{url_hash}.*"))
+            url_hash_files = self._find_partial_files(url_hash)
             if url_hash_files:
                 logger.info(f"🔍 找到部分下载文件: {[f.name for f in url_hash_files]}")
                 # 创建一个虚拟的下载信息用于续传
@@ -255,7 +330,7 @@ class DownloadManagerV2:
 
             # 3. 检查数据库中的失败任务（如果可用）
             try:
-                from core.database import get_database
+                get_database = ImportHelper.get_database()
                 db = get_database()
                 if db:
                     cursor = db.execute(
@@ -371,7 +446,7 @@ class DownloadManagerV2:
     def _load_from_database(self) -> List[Dict[str, Any]]:
         """从数据库加载历史下载记录"""
         try:
-            from core.database import get_database
+            get_database = ImportHelper.get_database()
             db = get_database()
 
             # 获取数据库中的下载记录
@@ -436,10 +511,20 @@ class DownloadManagerV2:
                 self._handle_download_failure(download_id, error_msg)
                 return
 
-            # 更新标题
+            # 更新标题 - 优先保留自定义文件名
             title = video_info.get('title', 'Unknown')
             with self.lock:
-                self.downloads[download_id]['title'] = title
+                current_title = self.downloads[download_id].get('title')
+                # 如果已经有自定义标题（来自自定义文件名），不要覆盖它
+                if not current_title:
+                    self.downloads[download_id]['title'] = title
+                    logger.info(f"📝 设置视频标题: {title}")
+                else:
+                    logger.info(f"📝 保留自定义标题: {current_title} (原始标题: {title})")
+                    title = current_title  # 使用自定义标题作为后续处理的标题
+
+            # 检测并记录文件大小信息（仅提供信息，不限制下载）
+            self._detect_and_log_file_size(video_info, title)
 
             # 最后一次检查是否已被取消
             if self._is_cancelled(download_id):
@@ -468,12 +553,56 @@ class DownloadManagerV2:
                         file_path = final_path
                         logger.info(f"✅ 智能文件名应用成功: {Path(file_path).name}")
 
-                # 确保文件存在并获取最终信息
+                        # 更新显示标题为自定义文件名（如果使用了自定义文件名）
+                        if options.get('custom_filename'):
+                            display_title = options['custom_filename']
+                            with self.lock:
+                                if download_id in self.downloads:
+                                    self.downloads[download_id]['title'] = display_title
+                            logger.info(f"✅ 更新显示标题为自定义文件名: {display_title}")
+
+                            # 发送标题更新事件给前端
+                            self._emit_event('DOWNLOAD_TITLE_UPDATED', {
+                                'download_id': download_id,
+                                'title': display_title
+                            })
+                    else:
+                        # 如果智能重命名失败，记录警告但继续使用当前路径
+                        logger.warning(f"⚠️ 智能文件名应用失败，保持原文件名: {Path(file_path).name}")
+
+                # 确保文件存在并获取最终信息（延迟检查以避免文件系统延迟）
                 final_file_path = Path(file_path)
-                if not final_file_path.exists():
-                    logger.error(f"❌ 最终文件不存在: {file_path}")
-                    self._handle_download_failure(download_id, '最终文件不存在')
-                    return
+
+                # 简化的延迟检查机制：给文件系统一些时间完成操作
+                max_check_attempts = 3  # 减少到3次
+                check_delay = 0.5  # 固定0.5秒延迟
+
+                for attempt in range(max_check_attempts):
+                    # 每次检查前都先等待，给重命名操作时间完成
+                    if attempt == 0:
+                        logger.info(f"🔍 等待{check_delay}秒后开始文件检查...")
+                    else:
+                        logger.info(f"🔍 文件检查第{attempt}次未找到，等待{check_delay}秒后重试...")
+
+                    time.sleep(check_delay)
+
+                    if final_file_path.exists():
+                        if attempt == 0:
+                            logger.info(f"✅ 文件检查成功")
+                        else:
+                            logger.info(f"✅ 文件检查成功，第{attempt + 1}次尝试后找到文件")
+                        break
+
+                    # 如果是最后一次尝试失败
+                    if attempt == max_check_attempts - 1:
+                        # 最后一次尝试失败，记录详细信息
+                        logger.error(f"❌ 最终文件不存在: {file_path}")
+                        logger.error(f"❌ 检查路径: {final_file_path.absolute()}")
+                        logger.error(f"❌ 父目录存在: {final_file_path.parent.exists()}")
+                        if final_file_path.parent.exists():
+                            logger.error(f"❌ 父目录内容: {list(final_file_path.parent.glob('*'))}")
+                        self._handle_download_failure(download_id, '最终文件不存在')
+                        return
 
                 file_size = final_file_path.stat().st_size
                 logger.info(f"📁 最终文件: {final_file_path.name} ({file_size / (1024*1024):.1f}MB)")
@@ -504,6 +633,102 @@ class DownloadManagerV2:
         except Exception as e:
             logger.error(f"❌ 检查取消状态失败: {e}")
             return False
+
+    def _detect_and_log_file_size(self, video_info: Dict[str, Any], title: str):
+        """检测并记录文件大小信息（仅提供信息，不限制下载）"""
+        try:
+            # 尝试获取文件大小信息
+            filesize = video_info.get('filesize')
+            filesize_approx = video_info.get('filesize_approx')
+            duration = video_info.get('duration')
+
+            # 确定最佳的大小估算
+            estimated_size = None
+            size_source = "未知"
+
+            if filesize and filesize > 0:
+                estimated_size = filesize
+                size_source = "精确"
+            elif filesize_approx and filesize_approx > 0:
+                estimated_size = filesize_approx
+                size_source = "估算"
+
+            if estimated_size:
+                # 使用统一的文件大小格式化工具
+                try:
+                    from core.file_utils import FileUtils
+                    size_str = FileUtils.format_file_size(estimated_size)
+                except ImportError:
+                    # 备用格式化方案
+                    size_mb = estimated_size / (1024 * 1024)
+                    size_gb = size_mb / 1024
+                    if size_gb >= 1:
+                        size_str = f"{size_gb:.2f} GB"
+                    else:
+                        size_str = f"{size_mb:.1f} MB"
+
+                # 记录文件大小信息
+                logger.info(f"📊 文件大小检测: {title}")
+                logger.info(f"   📏 预估大小: {size_str} ({size_source})")
+
+                # 提供下载时间估算（基于常见网速）
+                if duration:
+                    duration_str = f"{duration // 60}:{duration % 60:02d}"
+                    logger.info(f"   ⏱️ 视频时长: {duration_str}")
+
+                # 根据文件大小提供友好提示
+                size_mb = estimated_size / (1024 * 1024)
+                if size_mb >= 5120:  # 5GB
+                    logger.warning(f"⚠️ 大文件提醒: 文件较大 ({size_str})，请确保有足够的存储空间和网络带宽")
+                elif size_mb >= 2048:  # 2GB
+                    logger.info(f"ℹ️ 文件提醒: 中等大小文件 ({size_str})，预计需要一些时间下载")
+                elif size_mb >= 100:
+                    logger.info(f"ℹ️ 文件提醒: 标准大小文件 ({size_str})")
+
+                # 检查可用磁盘空间
+                self._check_available_disk_space(estimated_size, size_str)
+
+            else:
+                logger.info(f"📊 文件大小检测: {title}")
+                logger.info(f"   📏 预估大小: 无法获取大小信息")
+                if duration:
+                    duration_str = f"{duration // 60}:{duration % 60:02d}"
+                    logger.info(f"   ⏱️ 视频时长: {duration_str}")
+
+        except Exception as e:
+            logger.debug(f"文件大小检测失败: {e}")
+
+    def _check_available_disk_space(self, estimated_size: int, size_str: str):
+        """检查可用磁盘空间"""
+        try:
+            import shutil
+
+            # 获取下载目录的磁盘使用情况
+            total, used, free = shutil.disk_usage(str(self.output_dir))
+
+            # 使用统一的文件大小格式化工具
+            try:
+                from core.file_utils import FileUtils
+                free_str = FileUtils.format_file_size(free)
+            except ImportError:
+                # 备用格式化方案
+                free_gb = free / (1024**3)
+                free_str = f"{free_gb:.2f} GB"
+
+            logger.info(f"   💾 可用空间: {free_str}")
+
+            # 检查空间是否足够（预留20%缓冲）
+            required_space = estimated_size * 1.2  # 预留20%空间
+
+            if free < required_space:
+                logger.warning(f"⚠️ 磁盘空间警告: 可用空间可能不足")
+                logger.warning(f"   需要: {size_str} (+ 20%缓冲)")
+                logger.warning(f"   可用: {free_str}")
+            elif free < estimated_size * 2:  # 如果可用空间少于文件大小的2倍
+                logger.info(f"ℹ️ 磁盘空间提醒: 建议清理一些旧文件以释放更多空间")
+
+        except Exception as e:
+            logger.debug(f"磁盘空间检查失败: {e}")
 
     def _handle_download_failure(self, download_id: str, error_msg: str):
         """处理下载失败 - 统一使用RetryManager"""
@@ -548,11 +773,13 @@ class DownloadManagerV2:
                 logger.info(f"🚫 下载已被取消（开始下载视频）: {download_id}")
                 return None
 
-            if 'youtube.com' in url or 'youtu.be' in url:
+            if any(domain in url.lower() for domain in DownloadConstants.YOUTUBE_DOMAINS):
                 # 使用YouTube策略
+                logger.info(f"🎯 调用YouTube策略下载: {download_id}")
                 return self.youtube_strategies.download(download_id, url, video_info, options)
             else:
                 # 使用通用下载
+                logger.info(f"🌐 使用通用下载: {download_id}")
                 return self._generic_download(download_id, url, video_info, options)
 
         except Exception as e:
@@ -567,79 +794,11 @@ class DownloadManagerV2:
                 logger.info(f"🚫 下载已被取消（通用下载开始）: {download_id}")
                 return None
 
-            import yt_dlp
+            # 准备下载配置
+            ydl_opts = self._prepare_download_options(url, options, download_id)
 
-            # 生成URL哈希用于续传
-            url_hash = self._generate_url_hash(url)
-
-            # 基础配置 - 优化续传支持
-            ydl_opts = {
-                'outtmpl': str(self.output_dir / f'{url_hash}.%(ext)s'),  # 使用URL哈希作为文件名
-                'continue_dl': True,  # 明确启用续传
-                'nooverwrites': True,  # 不覆盖已存在的文件
-                'retries': 5,  # 增加重试次数
-                'fragment_retries': 10,  # 分片重试次数
-                'skip_unavailable_fragments': False,  # 不跳过不可用的分片
-            }
-
-            logger.info(f"🔄 使用续传文件名: {url_hash} (来自URL: {url[:50]}...)")
-
-            # 处理音频下载 - 只下载最佳音频，后续用FFmpeg转换
-            quality = options.get('quality', 'best')
-            audio_only = options.get('audio_only', False)
-
-            if audio_only or quality.startswith('audio_'):
-                # 下载最佳音频质量，后续转换
-                ydl_opts['format'] = 'bestaudio/best'
-            else:
-                # 使用平台配置系统获取格式选择器
-                from .platforms import get_platform_for_url
-                platform = get_platform_for_url(url)
-                ydl_opts['format'] = platform.get_format_selector(quality, url)
-
-            # 添加代理
-            proxy = self._get_proxy_config()
-            if proxy:
-                ydl_opts['proxy'] = proxy
-
-            # 应用PO Token配置 (只对YouTube有效)
-            from core.po_token_manager import apply_po_token_to_ytdlp
-            ydl_opts = apply_po_token_to_ytdlp(ydl_opts, url, "DownloadManager")
-
-            # 添加进度钩子来检查取消状态
-            def progress_hook(d):
-                if self._is_cancelled(download_id):
-                    logger.info(f"🚫 下载已被取消（下载进行中）: {download_id}")
-                    raise yt_dlp.DownloadError("Download cancelled by user")
-
-                if d['status'] == 'downloading':
-                    # 更新进度
-                    try:
-                        total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
-                        downloaded = d.get('downloaded_bytes', 0)
-                        if total > 0:
-                            progress = int((downloaded / total) * 100)
-                            self._update_download_status(download_id, 'downloading', progress)
-                    except:
-                        pass
-
-            ydl_opts['progress_hooks'] = [progress_hook]
-
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-
-            # 最后检查是否已被取消
-            if self._is_cancelled(download_id):
-                logger.info(f"🚫 下载已被取消（下载完成后）: {download_id}")
-                return None
-
-            # 查找下载的文件（使用URL哈希）
-            for file_path in self.output_dir.glob(f'{url_hash}.*'):
-                if file_path.is_file() and not file_path.name.endswith('.part'):
-                    logger.info(f"✅ 找到下载文件: {file_path.name}")
-                    return str(file_path)
-
-            return None
+            # 执行下载
+            return self._execute_generic_download(download_id, url, ydl_opts)
 
         except yt_dlp.DownloadError as e:
             if "cancelled by user" in str(e):
@@ -651,6 +810,286 @@ class DownloadManagerV2:
         except Exception as e:
             logger.error(f"❌ 通用下载失败: {e}")
             return None
+
+    def _prepare_download_options(self, url: str, options: Dict[str, Any], download_id: str) -> Dict[str, Any]:
+        """准备下载选项配置"""
+        import yt_dlp
+
+        # 生成URL哈希用于续传
+        url_hash = self._generate_url_hash(url)
+
+        # 基础配置 - 优化续传支持
+        ydl_opts = {
+            'outtmpl': str(self.output_dir / f'{url_hash}.%(ext)s'),  # 使用URL哈希作为文件名
+            'continue_dl': True,  # 明确启用续传
+            'nooverwrites': True,  # 不覆盖已存在的文件
+            'retries': DownloadConstants.DEFAULT_RETRIES,  # 增加重试次数
+            'fragment_retries': DownloadConstants.DEFAULT_FRAGMENT_RETRIES,  # 分片重试次数
+            'skip_unavailable_fragments': False,  # 不跳过不可用的分片
+        }
+
+        # 应用配置文件选项
+        ydl_opts = self._apply_config_file_options(ydl_opts)
+
+        # 设置格式选择器
+        ydl_opts = self._setup_format_selector(ydl_opts, url, options)
+
+        # 添加代理配置
+        proxy = self._get_proxy_config()
+        if proxy:
+            ydl_opts['proxy'] = proxy
+
+        # 应用PO Token配置 (只对YouTube有效)
+        from core.po_token_manager import apply_po_token_to_ytdlp
+        ydl_opts = apply_po_token_to_ytdlp(ydl_opts, url, "DownloadManager")
+
+        # 添加进度钩子
+        ydl_opts['progress_hooks'] = [self._create_progress_hook(download_id)]
+
+        logger.info(f"🔄 使用续传文件名: {url_hash} (来自URL: {url[:50]}...)")
+
+        return ydl_opts
+
+    def _apply_config_file_options(self, base_opts: Dict[str, Any]) -> Dict[str, Any]:
+        """应用配置文件选项"""
+        from .ytdlp_config_parser import get_ytdlp_config_options
+        config_file_opts = get_ytdlp_config_options()
+        if config_file_opts:
+            # 配置文件选项优先级较高，基础选项作为默认值
+            merged_opts = base_opts.copy()  # 基础选项作为默认值
+            merged_opts.update(config_file_opts)  # 配置文件选项覆盖基础选项
+            logger.debug(f"✅ 应用yt-dlp.conf配置: {len(config_file_opts)} 个选项（配置文件优先）")
+            return merged_opts
+        return base_opts
+
+    def _setup_format_selector(self, ydl_opts: Dict[str, Any], url: str, options: Dict[str, Any]) -> Dict[str, Any]:
+        """设置格式选择器"""
+        quality = options.get('quality', 'best')
+        audio_only = options.get('audio_only', False)
+
+        # 获取代理配置（一次性获取，避免重复调用）
+        proxy = self._get_proxy_config()
+
+        # 获取平台配置（一次性获取，避免重复导入）
+        from .platforms import get_platform_for_url
+        platform = get_platform_for_url(url)
+
+        if audio_only or quality.startswith('audio_'):
+            # 下载最佳音频质量，后续转换
+            ydl_opts['format'] = 'bestaudio/best'
+            logger.info(f"🎵 音频下载模式: bestaudio/best")
+        else:
+            # 检查是否为HLS/m3u8流，直接使用平台配置
+            if url.lower().endswith('.m3u8') or 'm3u8' in url.lower():
+                logger.info(f"🎯 检测到HLS/m3u8流，使用平台配置")
+                # 优先使用增强格式选择器（如果可用）
+                if hasattr(platform, 'get_enhanced_format_selector'):
+                    ydl_opts['format'] = platform.get_enhanced_format_selector(quality)
+                    logger.info(f"🔄 HLS流使用增强平台格式选择器: {ydl_opts['format']}")
+                else:
+                    ydl_opts['format'] = platform.get_format_selector(quality, url)
+                    logger.info(f"🔄 HLS流使用标准平台格式选择器: {ydl_opts['format']}")
+                ydl_opts['noprogress'] = True
+            else:
+                # 优先使用增强格式选择器（如果可用），提供更好的回退机制
+                if hasattr(platform, 'get_enhanced_format_selector'):
+                    ydl_opts['format'] = platform.get_enhanced_format_selector(quality)
+                    logger.info(f"🔄 优先使用增强平台格式选择器: {ydl_opts['format']}")
+                    ydl_opts['noprogress'] = True
+                else:
+                    # 使用智能格式选择器作为回退（如果可用）
+                    try:
+                        from core.smart_format_selector import select_format_for_user
+                        format_id, reason, info = select_format_for_user(quality, url, proxy)
+                        ydl_opts['format'] = format_id
+                        ydl_opts['noprogress'] = True  # 防止数据类型错误
+
+                        logger.info(f"🏆 通用下载使用智能格式: {format_id}")
+                        logger.info(f"   选择原因: {reason}")
+
+                    except Exception as smart_error:
+                        logger.warning(f"⚠️ 智能格式选择失败，使用标准平台配置: {smart_error}")
+
+                        # 最终降级到标准平台配置
+                        ydl_opts['format'] = platform.get_format_selector(quality, url)
+                        logger.info(f"🔄 使用标准平台格式选择器: {ydl_opts['format']}")
+                        ydl_opts['noprogress'] = True  # 防止数据类型错误
+
+        return ydl_opts
+
+    def _create_progress_hook(self, download_id: str):
+        """创建进度钩子函数"""
+        def progress_hook(d):
+            if self._is_cancelled(download_id):
+                logger.info(f"🚫 下载已被取消（下载进行中）: {download_id}")
+                import yt_dlp
+                raise yt_dlp.DownloadError("Download cancelled by user")
+
+            if d.get('status') == 'downloading':
+                # 更新进度 - 安全的类型处理
+                try:
+                    total = d.get('total_bytes') or d.get('total_bytes_estimate')
+                    downloaded = d.get('downloaded_bytes')
+                    
+                    # 确保数据类型正确
+                    if total and isinstance(total, (int, float)):
+                        total = int(total)
+                    if downloaded and isinstance(downloaded, (int, float)):
+                        downloaded = int(downloaded)
+
+                    # 确保数据类型正确，避免 "can't multiply sequence by non-int" 错误
+                    if total is not None and downloaded is not None:
+                        try:
+                            total = float(total) if total else 0.0
+                            downloaded = float(downloaded) if downloaded else 0.0
+
+                            if total > 0:
+                                # 使用统一的进度计算工具
+                                from core.file_utils import ProgressUtils
+                                progress = ProgressUtils.calculate_progress(int(downloaded), int(total))
+                                # 只在进度有显著变化时记录日志（减少日志噪音）
+                                if progress % DownloadConstants.PROGRESS_LOG_INTERVAL == 0:
+                                    logger.info(f"📊 下载进度: {download_id} - {progress}%")
+                                self._update_download_status(download_id, 'downloading', progress)
+                        except (ValueError, TypeError, ZeroDivisionError) as e:
+                            # 记录具体的类型转换错误，便于调试
+                            logger.debug(f"进度计算类型转换错误: {e}")
+                except Exception as e:
+                    # 记录进度钩子的其他异常，便于调试
+                    logger.debug(f"进度钩子异常: {e}")
+
+        return progress_hook
+
+    def _execute_generic_download(self, download_id: str, url: str, ydl_opts: Dict[str, Any]) -> Optional[str]:
+        """执行通用下载"""
+        import yt_dlp
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+        # 最后检查是否已被取消
+        if self._is_cancelled(download_id):
+            logger.info(f"🚫 下载已被取消（下载完成后）: {download_id}")
+            return None
+
+        # 查找下载的文件（使用URL哈希）
+        url_hash = self._generate_url_hash(url)
+        return self._find_downloaded_file(url_hash)
+
+    def _find_downloaded_file(self, url_hash: str) -> Optional[str]:
+        """安全地查找下载的文件"""
+        try:
+            # 使用更安全的文件匹配逻辑
+            matched_files = []
+
+            # 遍历输出目录，安全地匹配文件
+            for file_path in self.output_dir.iterdir():
+                if (file_path.is_file() and
+                    file_path.name.startswith(url_hash + '.') and
+                    not file_path.name.endswith('.part') and
+                    not file_path.name.endswith('.tmp')):
+                    matched_files.append(file_path)
+
+            if matched_files:
+                # 如果有多个匹配文件，选择最新的
+                latest_file = max(matched_files, key=lambda f: f.stat().st_mtime)
+                logger.info(f"✅ 找到下载文件: {latest_file.name}")
+                return str(latest_file)
+
+            logger.debug(f"🔍 未找到匹配的下载文件: {url_hash}")
+            return None
+
+        except Exception as e:
+            logger.error(f"❌ 查找下载文件失败: {e}")
+            return None
+
+    def _find_partial_files(self, url_hash: str) -> List[Path]:
+        """安全地查找部分下载的文件"""
+        try:
+            partial_files = []
+
+            # 遍历输出目录，查找部分文件
+            for file_path in self.output_dir.iterdir():
+                if (file_path.is_file() and
+                    file_path.name.startswith(url_hash + '.') and
+                    (file_path.name.endswith('.part') or
+                     file_path.name.endswith('.tmp') or
+                     file_path.stat().st_size > 0)):  # 有内容的文件
+                    partial_files.append(file_path)
+
+            return partial_files
+
+        except Exception as e:
+            logger.error(f"❌ 查找部分文件失败: {e}")
+            return []
+
+    def _validate_config_int(self, value: Any, name: str, min_val: int, max_val: int) -> int:
+        """验证整数配置值"""
+        try:
+            int_value = int(value)
+            if min_val <= int_value <= max_val:
+                return int_value
+            else:
+                logger.warning(f"⚠️ 配置 {name} 值 {int_value} 超出范围 [{min_val}, {max_val}]，使用默认值")
+                return min(max(int_value, min_val), max_val)
+        except (ValueError, TypeError):
+            logger.warning(f"⚠️ 配置 {name} 值 {value} 无效，使用默认值 {min_val}")
+            return min_val
+
+    def _validate_config_path(self, value: Any, name: str) -> Path:
+        """验证路径配置值"""
+        try:
+            path = Path(str(value))
+            # 确保路径是绝对路径
+            if not path.is_absolute():
+                # 相对于当前工作目录
+                path = Path.cwd() / path
+            return path
+        except Exception as e:
+            logger.warning(f"⚠️ 配置 {name} 路径 {value} 无效: {e}，使用默认路径")
+            return Path.cwd() / 'downloads' if name == 'output_dir' else Path.cwd() / 'temp'
+
+    def _update_stats(self, event_type: str, **kwargs):
+        """更新性能统计"""
+        try:
+            with self.lock:
+                if event_type == 'download_started':
+                    self.stats['total_downloads'] += 1
+                elif event_type == 'download_completed':
+                    self.stats['successful_downloads'] += 1
+                    # 更新下载字节数
+                    file_size = kwargs.get('file_size', 0)
+                    if file_size:
+                        self.stats['total_bytes_downloaded'] += file_size
+                elif event_type == 'download_failed':
+                    self.stats['failed_downloads'] += 1
+                elif event_type == 'download_cancelled':
+                    self.stats['cancelled_downloads'] += 1
+        except Exception as e:
+            logger.debug(f"统计更新失败: {e}")
+
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """获取简化的性能统计 - 只返回关键指标"""
+        try:
+            with self.lock:
+                total = max(self.stats['total_downloads'], 1)
+                success_rate = (self.stats['successful_downloads'] / total) * 100
+                total_mb = self.stats['total_bytes_downloaded'] / 1024 / 1024
+
+                return {
+                    'total_downloads': self.stats['total_downloads'],
+                    'success_rate': round(success_rate, 1),
+                    'total_mb': round(total_mb, 1),
+                    'failed_downloads': self.stats['failed_downloads']
+                }
+        except Exception as e:
+            logger.error(f"❌ 获取性能统计失败: {e}")
+            return {
+                'total_downloads': 0,
+                'success_rate': 0.0,
+                'total_mb': 0.0,
+                'failed_downloads': 0
+            }
 
     def _needs_audio_conversion(self, options: Dict[str, Any]) -> bool:
         """判断是否需要音频转换"""
@@ -742,7 +1181,7 @@ class DownloadManagerV2:
 
     def _get_proxy_config(self) -> Optional[str]:
         """获取代理配置 - 使用统一的代理助手"""
-        from core.proxy_helper import ProxyHelper
+        from core.proxy_converter import ProxyHelper
         return ProxyHelper.get_ytdlp_proxy("DownloadManager")
 
 
@@ -750,7 +1189,7 @@ class DownloadManagerV2:
     def _save_to_database(self, download_id: str, url: str):
         """保存到数据库"""
         try:
-            from core.database import get_database
+            get_database = ImportHelper.get_database()
             db = get_database()
             db.save_download_record(download_id, url)
         except Exception as e:
@@ -759,7 +1198,7 @@ class DownloadManagerV2:
     def _update_database_status(self, download_id: str, status: str, **kwargs):
         """更新数据库状态"""
         try:
-            from core.database import get_database
+            get_database = ImportHelper.get_database()
             db = get_database()
             db.update_download_status(download_id, status, **kwargs)
         except Exception as e:
@@ -771,13 +1210,20 @@ class DownloadManagerV2:
             from core.events import emit, Events
             event = getattr(Events, event_name, None)
             if event:
+                logger.info(f"📡 发送事件: {event_name} - {data.get('download_id', 'N/A')}")
                 emit(event, data)
+            else:
+                logger.warning(f"⚠️ 未知事件类型: {event_name}")
         except Exception as e:
-            logger.debug(f"🔍 发送事件失败: {e}")
+            logger.error(f"❌ 发送事件失败: {event_name} - {e}")
+            import traceback
+            traceback.print_exc()
 
     def _update_download_status(self, download_id: str, status: str, progress: int = None, **kwargs):
         """更新下载状态"""
         try:
+            # 先获取需要的数据，减少锁的持有时间
+            download_info = None
             with self.lock:
                 if download_id in self.downloads:
                     self.downloads[download_id]['status'] = status
@@ -785,15 +1231,17 @@ class DownloadManagerV2:
                         self.downloads[download_id]['progress'] = progress
                     for key, value in kwargs.items():
                         self.downloads[download_id][key] = value
+                    # 获取下载信息的副本，用于事件发送
+                    download_info = self.downloads[download_id].copy()
 
+            # 在锁外执行耗时操作
             # 更新数据库
             self._update_database_status(download_id, status, **kwargs)
 
             # 发送状态变更事件
-            if status == 'completed':
-                # 发送下载完成事件
-                with self.lock:
-                    download_info = self.downloads.get(download_id, {})
+            if status == 'completed' and download_info:
+                # 更新统计
+                self._update_stats('download_completed', file_size=kwargs.get('file_size', 0))
 
                 self._emit_event('DOWNLOAD_COMPLETED', {
                     'download_id': download_id,
@@ -802,6 +1250,12 @@ class DownloadManagerV2:
                     'file_size': kwargs.get('file_size')
                 })
                 logger.info(f"📡 发送下载完成事件: {download_id}")
+            elif status == 'failed':
+                # 更新统计
+                self._update_stats('download_failed')
+            elif status == 'cancelled':
+                # 更新统计
+                self._update_stats('download_cancelled')
             elif status in ['downloading', 'retrying']:
                 # 发送进度事件
                 self._emit_event('DOWNLOAD_PROGRESS', {
@@ -834,22 +1288,34 @@ class DownloadManagerV2:
             return []
 
     def get_system_status(self) -> Dict[str, Any]:
-        """获取系统状态"""
+        """获取简化的系统状态 - 只返回关键信息"""
         try:
+            # 获取基础状态
+            active_downloads = len([d for d in self.downloads.values() if d['status'] in ['pending', 'downloading']])
+
+            # 获取健康检查
+            health = self.health_check()
+
+            # 获取性能统计
+            stats = self.get_performance_stats()
+
             return {
-                'download_manager': {
-                    'active_downloads': len([d for d in self.downloads.values() if d['status'] in ['pending', 'downloading']]),
-                    'total_downloads': len(self.downloads),
-                    'version': 'V2 (Modular)'
-                },
-                'ffmpeg': self.ffmpeg_tools.get_status(),
-                'video_extractor': self.video_extractor.get_extractor_status(),
-                'youtube_strategies': self.youtube_strategies.get_strategy_status(),
-                'retry_manager': self.retry_manager.get_retry_statistics()
+                'status': health['status'],
+                'active_downloads': active_downloads,
+                'total_downloads': len(self.downloads),
+                'disk_writable': health.get('disk_writable', False),
+                'memory_mb': health.get('memory_mb', 0),
+                'download_stats': stats,
+                'version': 'V2 (Optimized)'
             }
         except Exception as e:
             logger.error(f"❌ 获取系统状态失败: {e}")
-            return {'error': str(e)}
+            return {
+                'status': 'error',
+                'error': str(e),
+                'active_downloads': 0,
+                'total_downloads': 0
+            }
 
     def cleanup(self):
         """清理资源"""
@@ -860,9 +1326,150 @@ class DownloadManagerV2:
             # 清理重试管理器的过期数据
             self.retry_manager.cleanup_old_data()
 
+            # 清理过期的下载记录（保留最近100个）
+            self._cleanup_old_downloads()
+
+            # 清理临时文件
+            self._cleanup_temp_files()
+
             logger.info("✅ 下载管理器V2清理完成")
         except Exception as e:
             logger.error(f"❌ 清理失败: {e}")
+
+    def _cleanup_old_downloads(self):
+        """清理过期的下载记录"""
+        try:
+            with self.lock:
+                # 保留最近的100个下载记录
+                if len(self.downloads) > 100:
+                    # 按时间排序，保留最新的100个
+                    sorted_downloads = sorted(
+                        self.downloads.items(),
+                        key=lambda x: x[1].get('created_at', datetime.min),
+                        reverse=True
+                    )
+
+                    # 保留前100个，删除其余的
+                    keep_downloads = dict(sorted_downloads[:100])
+                    removed_count = len(self.downloads) - len(keep_downloads)
+                    self.downloads = keep_downloads
+
+                    if removed_count > 0:
+                        logger.info(f"🧹 清理了 {removed_count} 个过期下载记录")
+        except Exception as e:
+            logger.error(f"❌ 清理下载记录失败: {e}")
+
+    def _cleanup_temp_files(self):
+        """清理临时文件"""
+        try:
+            temp_files_removed = 0
+
+            # 清理输出目录中的临时文件
+            for temp_dir in [self.output_dir, self.temp_dir]:
+                if temp_dir.exists():
+                    for file_path in temp_dir.iterdir():
+                        if (file_path.is_file() and
+                            (file_path.name.endswith('.part') or
+                             file_path.name.endswith('.tmp') or
+                             file_path.name.startswith('tmp'))):
+                            try:
+                                # 检查文件是否超过1小时未修改
+                                if (datetime.now().timestamp() - file_path.stat().st_mtime) > 3600:
+                                    file_path.unlink()
+                                    temp_files_removed += 1
+                            except Exception as e:
+                                logger.debug(f"删除临时文件失败: {file_path} - {e}")
+
+            if temp_files_removed > 0:
+                logger.info(f"🧹 清理了 {temp_files_removed} 个临时文件")
+
+        except Exception as e:
+            logger.error(f"❌ 清理临时文件失败: {e}")
+
+    def health_check(self) -> Dict[str, Any]:
+        """简化的系统健康检查 - 只检查关键项目"""
+        try:
+            # 检查目录状态
+            dir_check = self._check_directories()
+
+            # 检查内存使用
+            memory_check = self._check_memory_usage()
+
+            # 检查下载状态
+            download_check = self._check_downloads_health()
+
+            # 计算总体健康状态
+            all_healthy = (dir_check.get('healthy', True) and
+                          memory_check.get('healthy', True) and
+                          download_check.get('healthy', True))
+
+            return {
+                'status': 'healthy' if all_healthy else 'degraded',
+                'timestamp': datetime.now().isoformat(),
+                'disk_writable': dir_check.get('output_dir_writable', False),
+                'memory_mb': memory_check.get('rss_mb', 0),
+                'stuck_downloads': download_check.get('stuck_downloads', 0),
+                'active_downloads': download_check.get('active_downloads', 0)
+            }
+
+        except Exception as e:
+            logger.error(f"❌ 健康检查失败: {e}")
+            return {
+                'status': 'unhealthy',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+
+    def _check_directories(self) -> Dict[str, Any]:
+        """检查目录状态 - 简化版本"""
+        try:
+            output_writable = (self.output_dir.exists() and
+                             os.access(self.output_dir, os.W_OK))
+
+            return {
+                'healthy': output_writable,
+                'output_dir_writable': output_writable
+            }
+        except Exception as e:
+            return {'healthy': False, 'output_dir_writable': False}
+
+
+
+    def _check_memory_usage(self) -> Dict[str, Any]:
+        """检查内存使用情况 - 简化版本"""
+        try:
+            import psutil
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            rss_mb = memory_info.rss / 1024 / 1024
+
+            return {
+                'healthy': rss_mb < 512,  # 512MB 限制
+                'rss_mb': round(rss_mb, 1)
+            }
+        except ImportError:
+            return {'healthy': True, 'rss_mb': 0}
+        except Exception as e:
+            return {'healthy': True, 'rss_mb': 0}
+
+    def _check_downloads_health(self) -> Dict[str, Any]:
+        """检查下载状态健康 - 简化版本"""
+        try:
+            with self.lock:
+                active = len([d for d in self.downloads.values() if d['status'] in ['pending', 'downloading']])
+                stuck = len([d for d in self.downloads.values()
+                           if d['status'] == 'downloading' and
+                           (datetime.now() - d.get('updated_at', datetime.now())).total_seconds() > 300])  # 5分钟无更新
+
+                return {
+                    'healthy': stuck == 0,
+                    'active_downloads': active,
+                    'stuck_downloads': stuck
+                }
+        except Exception as e:
+            return {'healthy': True, 'active_downloads': 0, 'stuck_downloads': 0}
+
+
 
 
 # 全局实例

@@ -5,8 +5,12 @@ Telegram路由 - 机器人webhook和API接口
 
 import logging
 import re
+import os
+import time
+from pathlib import Path
 from flask import Blueprint, request, jsonify
 from core.auth import auth_required
+from core.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -131,14 +135,19 @@ def _process_telegram_message(update, config):
         if text.isdigit():
             return _handle_quality_selection(int(text), config, chat_id)
 
-        # 检查是否为URL
-        if not _is_valid_url(text):
+        # 使用智能消息解析器
+        from .services.message_parser import get_message_parser
+        parser = get_message_parser()
+        parsed_result = parser.parse_message(text)
+
+        # 检查是否包含有效URL
+        if not parsed_result['url'] or not parser.validate_url(parsed_result['url']):
             # 发送帮助信息
             _send_help_message(config)
             return {'action': 'help_sent', 'message': '已发送帮助信息'}
 
-        # 处理下载链接 - 先显示分辨率选择菜单
-        return _handle_url_with_quality_selection(text, config)
+        # 处理下载链接 - 传递自定义文件名
+        return _handle_url_with_quality_selection(parsed_result['url'], config, parsed_result['custom_filename'])
             
     except Exception as e:
         logger.error(f'处理Telegram消息失败: {e}')
@@ -185,10 +194,6 @@ def _handle_command(command, config):
             
         elif command.startswith('/status'):
             # 获取真实系统状态
-            from core.config import get_config
-            from pathlib import Path
-            import os
-            import time
 
             # 先获取基础信息（不依赖psutil）
             try:
@@ -199,8 +204,8 @@ def _handle_command(command, config):
                 active_count = len([d for d in downloads if d['status'] in ['pending', 'downloading']])
 
                 # 获取服务器URL
-                server_url = os.getenv('SERVER_URL', 'http://localhost:8080')
-                if server_url == 'http://localhost:8080':
+                server_url = os.getenv('SERVER_URL', 'http://localhost:8090')
+                if server_url == 'http://localhost:8090':
                     try:
                         from flask import request
                         if request:
@@ -342,9 +347,6 @@ def _handle_command(command, config):
 
         elif command.startswith('/files'):
             # 获取文件列表 - 增强版本
-            from core.config import get_config
-            from pathlib import Path
-            import os
 
             download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
 
@@ -507,8 +509,8 @@ scheme = `{request.scheme}`"""
                 debug_text += f"\n❌ 获取请求信息失败: {e}"
 
             # 显示最终使用的URL
-            server_url = os.getenv('SERVER_URL', 'http://localhost:8080')
-            if server_url == 'http://localhost:8080':
+            server_url = os.getenv('SERVER_URL', 'http://localhost:8090')
+            if server_url == 'http://localhost:8090':
                 try:
                     from flask import request
                     if request:
@@ -592,8 +594,6 @@ scheme = `{request.scheme}`"""
             identifier = parts[1].strip()
 
             # 查找文件
-            from core.config import get_config
-            from pathlib import Path
             download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
 
             if not download_dir.exists():
@@ -674,8 +674,6 @@ scheme = `{request.scheme}`"""
             identifier = parts[1].strip()
 
             # 查找文件
-            from core.config import get_config
-            from pathlib import Path
             download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
 
             if not download_dir.exists():
@@ -731,10 +729,6 @@ scheme = `{request.scheme}`"""
 
         elif command.startswith('/cleanup'):
             # 清理旧文件命令
-            from core.config import get_config
-            from pathlib import Path
-            import time
-
             download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
 
             if not download_dir.exists():
@@ -784,11 +778,15 @@ scheme = `{request.scheme}`"""
         return {'action': 'command_error', 'error': str(e)}
 
 
-def _handle_url_with_quality_selection(url, config):
+def _handle_url_with_quality_selection(url, config, custom_filename=None):
     """处理URL并显示分辨率选择菜单"""
     try:
         from .notifier import get_telegram_notifier
         notifier = get_telegram_notifier()
+
+        # 如果有自定义文件名，显示提示
+        if custom_filename:
+            notifier.send_message(f"📝 检测到自定义文件名: **{custom_filename}**")
 
         # 发送"正在获取视频信息"的消息
         notifier.send_message("🔍 正在获取视频信息，请稍候...")
@@ -801,9 +799,9 @@ def _handle_url_with_quality_selection(url, config):
             return {'action': 'video_info_failed', 'url': url}
 
         # 发送视频信息和分辨率选择菜单
-        _send_quality_selection_menu(url, video_info, config)
+        _send_quality_selection_menu(url, video_info, config, custom_filename)
 
-        return {'action': 'quality_menu_sent', 'url': url, 'video_info': video_info}
+        return {'action': 'quality_menu_sent', 'url': url, 'video_info': video_info, 'custom_filename': custom_filename}
 
     except Exception as e:
         logger.error(f"处理URL失败: {e}")
@@ -838,7 +836,7 @@ def _get_video_info(url):
         raise
 
 
-def _send_quality_selection_menu(url, video_info, config):
+def _send_quality_selection_menu(url, video_info, config, custom_filename=None):
     """发送分辨率选择菜单"""
     try:
         from .notifier import get_telegram_notifier
@@ -865,7 +863,13 @@ def _send_quality_selection_menu(url, video_info, config):
 
 🎬 **标题**: {title}
 👤 **作者**: {uploader}
-⏱️ **时长**: {duration_str}
+⏱️ **时长**: {duration_str}"""
+
+        # 如果有自定义文件名，显示在菜单中
+        if custom_filename:
+            menu_text += f"\n📝 **自定义文件名**: {custom_filename}"
+
+        menu_text += f"""
 
 📊 **可用分辨率**:
 """
@@ -882,8 +886,8 @@ def _send_quality_selection_menu(url, video_info, config):
 
         notifier.send_message(menu_text)
 
-        # 存储选择状态（简单实现，实际应该用数据库）
-        _store_selection_state(config.get('chat_id'), url, video_info, quality_options)
+        # 存储选择状态（包含自定义文件名）
+        _store_selection_state(config.get('chat_id'), url, video_info, quality_options, custom_filename)
 
     except Exception as e:
         logger.error(f"发送分辨率菜单失败: {e}")
@@ -962,7 +966,7 @@ def _analyze_available_qualities(formats):
         ]
 
 
-def _store_selection_state(chat_id, url, video_info, quality_options):
+def _store_selection_state(chat_id, url, video_info, quality_options, custom_filename=None):
     """存储选择状态（简单实现）"""
     try:
         # 这里应该存储到数据库或缓存中
@@ -975,6 +979,7 @@ def _store_selection_state(chat_id, url, video_info, quality_options):
             'url': url,
             'video_info': video_info,
             'quality_options': quality_options,
+            'custom_filename': custom_filename,  # 添加自定义文件名
             'timestamp': __import__('time').time()
         }
 
@@ -1008,15 +1013,20 @@ def _handle_quality_selection(selection, config, chat_id):
         selected_option = quality_options[selection - 1]
         url = state['url']
         video_info = state['video_info']
+        custom_filename = state.get('custom_filename')  # 获取自定义文件名
 
         # 清除选择状态
         del _selection_states[str(chat_id)]
 
         # 发送确认消息
-        notifier.send_message(f"✅ 已选择: {selected_option['display']}\n⏳ 开始下载...")
+        confirm_msg = f"✅ 已选择: {selected_option['display']}"
+        if custom_filename:
+            confirm_msg += f"\n📝 文件名: {custom_filename}"
+        confirm_msg += "\n⏳ 开始下载..."
+        notifier.send_message(confirm_msg)
 
-        # 开始下载
-        return _start_download_with_quality(url, selected_option, config, video_info)
+        # 开始下载（传递自定义文件名）
+        return _start_download_with_quality(url, selected_option, config, video_info, custom_filename)
 
     except Exception as e:
         logger.error(f"处理质量选择失败: {e}")
@@ -1026,7 +1036,7 @@ def _handle_quality_selection(selection, config, chat_id):
         return {'action': 'selection_error', 'error': str(e)}
 
 
-def _start_download_with_quality(url, quality_option, config, video_info):
+def _start_download_with_quality(url, quality_option, config, video_info, custom_filename=None):
     """根据选择的质量开始下载"""
     try:
         from modules.downloader.api import get_unified_download_api
@@ -1039,19 +1049,29 @@ def _start_download_with_quality(url, quality_option, config, video_info):
             'source': 'telegram_webhook',
         }
 
-        # 根据选择设置质量
+        # 添加自定义文件名
+        if custom_filename:
+            download_options['custom_filename'] = custom_filename
+
+        # 根据选择设置质量（智能格式选择器兼容）
         quality_key = quality_option.get('quality_key', 'high')
         if quality_key == 'audio':
             download_options['audio_only'] = True
-            download_options['quality'] = 'high'
-        elif quality_key in ['high', 'medium', 'low']:
-            download_options['quality'] = quality_key
+            download_options['quality'] = '1080p'  # 音频下载时的视频质量基准
+        elif quality_key == 'high':
+            download_options['quality'] = '1080p'  # 高质量 -> 1080p
+        elif quality_key == 'medium':
+            download_options['quality'] = '720p'   # 中等质量 -> 720p
+        elif quality_key == 'low':
+            download_options['quality'] = '480p'   # 低质量 -> 480p
+        elif quality_key == '4k':
+            download_options['quality'] = '4K'     # 4K质量
         else:
-            # 自定义格式
+            # 自定义格式或其他情况
             format_id = quality_option.get('format_id')
             if format_id and format_id not in ['best', 'medium', 'low']:
                 download_options['format'] = format_id
-            download_options['quality'] = 'high'  # 默认高质量
+            download_options['quality'] = '1080p'  # 默认1080p
 
         # 使用统一API创建下载任务
         result = api.create_download(url, download_options)
@@ -1097,12 +1117,12 @@ def _handle_download_request(url, config):
         from modules.downloader.manager import get_download_manager
         download_manager = get_download_manager()
 
-        # 构建下载选项
+        # 构建下载选项（智能格式选择器兼容）
         download_options = {
             'telegram_push': True,
             'telegram_push_mode': config.get('push_mode', 'file'),
             'source': 'telegram_webhook',
-            'quality': 'high'  # 默认高质量
+            'quality': '1080p'  # 默认1080p（智能格式选择器）
         }
 
         # 创建下载任务

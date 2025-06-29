@@ -129,7 +129,7 @@ class DownloadCleanup:
         """执行清理操作"""
         try:
             # 🔧 优先从数据库读取设置
-            output_dir = Path(self._get_setting('downloader.output_dir', '/app/downloads'))
+            output_dir = Path(self._get_setting('downloader.output_dir', 'data/downloads'))
             if not output_dir.exists():
                 return
 

@@ -43,7 +43,40 @@ class FilenameProcessor:
             'info': ['json', 'txt', 'xml']
         }
     
-    def sanitize_filename(self, filename: str, max_length: int = 80) -> str:
+
+    def _safe_rename_with_retry(self, source_path: Path, target_path: Path, max_retries: int = 5) -> bool:
+        """安全重命名文件，带重试机制"""
+        import time
+        
+        for attempt in range(max_retries):
+            try:
+                # 检查源文件是否存在
+                if not source_path.exists():
+                    logger.warning(f"⚠️ 源文件不存在: {source_path}")
+                    return False
+                
+                # 等待文件释放
+                time.sleep(0.5 * (attempt + 1))
+                
+                # 尝试重命名
+                source_path.rename(target_path)
+                logger.info(f"✅ 文件重命名成功: {source_path.name} -> {target_path.name}")
+                return True
+                
+            except PermissionError as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"⚠️ 文件被占用，重试 {attempt + 1}/{max_retries}: {e}")
+                    time.sleep(1.0 * (attempt + 1))
+                else:
+                    logger.error(f"❌ 文件重命名失败，已达最大重试次数: {e}")
+                    return False
+            except Exception as e:
+                logger.error(f"❌ 文件重命名异常: {e}")
+                return False
+        
+        return False
+
+    def sanitize_filename(self, filename: str, max_length: int = 120) -> str:
         """清理文件名，确保跨平台兼容"""
         try:
             # 1. Unicode标准化
@@ -143,7 +176,7 @@ class FilenameProcessor:
 
             # 重命名文件
             if current_path.exists():
-                current_path.rename(unique_path)
+                self._safe_rename_with_retry(current_path, unique_path)
                 logger.info(f"✅ 文件重命名: {current_path.name} -> {unique_path.name}")
                 return str(unique_path)
             else:
@@ -282,29 +315,58 @@ class FilenameProcessor:
             main_file = None
             used_names = set()  # 跟踪已使用的文件名，避免重复冲突
 
-            # 处理各类文件
+            # 定义主文件类型的优先级（从高到低）
+            main_file_priority = ['video', 'audio', 'document', 'image', 'other']
+
+            # 处理各类文件，按优先级确定主文件
+            for file_type in main_file_priority:
+                if file_type in classified and not main_file:
+                    files = classified[file_type]
+                    for file_path in files:
+                        try:
+                            if file_type == 'video':
+                                # 主视频文件
+                                new_name = f"{base_filename}{file_path.suffix}"
+                                new_path = self._get_unique_filename(file_path.parent / new_name, used_names)
+                                self._safe_rename_with_retry(file_path, new_path)
+                                main_file = str(new_path)
+                                logger.info(f"✅ 主视频文件重命名: {file_path.name} -> {new_path.name}")
+                                break  # 找到主文件后跳出循环
+
+                            elif not main_file:  # 如果还没有主文件，将第一个文件作为主文件
+                                new_name = self.generate_specific_filename(base_filename, file_path, file_type)
+                                new_path = self._get_unique_filename(file_path.parent / new_name, used_names)
+                                self._safe_rename_with_retry(file_path, new_path)
+                                main_file = str(new_path)
+                                logger.info(f"✅ 主{file_type}文件重命名: {file_path.name} -> {new_path.name}")
+                                break  # 找到主文件后跳出循环
+
+                        except Exception as e:
+                            logger.error(f"❌ 重命名主文件失败 {file_path}: {e}")
+                            continue
+
+            # 处理剩余的非主文件
             for file_type, files in classified.items():
                 for file_path in files:
                     try:
-                        if file_type == 'video' and not main_file:
-                            # 主视频文件
-                            new_name = f"{base_filename}{file_path.suffix}"
-                            new_path = self._get_unique_filename(file_path.parent / new_name, used_names)
-                            file_path.rename(new_path)
-                            main_file = str(new_path)
-                            logger.info(f"✅ 主文件重命名: {file_path.name} -> {new_path.name}")
+                        # 跳过已经处理过的主文件
+                        if main_file and str(file_path) in main_file:
+                            continue
 
-                        else:
-                            # 其他文件
-                            new_name = self.generate_specific_filename(base_filename, file_path, file_type)
-                            new_path = self._get_unique_filename(file_path.parent / new_name, used_names)
-                            file_path.rename(new_path)
-                            logger.info(f"✅ 文件重命名: {file_path.name} -> {new_path.name}")
+                        # 检查文件是否还存在（可能已经被重命名）
+                        if not file_path.exists():
+                            continue
+
+                        # 处理其他文件
+                        new_name = self.generate_specific_filename(base_filename, file_path, file_type)
+                        new_path = self._get_unique_filename(file_path.parent / new_name, used_names)
+                        self._safe_rename_with_retry(file_path, new_path)
+                        logger.info(f"✅ {file_type}文件重命名: {file_path.name} -> {new_path.name}")
 
                     except Exception as e:
                         logger.error(f"❌ 重命名文件失败 {file_path}: {e}")
                         continue
-            
+
             return main_file
 
         except Exception as e:

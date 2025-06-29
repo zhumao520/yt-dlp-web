@@ -683,171 +683,33 @@ def auto_generate_youtube_auth():
 
         logger.info("🚀 开始自动生成PO Token")
 
-        # 设置SSL（适用于TUN网络）
-        ssl._create_default_https_context = ssl._create_unverified_context
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        # 使用修复后的 POTokenManager（已支持代理）
+        po_token_manager = get_po_token_manager()
 
-        # PO Token生成在代理环境中有技术限制，建议使用直连
-        logger.info("🔍 PO Token自动生成 - 检查代理环境...")
+        # 调用自动更新功能
+        success = po_token_manager.auto_update_po_token("WebInterface")
 
-        proxy_config = None
-        try:
-            from core.database import get_database
-            db = get_database()
-            db_proxy_config = db.get_proxy_config()
+        if success:
+            # 获取生成的配置
+            config = po_token_manager.get_config("WebInterface")
 
-            if db_proxy_config and db_proxy_config.get('enabled'):
-                logger.warning("⚠️ 检测到代理环境，PO Token自动生成可能受限")
-                logger.warning("💡 建议：")
-                logger.warning("   1. 使用手动获取方法")
-                logger.warning("   2. 或在直连环境中获取PO Token后导入")
-                logger.warning("   3. 当前将尝试直连生成（可能失败）")
+            if config['po_token_available']:
+                logger.info("🎉 自动生成PO Token完成")
 
-                # 在代理环境中，PO Token生成使用直连
-                # 因为Node.js脚本无法继承Python的代理配置
-                proxy_config = None
-                logger.info("🔄 PO Token生成使用直连模式")
+                return jsonify({
+                    'success': True,
+                    'po_token': config['po_token'],
+                    'visitor_data': config['visitor_data'],
+                    'source': 'WebInterface-Auto',
+                    'timestamp': time.time(),
+                    'message': 'PO Token自动生成成功'
+                })
             else:
-                logger.info("✅ 直连环境，正常生成PO Token")
+                raise Exception("PO Token配置不可用")
+        else:
+            raise Exception("PO Token自动生成失败")
 
-        except Exception as e:
-            logger.debug(f"🔍 检查代理环境失败: {e}")
-            proxy_config = None
 
-        logger.info(f"🌐 代理配置: {proxy_config}")
-
-        # 步骤1: 生成visitor data
-        logger.info("🔍 生成visitor data...")
-        visitor_data = None
-
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-
-        kwargs = {'headers': headers, 'timeout': 15, 'verify': False}
-        if proxy_config:
-            kwargs['proxies'] = proxy_config
-
-        response = requests.get('https://www.youtube.com', **kwargs)
-
-        if response.status_code == 200:
-            content = response.text
-
-            # 查找visitor data
-            import re
-            patterns = [
-                r'"VISITOR_DATA":"([^"]+)"',
-                r'"visitorData":"([^"]+)"',
-                r'ytcfg\.set\(.*?"VISITOR_DATA":"([^"]+)"'
-            ]
-
-            for pattern in patterns:
-                match = re.search(pattern, content)
-                if match:
-                    visitor_data = match.group(1)
-                    logger.info(f"✅ 成功获取visitor data: {visitor_data[:20]}...")
-                    break
-
-            if not visitor_data:
-                # 生成默认visitor data
-                import base64
-                import random
-                random_bytes = bytes([random.randint(0, 255) for _ in range(16)])
-                visitor_data = base64.b64encode(random_bytes).decode('utf-8').rstrip('=')
-                logger.info(f"✅ 生成默认visitor data: {visitor_data}")
-
-        if not visitor_data:
-            raise Exception("无法生成visitor data")
-
-        # 步骤2: 使用Node.js生成PO Token
-        logger.info("🔍 使用Node.js生成PO Token...")
-        po_token = None
-
-        # 创建简化的Node.js脚本
-        nodejs_script = f"""
-const crypto = require('crypto');
-
-// 生成模拟的PO Token
-function generatePOToken() {{
-    console.log('开始生成PO Token...');
-
-    // 使用visitor data作为种子生成PO Token
-    const visitorData = '{visitor_data}';
-    const timestamp = Date.now().toString();
-    const randomData = crypto.randomBytes(16).toString('hex');
-
-    // 组合数据并生成hash
-    const combined = visitorData + timestamp + randomData;
-    const hash = crypto.createHash('sha256').update(combined).digest('base64');
-
-    // 生成PO Token格式
-    const poToken = hash.substring(0, 43) + '=';
-
-    console.log('✅ PO Token生成成功:', poToken);
-    process.exit(0);
-}}
-
-// 执行生成
-generatePOToken();
-"""
-
-        # 写入临时文件
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False, encoding='utf-8') as f:
-            f.write(nodejs_script)
-            temp_script = f.name
-
-        try:
-            # 运行Node.js脚本
-            result = subprocess.run(
-                ['node', temp_script],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                encoding='utf-8'
-            )
-
-            if result.returncode == 0:
-                # 从输出中提取PO Token
-                output_lines = result.stdout.strip().split('\n')
-                for line in output_lines:
-                    if 'PO Token生成成功:' in line:
-                        po_token = line.split(':', 1)[1].strip()
-                        logger.info(f"✅ Node.js PO Token生成成功: {po_token[:20]}...")
-                        break
-
-            if not po_token:
-                logger.error(f"❌ Node.js PO Token生成失败: {result.stderr}")
-                raise Exception("Node.js PO Token生成失败")
-
-        finally:
-            # 清理临时文件
-            try:
-                os.unlink(temp_script)
-            except:
-                pass
-
-        # 步骤3: 保存配置
-        logger.info("💾 保存PO Token配置...")
-        manager = get_po_token_manager()
-        success = manager.save_po_token_config(
-            po_token=po_token,
-            visitor_data=visitor_data,
-            source="WebAutoGenerator"
-        )
-
-        if not success:
-            raise Exception("PO Token配置保存失败")
-
-        logger.info("🎉 自动生成PO Token完成")
-
-        return jsonify({
-            'success': True,
-            'po_token': po_token,
-            'visitor_data': visitor_data,
-            'source': 'WebAutoGenerator',
-            'timestamp': time.time(),
-            'message': 'PO Token自动生成成功'
-        })
 
     except Exception as e:
         logger.error(f"❌ 自动生成PO Token失败: {e}")

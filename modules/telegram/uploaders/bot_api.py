@@ -8,6 +8,8 @@ import requests
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import time
+import ssl
+import urllib3
 
 from ..base import BaseUploader
 
@@ -24,9 +26,52 @@ class BotAPIUploader(BaseUploader):
         self.base_url = f"https://api.telegram.org/bot{self.bot_token}"
         self._progress_message_id = None
 
-        # 获取代理配置 - 使用统一的代理转换工具
+        # 使用代理协议转换系统 - SOCKS5转HTTP解决SSL问题
         from core.proxy_converter import ProxyConverter
-        self.proxies = ProxyConverter.get_requests_proxy("Telegram-BotAPI")
+
+        # 获取适用于requests的代理配置（自动转换SOCKS5为HTTP）
+        self.proxies = ProxyConverter.get_requests_proxy("Bot API")
+
+        if self.proxies:
+            logger.info(f"✅ Bot API 使用转换后的代理: {self.proxies}")
+        else:
+            logger.info("ℹ️ Bot API 未配置代理或代理不可用")
+
+        # 备用代理配置（保持兼容性）
+        self.fallback_proxies = self.proxies
+
+        # 配置SSL和连接设置以解决SSL错误（在proxies设置之后）
+        self._setup_ssl_config()
+
+    def _setup_ssl_config(self):
+        """配置SSL和会话设置"""
+        try:
+            # 创建requests会话以统一配置
+            self.session = requests.Session()
+
+            # 设置代理
+            if self.proxies:
+                self.session.proxies.update(self.proxies)
+
+                # 检查是否是HTTP代理（转换后的）
+                proxy_url = list(self.proxies.values())[0] if self.proxies else ""
+                if proxy_url.startswith('http://'):
+                    # HTTP代理，可以保持SSL验证
+                    logger.info("✅ 使用HTTP代理，保持SSL验证")
+                else:
+                    # SOCKS5代理，禁用SSL验证避免兼容性问题
+                    self.session.verify = False
+                    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+                    logger.info("✅ 使用SOCKS5代理，禁用SSL验证")
+            else:
+                # 无代理，保持默认SSL设置
+                logger.info("✅ 无代理，使用默认SSL设置")
+
+        except Exception as e:
+            logger.warning(f"⚠️ SSL配置失败，使用默认设置: {e}")
+            self.session = requests
+
+
 
     def is_available(self) -> bool:
         """检查 Bot API 上传器是否可用"""
@@ -35,6 +80,8 @@ class BotAPIUploader(BaseUploader):
     def _send_with_retry(self, func, max_retries: int = 3, **kwargs):
         """带重试机制的发送方法"""
         last_exception = None
+        original_proxies = self.proxies
+        proxy_switched = False
 
         for attempt in range(max_retries):
             try:
@@ -51,12 +98,21 @@ class BotAPIUploader(BaseUploader):
                 else:
                     logger.warning(f"⚠️ 网络连接错误 (尝试 {attempt + 1}/{max_retries}): {e}")
 
+                # 在第一次连接错误时尝试切换到备用代理
+                if attempt == 0 and not proxy_switched and self.fallback_proxies:
+                    logger.info("🔄 尝试切换到备用 SOCKS5 代理...")
+                    self.proxies = self.fallback_proxies
+                    proxy_switched = True
+                    continue
+
                 if attempt < max_retries - 1:
                     wait_time = (attempt + 1) * 2  # 递增等待时间：2s, 4s, 6s
                     logger.info(f"🔄 {wait_time}秒后重试...")
                     time.sleep(wait_time)
                     continue
                 else:
+                    # 恢复原始代理配置
+                    self.proxies = original_proxies
                     if 'remote end closed connection' in error_msg:
                         logger.error("❌ 远程服务器持续断开连接，可能是代理或网络问题")
                     else:
@@ -129,7 +185,9 @@ class BotAPIUploader(BaseUploader):
         if parse_mode:
             data['parse_mode'] = parse_mode
 
-        response = requests.post(url, json=data, timeout=30, proxies=self.proxies)
+        # SSL验证已在session中配置
+
+        response = self.session.post(url, data=data, timeout=30)
         response.raise_for_status()
 
         result = response.json()
@@ -137,7 +195,7 @@ class BotAPIUploader(BaseUploader):
             logger.info("✅ Bot API消息发送成功")
             return True
         else:
-            logger.debug(f"🔍 Bot API消息发送失败: {result}")
+            logger.error(f"❌ Bot API消息发送失败: {result}")
             return False
     
     def send_file(self, file_path: str, caption: str = None, **kwargs) -> bool:
@@ -250,7 +308,6 @@ class BotAPIUploader(BaseUploader):
                 
         except Exception as e:
             logger.debug(f"🔍 媒体组发送异常: {e}")
-            return None
             return False
     
     def _send_video(self, file_path: str, caption: str, metadata: Dict[str, Any]) -> bool:
@@ -278,7 +335,7 @@ class BotAPIUploader(BaseUploader):
                         'duration': int(metadata.get('duration', 0))
                     }
                     
-                    response = requests.post(url, files=files, data=data, timeout=300, proxies=self.proxies)
+                    response = self.session.post(url, files=files, data=data, timeout=300)
                     response.raise_for_status()
                     
                     result = response.json()
@@ -310,7 +367,7 @@ class BotAPIUploader(BaseUploader):
                     'duration': int(metadata.get('duration', 0))
                 }
                 
-                response = requests.post(url, files=files, data=data, timeout=300, proxies=self.proxies)
+                response = self.session.post(url, files=files, data=data, timeout=300)
                 response.raise_for_status()
                 
                 result = response.json()
@@ -337,7 +394,7 @@ class BotAPIUploader(BaseUploader):
                     'caption': caption or ''
                 }
                 
-                response = requests.post(url, files=files, data=data, timeout=300, proxies=self.proxies)
+                response = self.session.post(url, files=files, data=data, timeout=300)
                 response.raise_for_status()
                 
                 result = response.json()
@@ -364,7 +421,7 @@ class BotAPIUploader(BaseUploader):
                     'caption': caption or ''
                 }
                 
-                response = requests.post(url, files=files, data=data, timeout=300, proxies=self.proxies)
+                response = self.session.post(url, files=files, data=data, timeout=300)
                 response.raise_for_status()
                 
                 result = response.json()
@@ -412,7 +469,7 @@ class BotAPIUploader(BaseUploader):
                     'message_id': self._progress_message_id,
                     'text': text
                 }
-                requests.post(url, json=data, timeout=10, proxies=self.proxies)
+                self.session.post(url, json=data, timeout=10)
             else:
                 # 发送新的进度消息
                 url = f"{self.base_url}/sendMessage"
@@ -420,7 +477,7 @@ class BotAPIUploader(BaseUploader):
                     'chat_id': self.chat_id,
                     'text': text
                 }
-                response = requests.post(url, json=data, timeout=10, proxies=self.proxies)
+                response = self.session.post(url, json=data, timeout=10)
                 if response.status_code == 200:
                     result = response.json()
                     if result.get('ok'):

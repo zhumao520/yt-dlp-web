@@ -79,10 +79,23 @@ def get_download_status(download_id):
         
         # 添加文件信息（如果已完成）
         if download_info['status'] == 'completed' and download_info['file_path']:
+            from pathlib import Path
+            file_path = Path(download_info['file_path'])
+            file_size = download_info.get('file_size', 0) or 0
+
+            response_data.update({
+                'filename': file_path.name,
+                'file_path': download_info['file_path'],
+                'file_size': file_size,
+                'file_size_mb': round(file_size / (1024 * 1024), 2) if file_size > 0 else 0.0,
+                'download_url': f"/files/download/{file_path.name}"
+            })
+
+            # 保持向后兼容的file_info结构
             response_data['file_info'] = {
                 'path': download_info['file_path'],
-                'size': download_info['file_size'],
-                'filename': download_info['file_path'].split('/')[-1] if download_info['file_path'] else None
+                'size': file_size,
+                'filename': file_path.name
             }
         
         # 添加错误信息（如果失败）

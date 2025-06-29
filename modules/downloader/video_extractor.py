@@ -20,20 +20,23 @@ class VideoExtractor:
         self._initialize_extractors()
     
     def _initialize_extractors(self):
-        """初始化提取器"""
+        """初始化提取器（新策略：yt-dlp优先）"""
         try:
-            # 1. 尝试导入PyTubeFix下载器
+            # 1. yt-dlp作为主要引擎（使用无PO Token智能随机客户端策略）
+            self.extractors.append(('ytdlp', None))  # 直接使用，不需要类
+            logger.info("✅ yt-dlp引擎设为主要引擎（无PO Token智能随机客户端）")
+
+            # 2. PyTubeFix作为备选引擎（使用PO Token策略）
             try:
                 from .pytubefix_downloader import PyTubeFixDownloader
                 self.extractors.append(('pytubefix', PyTubeFixDownloader))
-                logger.info("✅ PyTubeFix下载器可用")
+                logger.info("✅ PyTubeFix下载器设为备选引擎（PO Token策略）")
             except ImportError:
                 logger.debug("🔍 PyTubeFix下载器不可用")
 
-            # 2. yt-dlp作为主要引擎
-            self.extractors.append(('ytdlp', None))  # 直接使用，不需要类
-
-            logger.info(f"📋 可用提取器: {len(self.extractors)} 个")
+            logger.info(f"📋 双引擎配置完成: {len(self.extractors)} 个引擎")
+            logger.info(f"   🥇 主要引擎: yt-dlp（无PO Token + 智能随机客户端）")
+            logger.info(f"   🥈 备选引擎: PyTubeFix（PO Token + 稳定配置）")
 
         except Exception as e:
             logger.error(f"❌ 初始化提取器失败: {e}")
@@ -121,42 +124,101 @@ class VideoExtractor:
             return {'error': 'pytubefix_failed', 'message': str(e)}
     
     def _extract_with_ytdlp(self, url: str, options: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """使用yt-dlp提取"""
+        """使用yt-dlp提取（集成智能格式选择器）"""
         try:
             import yt_dlp
 
-            # 构建yt-dlp选项
-            ydl_opts = {
-                'quiet': True,
-                'no_warnings': True,
-                'extract_flat': False,
-            }
+            # 获取用户质量选择
+            user_quality = options.get('quality', 'high')
+            logger.info(f"🎯 用户选择质量: {user_quality}")
 
-            # 添加代理配置
-            proxy = self._get_proxy_config()
-            if proxy:
-                ydl_opts['proxy'] = proxy
-                logger.info(f"✅ yt-dlp使用代理: {proxy}")
+            # 使用智能格式选择器
+            try:
+                from core.smart_format_selector import select_format_for_user
+                proxy = self._get_proxy_config()
 
-            # 应用PO Token配置 (只对YouTube有效)
-            from core.po_token_manager import apply_po_token_to_ytdlp
-            ydl_opts = apply_po_token_to_ytdlp(ydl_opts, url, "VideoExtractor")
+                format_id, reason, info = select_format_for_user(user_quality, url, proxy)
+                logger.info(f"🏆 智能选择格式: {format_id}")
+                logger.info(f"   选择原因: {reason}")
 
-            # 自动获取cookies配置
-            cookies_path = self._get_cookies_for_site(url)
-            if cookies_path:
-                ydl_opts['cookiefile'] = cookies_path
-                logger.info(f"✅ yt-dlp使用cookies: {cookies_path}")
-            elif options.get('cookies'):
-                ydl_opts['cookiefile'] = options['cookies']
-                logger.info(f"✅ yt-dlp使用选项cookies: {options['cookies']}")
+                # 基础配置（使用智能选择的格式）
+                ydl_opts = {
+                    'format': format_id,        # 使用智能选择的格式ID
+                    'quiet': True,
+                    'no_warnings': True,
+                    'extract_flat': False,
+                    'noprogress': True,         # 防止数据类型错误
+                }
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                if info:
-                    return ydl.sanitize_info(info)
-                else:
-                    return {'error': 'no_info', 'message': 'yt-dlp未返回信息'}
+                if proxy:
+                    ydl_opts['proxy'] = proxy
+                    logger.info(f"✅ yt-dlp使用代理: {proxy}")
+
+                # 自动获取cookies配置
+                cookies_path = self._get_cookies_for_site(url)
+                if cookies_path:
+                    ydl_opts['cookiefile'] = cookies_path
+                    logger.info(f"✅ yt-dlp使用cookies: {cookies_path}")
+                elif options.get('cookies'):
+                    ydl_opts['cookiefile'] = options['cookies']
+                    logger.info(f"✅ yt-dlp使用选项cookies: {options['cookies']}")
+
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    video_info = ydl.extract_info(url, download=False)
+                    if video_info:
+                        # 添加智能选择器的信息
+                        sanitized_info = ydl.sanitize_info(video_info)
+                        sanitized_info['smart_format_selection'] = {
+                            'selected_format': format_id,
+                            'selection_reason': reason,
+                            'total_formats_analyzed': info.get('total_formats', 0),
+                            'available_qualities': info.get('available_qualities', [])
+                        }
+                        logger.info(f"✅ yt-dlp智能提取成功: {len(sanitized_info.get('formats', []))} 个格式")
+                        return sanitized_info
+                    else:
+                        return {'error': 'no_info', 'message': 'yt-dlp未返回信息'}
+
+            except Exception as smart_error:
+                logger.warning(f"⚠️ 智能格式选择失败，使用传统方法: {smart_error}")
+
+                # 降级到传统方法
+                ydl_opts = {
+                    'format': 'best',           # 使用简单格式选择
+                    'quiet': True,
+                    'no_warnings': True,
+                    'extract_flat': False,
+                    'noprogress': True,         # 防止数据类型错误
+                }
+
+                proxy = self._get_proxy_config()
+                if proxy:
+                    ydl_opts['proxy'] = proxy
+
+                # 应用PO Token配置 (传统方法的备选)
+                from core.po_token_manager import apply_po_token_to_ytdlp
+                ydl_opts = apply_po_token_to_ytdlp(ydl_opts, url, "VideoExtractor-Fallback")
+
+                # 自动获取cookies配置
+                cookies_path = self._get_cookies_for_site(url)
+                if cookies_path:
+                    ydl_opts['cookiefile'] = cookies_path
+                elif options.get('cookies'):
+                    ydl_opts['cookiefile'] = options['cookies']
+
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info = ydl.extract_info(url, download=False)
+                    if info:
+                        sanitized_info = ydl.sanitize_info(info)
+                        sanitized_info['smart_format_selection'] = {
+                            'selected_format': 'best',
+                            'selection_reason': f'智能选择失败，降级到传统方法: {str(smart_error)}',
+                            'fallback_used': True
+                        }
+                        logger.info(f"✅ yt-dlp传统提取成功: {len(sanitized_info.get('formats', []))} 个格式")
+                        return sanitized_info
+                    else:
+                        return {'error': 'no_info', 'message': 'yt-dlp未返回信息'}
 
         except Exception as e:
             logger.error(f"❌ yt-dlp提取失败: {e}")
@@ -175,12 +237,12 @@ class VideoExtractor:
     
     def _get_proxy_config(self) -> Optional[str]:
         """获取代理配置 - 使用统一的代理助手"""
-        from core.proxy_helper import ProxyHelper
+        from core.proxy_converter import ProxyHelper
         return ProxyHelper.get_ytdlp_proxy("VideoExtractor")
 
     def _get_pytubefix_proxy_config(self) -> Optional[str]:
         """获取PyTubeFix专用的代理配置 - 使用统一的代理助手"""
-        from core.proxy_helper import ProxyHelper
+        from core.proxy_converter import ProxyHelper
         return ProxyHelper.get_pytubefix_proxy("VideoExtractor-PyTubeFix")
 
 

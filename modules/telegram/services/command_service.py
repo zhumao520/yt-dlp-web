@@ -194,8 +194,8 @@ CPU: {psutil.cpu_percent()}%
     
     def _get_server_url(self) -> str:
         """获取服务器URL"""
-        server_url = os.getenv('SERVER_URL', 'http://localhost:8080')
-        if server_url == 'http://localhost:8080':
+        server_url = os.getenv('SERVER_URL', 'http://localhost:8090')
+        if server_url == 'http://localhost:8090':
             try:
                 from flask import request
                 if request:

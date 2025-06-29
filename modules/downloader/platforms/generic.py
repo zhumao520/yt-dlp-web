@@ -18,7 +18,7 @@ class GenericPlatform(BasePlatform):
     def get_http_headers(self) -> Dict[str, str]:
         """通用请求头"""
         return {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br',
@@ -74,6 +74,62 @@ class GenericPlatform(BasePlatform):
             return f'best[height<={quality}][ext=mp4]/best[height<={quality}]/bestvideo[height<={quality}]+bestaudio/best'
         else:
             return 'best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
+
+    def get_enhanced_format_selector(self, quality: str) -> str:
+        """增强的格式选择器 - 遵循yt-dlp最佳实践"""
+        # 通用平台增强格式选择策略：最宽松的选择，适用于所有网站
+        base_selectors = [
+            'best',  # 最优先：任何最佳格式
+            'worst',  # 最终回退：任何最差格式
+            'best[ext=mp4]',  # MP4格式
+            'best[ext=webm]',  # WebM格式
+            'best[ext=m4v]',  # M4V格式
+            'best[ext=flv]',  # FLV格式
+            'bestvideo[ext=mp4]+bestaudio[ext=m4a]',  # 分离格式合并
+            'bestvideo+bestaudio',  # 任何分离格式合并
+            'best[protocol=https]',  # HTTPS协议
+            'best[protocol=http]',  # HTTP协议
+        ]
+
+        if quality == 'high':
+            quality_selectors = [
+                'best[height<=2160]',  # 4K
+                'best[height<=1440]',  # 2K
+                'best[height<=1080]',  # 1080p
+                'best[height<=720]',   # 720p
+                'best[width<=3840]',   # 4K宽度
+                'best[width<=1920]',   # 1080p宽度
+                'bestvideo[height<=1080]+bestaudio',
+            ]
+        elif quality == 'medium':
+            quality_selectors = [
+                'best[height<=720]',
+                'best[height<=480]',
+                'best[width<=1280]',
+                'best[width<=854]',
+                'bestvideo[height<=720]+bestaudio',
+            ]
+        elif quality == 'low':
+            quality_selectors = [
+                'best[height<=480]',
+                'best[height<=360]',
+                'best[width<=854]',
+                'best[width<=640]',
+                'bestvideo[height<=480]+bestaudio',
+            ]
+        elif quality.isdigit():
+            # 数字质量（如720, 480）
+            quality_selectors = [
+                f'best[height<={quality}]',
+                f'best[width<={int(quality)*16//9}]',  # 按16:9比例计算宽度
+                f'bestvideo[height<={quality}]+bestaudio',
+            ]
+        else:
+            quality_selectors = []
+
+        # 组合所有选择器，确保有足够的备选方案
+        all_selectors = quality_selectors + base_selectors
+        return '/'.join(all_selectors)
     
     def get_config(self, url: str, quality: str = 'best') -> Dict[str, Any]:
         """获取通用完整配置 - 支持HLS/m3u8"""

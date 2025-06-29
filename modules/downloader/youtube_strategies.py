@@ -17,12 +17,38 @@ class YouTubeStrategies:
     
     def __init__(self):
         self.strategies = []
-        self.progress_callback = None  # 进度回调函数
+        # 移除全局进度回调，改为每个下载任务独立设置
         self._initialize_strategies()
 
-    def set_progress_callback(self, callback):
-        """设置进度回调函数"""
-        self.progress_callback = callback
+    def _create_progress_callback(self, download_id: str):
+        """为特定下载任务创建进度回调函数"""
+        def progress_callback(progress_data):
+            """任务专用进度回调"""
+            try:
+                # 使用统一的进度处理工具
+                from core.file_utils import ProgressUtils
+                from .manager import get_download_manager
+                manager = get_download_manager()
+
+                # 转换进度数据格式
+                if progress_data.get('status') == 'downloading':
+                    total = progress_data.get('total_bytes') or progress_data.get('total_bytes_estimate')
+                    downloaded = progress_data.get('downloaded_bytes')
+
+                    if total and downloaded:
+                        try:
+                            total = float(total)
+                            downloaded = float(downloaded)
+                            if total > 0:
+                                # 使用统一的进度计算
+                                progress = ProgressUtils.calculate_progress(int(downloaded), int(total))
+                                manager._update_download_status(download_id, 'downloading', progress)
+                        except (ValueError, TypeError, ZeroDivisionError):
+                            pass
+            except Exception as e:
+                logger.debug(f"⚠️ 进度回调失败 {download_id}: {e}")
+
+        return progress_callback
     
     def _initialize_strategies(self):
         """初始化下载策略"""
@@ -70,6 +96,8 @@ class YouTubeStrategies:
     def download(self, download_id: str, url: str, video_info: Dict[str, Any], options: Dict[str, Any]) -> Optional[str]:
         """执行YouTube下载 - 双引擎策略"""
         try:
+            logger.info(f"🚀 YouTube策略开始下载: {download_id} - {url}")
+
             # 获取输出目录
             output_dir = self._get_output_dir()
 
@@ -78,6 +106,8 @@ class YouTubeStrategies:
                 ('ytdlp', self._download_with_ytdlp),
                 ('pytubefix', self._download_with_pytubefix)
             ]
+
+            logger.info(f"🔧 准备尝试 {len(engines)} 个下载引擎")
 
             for engine_name, download_func in engines:
                 try:
@@ -117,6 +147,8 @@ class YouTubeStrategies:
     def _download_with_ytdlp(self, download_id: str, url: str, video_info: Dict[str, Any], options: Dict[str, Any], output_dir: Path) -> Optional[str]:
         """使用yt-dlp下载"""
         try:
+            logger.info(f"🔧 yt-dlp引擎开始下载: {download_id}")
+
             # 筛选适用的策略
             applicable_strategies = []
             for strategy in self.strategies:
@@ -147,7 +179,7 @@ class YouTubeStrategies:
                     ydl_opts['outtmpl'] = str(output_dir / f'{download_id}.%(ext)s')
 
                     # 执行下载
-                    result = self._execute_ytdlp_download(url, ydl_opts)
+                    result = self._execute_ytdlp_download(download_id, url, ydl_opts)
 
                     if result:
                         logger.info(f"✅ yt-dlp策略成功: {strategy['name']}")
@@ -168,6 +200,8 @@ class YouTubeStrategies:
     def _download_with_pytubefix(self, download_id: str, url: str, video_info: Dict[str, Any], options: Dict[str, Any], output_dir: Path) -> Optional[str]:
         """使用PyTubeFix下载（优化版，复用已提取的信息）"""
         try:
+            logger.info(f"🔧 PyTubeFix引擎开始下载: {download_id}")
+
             # 检查PyTubeFix是否可用
             try:
                 from .pytubefix_downloader import PyTubeFixDownloader
@@ -181,18 +215,20 @@ class YouTubeStrategies:
             # 创建PyTubeFix下载器
             downloader = PyTubeFixDownloader(proxy=proxy)
 
-            # 设置进度回调
+            # 设置任务专用进度回调
+            task_progress_callback = self._create_progress_callback(download_id)
+
             def pytubefix_progress_callback(progress_data):
                 """PyTubeFix进度回调"""
                 try:
-                    if self.progress_callback:
-                        # 转换为标准格式
-                        self.progress_callback({
-                            'status': progress_data.get('status', 'downloading'),
-                            'downloaded_bytes': progress_data.get('downloaded_bytes', 0),
-                            'total_bytes': progress_data.get('total_bytes', 0),
-                            '_percent_str': f"{progress_data.get('progress_percent', 0)}%"
-                        })
+                    # 使用统一的进度数据格式化
+                    from core.file_utils import ProgressUtils
+                    formatted_data = ProgressUtils.format_progress_data(
+                        progress_data.get('downloaded_bytes', 0),
+                        progress_data.get('total_bytes', 0),
+                        progress_data.get('status', 'downloading')
+                    )
+                    task_progress_callback(formatted_data)
                 except Exception as e:
                     logger.debug(f"⚠️ PyTubeFix进度回调转发失败: {e}")
 
@@ -240,10 +276,47 @@ class YouTubeStrategies:
             logger.error(f"❌ PyTubeFix下载异常: {e}")
             return None
 
-    def _execute_ytdlp_download(self, url: str, ydl_opts: Dict[str, Any]) -> Optional[str]:
+    def _execute_ytdlp_download(self, download_id: str, url: str, ydl_opts: Dict[str, Any]) -> Optional[str]:
         """执行yt-dlp下载"""
         try:
             import yt_dlp
+
+            # 创建任务专用进度回调
+            task_progress_callback = self._create_progress_callback(download_id)
+
+            # 添加安全的进度回调，避免类型错误
+            def safe_progress_hook(d):
+                """安全的进度回调，避免类型转换错误"""
+                try:
+                    if d.get('status') == 'downloading':
+                        # 安全地处理进度数据，避免类型错误
+                        total = d.get('total_bytes') or d.get('total_bytes_estimate')
+                        downloaded = d.get('downloaded_bytes')
+
+                        # 确保数据类型正确
+                        if total is not None and downloaded is not None:
+                            try:
+                                total = float(total) if total else 0.0
+                                downloaded = float(downloaded) if downloaded else 0.0
+
+                                if total > 0:
+                                    # 使用统一的进度处理工具
+                                    from core.file_utils import ProgressUtils
+                                    formatted_data = ProgressUtils.format_progress_data(
+                                        int(downloaded), int(total), 'downloading'
+                                    )
+                                    task_progress_callback(formatted_data)
+                            except (ValueError, TypeError, ZeroDivisionError) as e:
+                                # 忽略类型转换错误，避免中断下载
+                                pass
+                except Exception as e:
+                    # 进度回调失败不应该影响下载
+                    pass
+
+            # 添加进度回调到选项中
+            if 'progress_hooks' not in ydl_opts:
+                ydl_opts['progress_hooks'] = []
+            ydl_opts['progress_hooks'].append(safe_progress_hook)
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
@@ -267,6 +340,9 @@ class YouTubeStrategies:
             if not isinstance(output_template, str):
                 logger.error(f"❌ 输出模板类型错误: {type(output_template)}, 值: {output_template}")
                 return None
+
+            # 初始化download_id变量，避免作用域问题
+            download_id = "unknown"
 
             try:
                 base_path = Path(output_template).parent
@@ -302,58 +378,34 @@ class YouTubeStrategies:
         """获取输出目录"""
         try:
             from core.config import get_config
-            output_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+            output_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
         except ImportError:
-            output_dir = Path('/app/downloads')
-        
+            output_dir = Path('data/downloads')
+
+        # 确保路径是绝对路径
+        if not output_dir.is_absolute():
+            output_dir = Path.cwd() / output_dir
+
         output_dir.mkdir(parents=True, exist_ok=True)
         return output_dir
     
     def _get_proxy_config(self) -> Optional[str]:
         """获取代理配置 - 使用统一的代理助手"""
-        from core.proxy_helper import ProxyHelper
+        from core.proxy_converter import ProxyHelper
         return ProxyHelper.get_ytdlp_proxy("YouTubeStrategies")
 
     def _get_ffmpeg_path(self) -> Optional[str]:
-        """获取FFmpeg路径"""
+        """获取FFmpeg路径 - 使用统一工具"""
         try:
-            # 尝试从FFmpeg工具模块获取
-            try:
-                from modules.downloader.ffmpeg_tools import get_ffmpeg_path
-                ffmpeg_path = get_ffmpeg_path()
-                if ffmpeg_path:
-                    return ffmpeg_path
-            except ImportError:
-                pass
-
-            # 尝试常见路径
-            common_paths = [
-                'ffmpeg/bin/ffmpeg.exe',  # Windows项目路径
-                'ffmpeg/bin/ffmpeg',      # Linux项目路径
-                '/usr/bin/ffmpeg',        # 系统路径
-                '/usr/local/bin/ffmpeg',  # 本地安装
-                'ffmpeg'                  # PATH中
-            ]
-
-            for path in common_paths:
-                if Path(path).exists():
-                    return str(Path(path).resolve())
-
-            # 尝试which命令
-            import shutil
-            which_ffmpeg = shutil.which('ffmpeg')
-            if which_ffmpeg:
-                return which_ffmpeg
-
-            return None
-
+            from modules.downloader.ffmpeg_tools import get_ffmpeg_path
+            return get_ffmpeg_path()
         except Exception as e:
             logger.debug(f"🔍 获取FFmpeg路径失败: {e}")
             return None
 
     def _get_pytubefix_proxy_config(self) -> Optional[str]:
         """获取PyTubeFix专用的代理配置 - 使用统一的代理助手"""
-        from core.proxy_helper import ProxyHelper
+        from core.proxy_converter import ProxyHelper
         return ProxyHelper.get_pytubefix_proxy("YouTubeStrategies-PyTubeFix")
     
     def _get_cookies_path(self) -> Optional[str]:
@@ -494,6 +546,19 @@ class YouTubeStrategies:
             'writeinfojson': options.get('info_json', False),
         }
 
+        # 应用 yt-dlp.conf 配置文件
+        try:
+            from .ytdlp_config_parser import get_ytdlp_config_options
+            config_file_opts = get_ytdlp_config_options()
+            if config_file_opts:
+                # 配置文件选项优先级较低，基础选项会覆盖它们
+                merged_opts = config_file_opts.copy()
+                merged_opts.update(opts)
+                opts = merged_opts
+                logger.debug(f"✅ YouTube策略应用yt-dlp.conf配置: {len(config_file_opts)} 个选项")
+        except Exception as e:
+            logger.warning(f"⚠️ 应用yt-dlp.conf配置失败: {e}")
+
         # 添加代理
         proxy = self._get_proxy_config()
         if proxy:
@@ -604,10 +669,6 @@ class YouTubeStrategies:
         else:
             logger.warning("⚠️ 未找到FFmpeg，高质量合并和音频修复可能失败")
 
-        # 应用统一的 PO Token 配置
-        from core.po_token_manager import apply_po_token_to_ytdlp
-        opts = apply_po_token_to_ytdlp(opts, url, "YouTubeStrategies")
-
         return opts
     
     def _get_high_quality_opts(self, download_id: str, url: str, options: Dict[str, Any]) -> Dict[str, Any]:
@@ -645,9 +706,15 @@ class YouTubeStrategies:
             })
             logger.warning("⚠️ FFmpeg不可用，使用单一格式下载")
 
-        # 注意：PO Token 配置已在 _get_default_opts 中通过统一管理器应用
-        # 这里不需要重复配置，避免覆盖统一管理器的配置
-        logger.info("✅ 高质量下载策略已配置（PO Token 由统一管理器处理）")
+        # 添加PO Token支持以访问高质量格式
+        po_token = self._get_po_token()
+        if po_token:
+            opts['extractor_args'] = {
+                'youtube': {
+                    'po_token': po_token
+                }
+            }
+            logger.info("✅ 高质量下载使用PO Token")
 
         return opts
     
@@ -825,9 +892,15 @@ class YouTubeStrategies:
             }
         }
 
-        # 注意：PO Token 配置已在 _get_default_opts 中通过统一管理器应用
-        # 这里不需要重复配置，避免覆盖统一管理器的配置
-        logger.info("✅ 移动客户端策略已配置（PO Token 由统一管理器处理）")
+        # 添加PO Token支持
+        po_token = self._get_po_token()
+        if po_token:
+            extractor_args['youtube']['po_token'] = po_token
+            logger.info("✅ 移动客户端使用PO Token")
+        else:
+            # 如果没有PO Token，跳过需要认证的格式
+            extractor_args['youtube']['formats'] = 'missing_pot'
+            logger.warning("⚠️ 移动客户端缺少PO Token，跳过高级格式")
 
         opts.update({
             'extractor_args': extractor_args

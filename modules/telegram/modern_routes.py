@@ -97,10 +97,11 @@ class ModernTelegramRouter:
         if text.isdigit():
             return self._handle_quality_selection(int(text), chat_id, user_info)
         
-        # 3. 处理 URL
-        if self._is_valid_url(text):
-            return self._handle_url_with_quality_selection(text, config, user_info)
-        
+        # 3. 处理 URL（支持智能解析）
+        parsed_result = self._parse_message_with_custom_filename(text)
+        if parsed_result['url']:
+            return self._handle_url_with_quality_selection(parsed_result['url'], config, user_info, parsed_result['custom_filename'])
+
         # 4. 处理其他文本（发送帮助）
         return self._handle_unknown_text(text, user_info)
 
@@ -179,26 +180,33 @@ class ModernTelegramRouter:
             logger.error(f"❌ 处理分辨率选择失败: {e}")
             return {'action': 'error', 'error': str(e)}
 
-    def _handle_url_with_quality_selection(self, url: str, config: Dict[str, Any], user_info: Dict[str, str]) -> Dict[str, Any]:
+    def _handle_url_with_quality_selection(self, url: str, config: Dict[str, Any], user_info: Dict[str, str], custom_filename: Optional[str] = None) -> Dict[str, Any]:
         """处理 URL 并显示分辨率选择"""
         try:
             logger.info(f"🔗 处理 URL: {url}")
-            
+
+            # 如果有自定义文件名，发送确认消息
+            if custom_filename:
+                notifier = self.get_notifier()
+                notifier.send_message(f"📝 检测到自定义文件名: **{custom_filename}**")
+                logger.info(f"📝 自定义文件名: {custom_filename}")
+
             # 分析可用质量
             qualities = self._analyze_available_qualities(url)
-            
+
             if not qualities:
                 # 如果无法获取质量信息，直接下载
-                return self._start_download_direct(url, user_info)
-            
-            # 存储选择状态
+                return self._start_download_direct(url, user_info, custom_filename)
+
+            # 存储选择状态（包含自定义文件名）
             chat_id = config.get('chat_id')
-            self.state_service.store_state(chat_id, url, {}, qualities)
-            
+            video_info = {'custom_filename': custom_filename} if custom_filename else {}
+            self.state_service.store_state(chat_id, url, video_info, qualities)
+
             # 发送质量选择菜单
-            self._send_quality_selection_menu(url, qualities)
-            
-            return {'action': 'quality_selection_sent', 'url': url, 'qualities_count': len(qualities)}
+            self._send_quality_selection_menu(url, qualities, custom_filename)
+
+            return {'action': 'quality_selection_sent', 'url': url, 'qualities_count': len(qualities), 'custom_filename': custom_filename}
             
         except Exception as e:
             logger.error(f"❌ 处理 URL 失败: {e}")
@@ -221,8 +229,21 @@ class ModernTelegramRouter:
         notifier.send_message(help_message)
         return {'action': 'help_sent', 'message': '已发送帮助信息'}
 
-    def _is_valid_url(self, text: str) -> bool:
-        """检查是否为有效 URL"""
+    def _parse_message_with_custom_filename(self, text: str) -> Dict[str, Optional[str]]:
+        """智能解析消息，提取URL和自定义文件名"""
+        try:
+            from .services.message_parser import get_message_parser
+            parser = get_message_parser()
+            return parser.parse_message(text)
+        except Exception as e:
+            logger.error(f"❌ 消息解析失败: {e}")
+            # 回退到简单URL检查
+            if self._is_simple_url(text):
+                return {'url': text.strip(), 'custom_filename': None, 'original_message': text}
+            return {'url': None, 'custom_filename': None, 'original_message': text}
+
+    def _is_simple_url(self, text: str) -> bool:
+        """简单URL检查（回退方案）"""
         url_pattern = re.compile(
             r'^https?://'  # http:// 或 https://
             r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+[A-Z]{2,6}\.?|'  # 域名
@@ -230,8 +251,8 @@ class ModernTelegramRouter:
             r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # IP
             r'(?::\d+)?'  # 可选端口
             r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-        
-        return bool(url_pattern.match(text))
+
+        return bool(url_pattern.match(text.strip()))
 
     def _analyze_available_qualities(self, url: str) -> list:
         """分析可用的视频质量"""
@@ -248,30 +269,36 @@ class ModernTelegramRouter:
             logger.error(f"❌ 分析视频质量失败: {e}")
             return []
 
-    def _send_quality_selection_menu(self, url: str, qualities: list):
+    def _send_quality_selection_menu(self, url: str, qualities: list, custom_filename: Optional[str] = None):
         """发送质量选择菜单"""
         try:
             notifier = self.get_notifier()
-            
+
             # 提取视频标题（简化版）
             title = self._extract_video_title(url)
-            
+
             message = f"""🎬 **视频质量选择**
 
 📹 **{title}**
-🔗 {url[:50]}...
+🔗 {url[:50]}..."""
+
+            # 如果有自定义文件名，显示在菜单中
+            if custom_filename:
+                message += f"\n📝 **自定义文件名**: {custom_filename}"
+
+            message += f"""
 
 请选择下载质量：
 
 """
-            
+
             for i, quality in enumerate(qualities, 1):
                 message += f"{i}. **{quality['quality']}** - {quality['note']}\n"
-            
+
             message += f"""
 💡 **提示**: 发送数字 1-{len(qualities)} 进行选择
 ⏰ **有效期**: 5分钟"""
-            
+
             notifier.send_message(message)
             
         except Exception as e:
@@ -328,32 +355,45 @@ class ModernTelegramRouter:
             notifier.send_message(f"❌ **下载启动失败**\n\n错误: {str(e)}")
             return {'action': 'download_failed', 'error': str(e)}
 
-    def _start_download_direct(self, url: str, user_info: Dict[str, str]) -> Dict[str, Any]:
+    def _start_download_direct(self, url: str, user_info: Dict[str, str], custom_filename: Optional[str] = None) -> Dict[str, Any]:
         """直接开始下载（不选择质量）"""
         try:
             from modules.downloader.manager import get_download_manager
-            
+
             download_manager = get_download_manager()
-            
+
             # 构建下载选项
             options = {
                 'source': 'telegram_webhook',
                 'user': user_info['username']
             }
-            
+
+            # 添加自定义文件名
+            if custom_filename:
+                options['custom_filename'] = custom_filename
+
             # 开始下载
             download_id = download_manager.add_download(url, options)
-            
+
             notifier = self.get_notifier()
-            notifier.send_message(f"""✅ **下载已开始**
+
+            # 构建确认消息
+            confirm_msg = f"""✅ **下载已开始**
 
 🔗 **链接**: {url[:50]}...
-🆔 **ID**: `{download_id[:8]}`
+🆔 **ID**: `{download_id[:8]}`"""
+
+            if custom_filename:
+                confirm_msg += f"\n📝 **文件名**: {custom_filename}"
+
+            confirm_msg += f"""
 
 📊 下载进度将实时更新
-🚫 发送 `/cancel {download_id[:8]}` 可取消下载""")
-            
-            return {'action': 'download_started', 'download_id': download_id}
+🚫 发送 `/cancel {download_id[:8]}` 可取消下载"""
+
+            notifier.send_message(confirm_msg)
+
+            return {'action': 'download_started', 'download_id': download_id, 'custom_filename': custom_filename}
             
         except Exception as e:
             logger.error(f"❌ 开始下载失败: {e}")
