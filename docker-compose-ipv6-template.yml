@@ -1,22 +1,17 @@
-# YT-DLP Web WARP版 Docker Compose 配置模板
+# YT-DLP Web IPv6双栈版 Docker Compose 配置模板
 # 使用前请修改所有标记为 "请修改" 的配置项
 
 services:
-  yt-dlp-web:
-    image: ghcr.io/your-username/yt-dlp-web-warp:latest  # 请修改为您的镜像地址
-    container_name: yt-dlp-web-warp
+  yt-dlp-web-ipv6:
+    image: ghcr.io/your-username/yt-dlp-web-ipv6:latest  # 请修改为您的镜像地址
+    container_name: yt-dlp-web-ipv6
     restart: unless-stopped
     ports:
       - "8090:8090"  # 请根据需要修改外部端口
     
-    # WARP 需要的特殊权限
-    cap_add:
-      - NET_ADMIN
-    sysctls:
-      - net.ipv4.ip_forward=1
-      - net.ipv4.conf.all.src_valid_mark=1
-      - net.ipv6.conf.all.disable_ipv6=0
-      - net.ipv6.conf.all.forwarding=1
+    # IPv6 双栈网络配置
+    networks:
+      - yt-dlp-ipv6-network
     
     volumes:
       # 配置文件持久化 - 请修改路径
@@ -25,8 +20,6 @@ services:
       - /your-path/yt-dlp-web/data/:/app/data
       # 日志持久化 - 请修改路径
       - /your-path/yt-dlp-web/logs/:/app/logs
-      # WARP 数据持久化 - 请修改路径
-      - /your-path/yt-dlp-web/warp/:/var/lib/cloudflare-warp
       
       # 开发调试用（生产环境请删除）
       # - /your-path/yt-dlp-web/code/app/:/app
@@ -36,13 +29,8 @@ services:
       - FLASK_ENV=production  # 生产环境，开发环境改为 development
       - SECRET_KEY=please-change-this-secret-key-to-a-random-string  # 请修改为随机字符串
       
-      # WARP 配置
-      - ENABLE_WARP=true
-      - WARP_PROXY_PORT=1080  # 可根据需要修改端口
-      - WARP_LICENSE_KEY=  # 可选：填入您的 WARP+ 许可证
-
       # IPv6 双栈配置
-      - ENABLE_IPV6=true  # 启用IPv4+IPv6双栈支持，设为false则仅使用IPv4
+      - ENABLE_IPV6=true  # 启用IPv4+IPv6双栈支持
       
       # 管理员账号配置 - 请修改
       - ADMIN_USERNAME=admin  # 请修改管理员用户名
@@ -68,30 +56,44 @@ services:
       - FLASK_DEBUG=0
       - PYTHONPATH=/app
       
-    networks:
-      - yt-dlp-network
     labels:
       # Portainer管理标签
       - "io.portainer.accesscontrol.teams=administrators"
       - "io.portainer.accesscontrol.users=admin"
       # 应用信息标签
-      - "app.name=yt-dlp-web-warp"
-      - "app.description=YouTube视频下载器Web界面(WARP版)"
-      - "app.version=2.0.0-warp"
+      - "app.name=yt-dlp-web-ipv6"
+      - "app.description=YouTube视频下载器Web界面(IPv6双栈版)"
+      - "app.version=2.0.0-ipv6"
       - "app.category=media"
       - "app.url=http://localhost:8090"  # 请根据实际端口修改
+      - "app.ipv6.url=http://[::1]:8090"  # IPv6访问地址
       # 健康检查标签
       - "health.check.url=http://localhost:8090/api/health"  # 请根据实际端口修改
       - "health.check.interval=30s"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8090/api/health"]
-      interval: 100s
+      interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 120s  # WARP 版需要更长启动时间
+      start_period: 60s
 
 networks:
-  yt-dlp-network:
+  yt-dlp-ipv6-network:
     driver: bridge
+    enable_ipv6: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+        - subnet: 2001:db8::/32
     labels:
-      - "app.network=yt-dlp"
+      - "app.network=yt-dlp-ipv6"
+      - "network.type=dual-stack"
+
+# 使用说明：
+# 1. 修改所有标记为 "请修改" 的配置项
+# 2. 确保Docker主机支持IPv6
+# 3. 启动命令：docker-compose -f docker-compose-ipv6-template.yml up -d
+# 4. IPv4访问：http://localhost:8090
+# 5. IPv6访问：http://[::1]:8090 (本地) 或 http://[您的IPv6地址]:8090
+# 6. 检查IPv6状态：docker exec yt-dlp-web-ipv6 ip -6 addr show

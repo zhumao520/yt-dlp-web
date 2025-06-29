@@ -170,13 +170,12 @@ def create_sse_response(client_id: str) -> Response:
             # 清理客户端
             sse_manager.remove_client(client_id)
     
-    # 创建SSE响应
+    # 创建SSE响应（移除Connection头部，WSGI不允许）
     response = Response(
         event_stream(),
         mimetype='text/event-stream',
         headers={
             'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Headers': 'Cache-Control',
             'X-Accel-Buffering': 'no',  # 禁用Nginx缓冲
@@ -192,16 +191,7 @@ def setup_sse_events():
         from .events import on, Events
         sse_manager = get_sse_manager()
         
-        @on(Events.DOWNLOAD_PROGRESS)
-        def handle_download_progress(data):
-            """处理下载进度事件"""
-            if data:
-                sse_manager.broadcast('download_progress', {
-                    'download_id': data.get('download_id'),
-                    'status': data.get('status'),
-                    'progress': data.get('progress', 0),
-                    'timestamp': int(time.time())
-                })
+
         
         @on(Events.DOWNLOAD_COMPLETED)
         def handle_download_completed(data):
@@ -231,6 +221,22 @@ def setup_sse_events():
                 except Exception as e:
                     logger.debug(f"检查活跃下载失败: {e}")
         
+        @on(Events.DOWNLOAD_PROGRESS)
+        def handle_download_progress(data):
+            """处理下载进度事件"""
+            if data:
+                download_id = data.get('download_id')
+                progress = data.get('progress')
+                status = data.get('status')
+                logger.info(f"📡 SSE广播进度事件: {download_id} - {progress}% ({status})")
+
+                sse_manager.broadcast('download_progress', {
+                    'download_id': download_id,
+                    'status': status,
+                    'progress': progress,
+                    'timestamp': int(time.time())
+                })
+
         @on(Events.DOWNLOAD_FAILED)
         def handle_download_failed(data):
             """处理下载失败事件"""
@@ -251,15 +257,21 @@ def setup_sse_events():
                     'title': data.get('title'),
                     'timestamp': int(time.time())
                 })
-        
+
+        @on(Events.DOWNLOAD_TITLE_UPDATED)
+        def handle_download_title_updated(data):
+            """处理下载标题更新事件"""
+            if data:
+                sse_manager.broadcast('download_title_updated', {
+                    'download_id': data.get('download_id'),
+                    'title': data.get('title'),
+                    'timestamp': int(time.time())
+                })
+
         logger.info("✅ SSE事件监听器设置完成")
         
     except Exception as e:
         logger.error(f"❌ 设置SSE事件监听器失败: {e}")
 
 
-# 在模块导入时自动设置事件监听器
-try:
-    setup_sse_events()
-except Exception as e:
-    logger.warning(f"⚠️ SSE事件监听器设置延迟: {e}")
+# SSE事件监听器将在应用启动时通过 setup_sse_events() 初始化

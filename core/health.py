@@ -168,7 +168,7 @@ class HealthChecker:
         """检查下载目录"""
         try:
             from .config import get_config
-            download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
+            download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
             
             if not download_dir.exists():
                 download_dir.mkdir(parents=True, exist_ok=True)

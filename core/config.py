@@ -60,9 +60,10 @@ class Config:
                 "name": "YT-DLP Web",
                 "version": "2.0.0",
                 "host": "0.0.0.0",
-                "port": 8080,
+                "port": 8090,
                 "debug": False,
                 "secret_key": "change-this-secret-key-in-production",
+                "ipv6_enabled": True,
             },
             "database": {"url": "sqlite:///app.db", "echo": False},
             "auth": {
@@ -72,7 +73,7 @@ class Config:
             },
             "downloader": {
                 "output_dir": "data/downloads",
-                "temp_dir": "/app/temp",
+                "temp_dir": "data/temp",
                 "max_concurrent": 3,
                 "timeout": 300,
                 "auto_cleanup": True,
@@ -144,6 +145,7 @@ class Config:
             "APP_HOST": ("app", "host"),
             "APP_PORT": ("app", "port"),
             "APP_DEBUG": ("app", "debug"),
+            "ENABLE_IPV6": ("app", "ipv6_enabled"),
             "SECRET_KEY": ("app", "secret_key"),
             "DATABASE_URL": ("database", "url"),
             "DOWNLOAD_DIR": ("downloader", "output_dir"),
@@ -163,7 +165,7 @@ class Config:
                         value = int(value)
                     except ValueError:
                         continue
-                elif key in ["debug", "enabled", "auto_cleanup"]:
+                elif key in ["debug", "enabled", "auto_cleanup", "ipv6_enabled"]:
                     value = value.lower() in ("true", "1", "yes", "on")
                 
                 if section not in self._config:

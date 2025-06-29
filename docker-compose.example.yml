@@ -8,14 +8,15 @@ services:
     container_name: yt-dlp-web
     restart: always
     ports:
-      - "8080:8080"
+      - "8090:8090"
     environment:
       - SECRET_KEY=change-this-secret-key-in-production
+      - ENABLE_IPV6=true  # 启用IPv4+IPv6双栈支持
     volumes:
       - ./data:/app/data
       - ./downloads:/app/downloads
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8090/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -26,10 +27,11 @@ services:
   #   container_name: yt-dlp-web-warp
   #   restart: always
   #   ports:
-  #     - "8080:8080"
+  #     - "8090:8090"
   #   environment:
   #     - SECRET_KEY=change-this-secret-key-in-production
   #     - ENABLE_WARP=true
+  #     - ENABLE_IPV6=true  # 启用IPv4+IPv6双栈支持
   #     - WARP_PROXY_PORT=1080
   #     - WARP_LICENSE_KEY=  # 可选：WARP+ 许可证
   #   cap_add:
@@ -43,7 +45,7 @@ services:
   #     - ./data:/app/data
   #     - ./downloads:/app/downloads
   #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+  #     test: ["CMD", "curl", "-f", "http://localhost:8090/api/health"]
   #     interval: 30s
   #     timeout: 10s
   #     retries: 3

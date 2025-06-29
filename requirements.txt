@@ -35,10 +35,11 @@ pytubefix>=9.1.2
 
 # 生产部署 (可选)
 gunicorn>=23.0.0
+waitress>=3.0.0  # IPv6双栈WSGI服务器
 # 暂未使用，项目直接使用os.environ
 python-dotenv>=1.0.1  
 
 # 开发工具 (可选)
-# pytest>=8.2.2
-# black>=24.4.2
-# flake8>=7.2.0
+pytest>=8.2.2
+black>=24.4.2
+flake8>=7.2.0

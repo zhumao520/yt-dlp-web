@@ -148,9 +148,9 @@ def download_recovery_strategy(error: Exception, context: str) -> Optional[Any]:
         
         if "permission" in str(error).lower():
             logger.info("🔧 尝试修复下载目录权限...")
-            from .config import get_config
+            from .config_priority import get_config_value
             from pathlib import Path
-            download_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
+            download_dir = Path(get_config_value('downloader.output_dir', 'data/downloads', str))
             download_dir.mkdir(parents=True, exist_ok=True)
             return "recovered"
             

@@ -414,6 +414,37 @@ def api_health_check():
         }), 500
 
 
+@api_bp.route('/events')
+def api_sse_events():
+    """SSE事件流端点（需要认证）"""
+    try:
+        # 检查认证
+        from core.auth import get_auth_manager
+        auth_manager = get_auth_manager()
+
+        # 从cookie或header获取token
+        token = request.cookies.get('auth_token') or request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not token:
+            return jsonify({"error": "未授权"}), 401
+
+        current_user = auth_manager.get_current_user(token)
+        if not current_user:
+            return jsonify({"error": "未授权"}), 401
+
+        # 获取客户端ID
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({"error": "缺少client_id参数"}), 400
+
+        # 创建SSE响应
+        from core.sse import create_sse_response
+        return create_sse_response(client_id)
+
+    except Exception as e:
+        logger.error(f"❌ SSE事件流创建失败: {e}")
+        return jsonify({"error": "SSE连接失败"}), 500
+
+
 @api_bp.route('/system/status')
 @auth_required
 def api_system_status():
@@ -805,15 +836,15 @@ def api_update_all_engines():
 def api_get_general_settings():
     """获取基础设置"""
     try:
-        from core.config import get_config
+        from core.config_priority import get_config_value
 
         settings = {
-            "app_name": get_config("app.name", "YT-DLP Web"),
-            "app_version": get_config("app.version", "2.0.0"),
-            "host": get_config("app.host", "0.0.0.0"),
-            "port": get_config("app.port", 8080),
-            "debug": get_config("app.debug", False),
-            "secret_key": get_config("app.secret_key", "")[:10] + "..." if get_config("app.secret_key") else ""
+            "app_name": get_config_value("app.name", "YT-DLP Web", str),
+            "app_version": get_config_value("app.version", "2.0.0", str),
+            "host": get_config_value("app.host", "0.0.0.0", str),
+            "port": get_config_value("app.port", 8090, int),
+            "debug": get_config_value("app.debug", False, bool),
+            "secret_key": get_config_value("app.secret_key", "")[:10] + "..." if get_config_value("app.secret_key") else ""
         }
 
         return jsonify({"success": True, "settings": settings})
@@ -1045,8 +1076,10 @@ def api_save_download_settings():
         }
 
         # 保存各个设置项（使用正确的字段名）
+        from core.path_constants import get_default_download_dir
+
         settings_to_save = [
-            ("downloader.output_dir", data.get("output_dir", "/app/downloads")),
+            ("downloader.output_dir", data.get("output_dir", get_default_download_dir())),
             ("downloader.max_concurrent", str(data.get("max_concurrent", 3))),
             ("downloader.timeout", str(data.get("timeout", 300))),
             ("downloader.auto_cleanup", str(data.get("auto_cleanup", True))),
@@ -1253,17 +1286,95 @@ def api_system_restart():
     try:
         logger.info("🔄 收到系统重启请求")
 
-        # 在容器环境中，我们不能真正重启系统
-        # 但可以尝试重启应用进程
-        import os
-        import signal
-
         # 发送响应后再重启
         def restart_after_response():
             import time
+            import os
+            import sys
+            import subprocess
+            import platform
+
             time.sleep(1)  # 等待响应发送完成
             logger.info("🔄 正在重启应用...")
-            os.kill(os.getpid(), signal.SIGTERM)
+
+            try:
+                # 获取当前Python解释器和脚本路径
+                python_exe = sys.executable
+                script_path = os.path.abspath(sys.argv[0])
+                current_dir = os.getcwd()
+
+                logger.info(f"🔄 Python解释器: {python_exe}")
+                logger.info(f"🔄 脚本路径: {script_path}")
+                logger.info(f"🔄 工作目录: {current_dir}")
+
+                # 使用更简单的重启方式：直接启动新进程
+                if platform.system() == "Windows":
+                    # Windows环境：使用start命令在新窗口中启动
+                    cmd = f'start "YT-DLP Web Restart" /D "{current_dir}" "{python_exe}" "{script_path}"'
+                    logger.info(f"🚀 执行重启命令: {cmd}")
+
+                    # 使用subprocess.Popen启动新进程
+                    process = subprocess.Popen(
+                        cmd,
+                        shell=True,
+                        cwd=current_dir,
+                        creationflags=subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, 'CREATE_NEW_CONSOLE') else 0
+                    )
+                    logger.info(f"✅ 新进程已启动，PID: {process.pid}")
+
+                else:
+                    # Linux/Unix环境：使用nohup在后台启动
+                    cmd = [python_exe, script_path]
+                    logger.info(f"🚀 执行重启命令: {' '.join(cmd)}")
+
+                    process = subprocess.Popen(
+                        cmd,
+                        cwd=current_dir,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        stdin=subprocess.DEVNULL
+                    )
+                    logger.info(f"✅ 新进程已启动，PID: {process.pid}")
+
+                # 等待新进程启动
+                logger.info("⏳ 等待新进程启动...")
+                time.sleep(2)
+
+                # 退出当前进程
+                logger.info("🔄 当前进程即将退出，新进程将接管...")
+                os._exit(0)
+
+            except Exception as e:
+                logger.error(f"❌ 重启过程中发生错误: {e}")
+                logger.error(f"❌ 错误详情: {type(e).__name__}: {str(e)}")
+
+                # 如果重启失败，尝试最简单的方式：直接启动新进程然后退出
+                try:
+                    logger.info("🔄 尝试备用重启方式...")
+                    if platform.system() == "Windows":
+                        # 最简单的方式：使用os.system
+                        restart_cmd = f'"{python_exe}" "{script_path}"'
+                        logger.info(f"🚀 备用重启命令: {restart_cmd}")
+
+                        # 在后台启动新进程
+                        import threading
+                        def start_new_process():
+                            time.sleep(3)  # 等待当前进程退出
+                            os.system(restart_cmd)
+
+                        thread = threading.Thread(target=start_new_process)
+                        thread.daemon = True
+                        thread.start()
+
+                    logger.info("🔄 备用重启方式已启动")
+
+                except Exception as backup_error:
+                    logger.error(f"❌ 备用重启方式也失败: {backup_error}")
+
+                # 最终退出当前进程
+                logger.info("🔄 强制退出当前进程...")
+                import signal
+                os.kill(os.getpid(), signal.SIGTERM)
 
         # 在后台线程中执行重启
         import threading
@@ -1408,7 +1519,19 @@ def api_shortcuts_download():
         # 获取URL
         url = data.get("url", "").strip()
         if not url:
-            return jsonify({"error": "需要提供视频URL"}), 400
+            return jsonify({
+                "error": "需要提供视频URL",
+                "error_code": "MISSING_URL",
+                "message": "请提供要下载的视频链接"
+            }), 400
+
+        # 基本URL验证
+        if not (url.startswith('http://') or url.startswith('https://')):
+            return jsonify({
+                "error": "无效的URL格式",
+                "error_code": "INVALID_URL",
+                "message": "URL必须以http://或https://开头"
+            }), 400
 
         # 简化认证 - 支持API密钥或用户名密码
         auth_token = None
@@ -1441,8 +1564,55 @@ def api_shortcuts_download():
         else:
             audio_only = str(audio_only_value).lower() in ["true", "1", "yes"]
 
+        # 处理分辨率选择和自动降级
+        resolution = data.get("resolution", "").strip()
+        quality = data.get("quality", "medium")
+        final_resolution = None
+
+        # 如果指定了具体分辨率，进行自动降级处理
+        if resolution:
+            # 验证分辨率格式
+            valid_resolutions = ["4320p", "2160p", "1440p", "1080p", "720p", "480p", "360p", "240p", "144p"]
+            if resolution not in valid_resolutions:
+                return jsonify({
+                    "error": f"不支持的分辨率格式: {resolution}",
+                    "error_code": "INVALID_RESOLUTION_FORMAT",
+                    "message": f"支持的分辨率格式: {', '.join(valid_resolutions)}"
+                }), 400
+
+            # 获取视频信息以检查可用分辨率
+            try:
+                from modules.downloader.api import get_unified_download_api
+                api = get_unified_download_api()
+                video_result = api.get_video_info(url)
+
+                if video_result['success']:
+                    video_info = video_result['data']
+                    formats = video_info.get('formats', [])
+
+                    # 收集可用分辨率
+                    available_resolutions = set()
+                    for fmt in formats:
+                        height = fmt.get('height')
+                        if height:
+                            available_resolutions.add(f"{height}p")
+
+                    # 自动降级逻辑
+                    final_resolution = _find_best_available_resolution(resolution, available_resolutions)
+                    quality = final_resolution
+
+                    logger.info(f"🎯 分辨率选择: 请求 {resolution} -> 实际使用 {final_resolution}")
+                else:
+                    # 如果无法获取视频信息，使用用户指定的分辨率
+                    quality = resolution
+                    logger.warning(f"⚠️ 无法获取视频信息，直接使用用户指定分辨率: {resolution}")
+            except Exception as e:
+                # 如果出错，使用用户指定的分辨率
+                quality = resolution
+                logger.warning(f"⚠️ 分辨率检查失败，直接使用用户指定分辨率: {resolution}, 错误: {e}")
+
         options = {
-            "quality": data.get("quality", "medium"),
+            "quality": quality,
             "audio_only": audio_only,
             "custom_filename": data.get("custom_filename", "").strip(),
             "source": "ios_shortcuts",
@@ -1466,6 +1636,20 @@ def api_shortcuts_download():
             "download_id": download_id,
             "status_url": f"/api/shortcuts/status/{download_id}"
         }
+
+        # 如果进行了分辨率降级，告知用户
+        if final_resolution and final_resolution != resolution:
+            response["resolution_info"] = {
+                "requested": resolution,
+                "actual": final_resolution,
+                "message": f"已自动调整分辨率：{resolution} → {final_resolution}"
+            }
+        elif final_resolution:
+            response["resolution_info"] = {
+                "requested": resolution,
+                "actual": final_resolution,
+                "message": f"使用分辨率：{final_resolution}"
+            }
 
         # 如果需要，添加认证令牌
         if auth_token:
@@ -1497,23 +1681,182 @@ def api_shortcuts_status(download_id):
             "title": download_info.get("title", "Unknown"),
         }
 
+        # 添加详细的进度信息
+        if download_info.get("progress_details"):
+            response["progress_details"] = download_info["progress_details"]
+
         # 如果下载完成，添加文件信息
         if download_info["status"] == "completed" and download_info.get("file_path"):
-            filename = download_info["file_path"].split("/")[-1]
+            from pathlib import Path
+            file_path = Path(download_info["file_path"])
+            filename = file_path.name
+
             response.update({
                 "filename": filename,
                 "file_size": download_info.get("file_size", 0),
-                "download_url": f"/api/shortcuts/file/{filename}",
-                "completed": True
+                "file_size_mb": round(download_info.get("file_size", 0) / (1024 * 1024), 2),
+                "download_url": f"/files/download/{filename}",
+                "completed": True,
+                "duration": download_info.get("duration"),
+                "format": download_info.get("format"),
+                "quality": download_info.get("quality")
             })
         elif download_info["status"] == "failed":
-            response["error"] = download_info.get("error_message", "下载失败")
+            response.update({
+                "error": download_info.get("error_message", "下载失败"),
+                "error_type": download_info.get("error_type", "unknown"),
+                "retry_count": download_info.get("retry_count", 0)
+            })
+        elif download_info["status"] in ["pending", "downloading"]:
+            response.update({
+                "eta": download_info.get("eta"),
+                "speed": download_info.get("speed"),
+                "downloaded_bytes": download_info.get("downloaded_bytes", 0)
+            })
 
         return jsonify(response)
 
     except Exception as e:
         logger.error(f"❌ 获取下载状态失败: {e}")
-        return jsonify({"error": "获取状态失败"}), 500
+        return jsonify({
+            "error": "获取状态失败",
+            "error_code": "STATUS_ERROR",
+            "message": "无法获取下载状态，请稍后重试"
+        }), 500
+
+
+@api_bp.route('/shortcuts/quick-status/<download_id>')
+def api_shortcuts_quick_status(download_id):
+    """iOS快捷指令快速状态查询 - 仅返回核心信息"""
+    try:
+        from modules.downloader.manager import get_download_manager
+        download_manager = get_download_manager()
+
+        download_info = download_manager.get_download(download_id)
+        if not download_info:
+            return jsonify({
+                "error": "下载任务不存在",
+                "error_code": "NOT_FOUND"
+            }), 404
+
+        # 极简响应，适合快捷指令快速检查
+        status = download_info["status"]
+
+        if status == "completed":
+            from pathlib import Path
+            filename = Path(download_info["file_path"]).name if download_info.get("file_path") else None
+            return jsonify({
+                "status": "completed",
+                "ready": True,
+                "filename": filename,
+                "download_url": f"/files/download/{filename}" if filename else None
+            })
+        elif status == "failed":
+            return jsonify({
+                "status": "failed",
+                "ready": False,
+                "error": download_info.get("error_message", "下载失败")
+            })
+        else:
+            return jsonify({
+                "status": status,
+                "ready": False,
+                "progress": download_info["progress"]
+            })
+
+    except Exception as e:
+        logger.error(f"❌ 快速状态查询失败: {e}")
+        return jsonify({
+            "error": "状态查询失败",
+            "error_code": "QUICK_STATUS_ERROR"
+        }), 500
+
+
+@api_bp.route('/shortcuts/formats', methods=['POST'])
+def api_shortcuts_get_formats():
+    """iOS快捷指令获取视频可用格式和分辨率"""
+    try:
+        # 支持多种数据格式
+        if request.content_type == 'application/json':
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+
+        if not data:
+            return jsonify({"error": "需要提供数据"}), 400
+
+        # 获取URL
+        url = data.get("url", "").strip()
+        if not url:
+            return jsonify({
+                "error": "需要提供视频URL",
+                "error_code": "MISSING_URL"
+            }), 400
+
+        # 简化认证检查
+        api_key = data.get("api_key") or request.headers.get("X-API-Key")
+        if api_key:
+            if not _verify_api_key(api_key):
+                return jsonify({"error": "API密钥无效"}), 401
+        else:
+            username = data.get("username")
+            password = data.get("password")
+            if not username or not password:
+                return jsonify({"error": "需要提供用户名和密码或API密钥"}), 401
+
+            from core.auth import get_auth_manager
+            auth_manager = get_auth_manager()
+            auth_token = auth_manager.login(username, password)
+            if not auth_token:
+                return jsonify({"error": "用户名或密码错误"}), 401
+
+        # 获取视频信息
+        from modules.downloader.api import get_unified_download_api
+        api = get_unified_download_api()
+        result = api.get_video_info(url)
+
+        if not result['success']:
+            return jsonify({
+                "error": result['error'],
+                "error_code": "VIDEO_INFO_ERROR"
+            }), 500
+
+        video_info = result['data']
+
+        # 提取可用的分辨率
+        available_resolutions = []
+        formats = video_info.get('formats', [])
+
+        # 收集所有可用的分辨率
+        resolution_set = set()
+        for fmt in formats:
+            height = fmt.get('height')
+            if height:
+                resolution = f"{height}p"
+                resolution_set.add(resolution)
+
+        # 按分辨率排序（从高到低）
+        resolution_order = ["4320p", "2160p", "1440p", "1080p", "720p", "480p", "360p", "240p", "144p"]
+        available_resolutions = [res for res in resolution_order if res in resolution_set]
+
+        # 简化的响应
+        response = {
+            "success": True,
+            "title": video_info.get('title', 'Unknown'),
+            "duration": video_info.get('duration'),
+            "available_resolutions": available_resolutions,
+            "has_audio": any(fmt.get('acodec') != 'none' for fmt in formats),
+            "recommended_resolution": available_resolutions[0] if available_resolutions else "720p"
+        }
+
+        return jsonify(response)
+
+    except Exception as e:
+        logger.error(f"❌ 获取视频格式失败: {e}")
+        return jsonify({
+            "error": "获取格式信息失败",
+            "error_code": "FORMATS_ERROR"
+        }), 500
 
 
 @api_bp.route('/shortcuts/file/<filename>')
@@ -1544,6 +1887,7 @@ def api_shortcuts_file(filename):
         return jsonify({"error": "文件下载失败"}), 500
 
 
+
 @api_bp.route('/shortcuts/info')
 def api_shortcuts_info():
     """iOS快捷指令服务信息 - 无需认证"""
@@ -1559,8 +1903,20 @@ def api_shortcuts_info():
             "qualities": ["最高质量", "中等质量", "低质量"],
             "endpoints": {
                 "download": "/api/shortcuts/download",
+                "formats": "/api/shortcuts/formats",
                 "status": "/api/shortcuts/status/{download_id}",
-                "file": "/api/shortcuts/file/{filename}"
+                "quick_status": "/api/shortcuts/quick-status/{download_id}",
+                "file": "/api/shortcuts/file/{filename}",
+                "info": "/api/shortcuts/info"
+            },
+            "features": {
+                "single_download": True,
+                "progress_tracking": True,
+                "file_download": True,
+                "api_key_auth": True,
+                "username_password_auth": True,
+                "audio_extraction": True,
+                "custom_filename": True
             }
         })
 
@@ -1928,6 +2284,55 @@ def _verify_api_key(api_key: str) -> bool:
     except Exception as e:
         logger.error(f"❌ API密钥验证失败: {e}")
         return False
+
+
+def _find_best_available_resolution(requested_resolution: str, available_resolutions: set) -> str:
+    """
+    找到最佳可用分辨率（自动降级）
+
+    Args:
+        requested_resolution: 用户请求的分辨率 (如 "1080p")
+        available_resolutions: 可用分辨率集合 (如 {"720p", "480p", "360p"})
+
+    Returns:
+        最佳可用分辨率字符串
+    """
+    # 分辨率优先级（从高到低）
+    resolution_priority = ["4320p", "2160p", "1440p", "1080p", "720p", "480p", "360p", "240p", "144p"]
+
+    # 如果请求的分辨率直接可用，返回它
+    if requested_resolution in available_resolutions:
+        return requested_resolution
+
+    # 找到请求分辨率在优先级列表中的位置
+    try:
+        requested_index = resolution_priority.index(requested_resolution)
+    except ValueError:
+        # 如果请求的分辨率不在标准列表中，返回最高可用分辨率
+        for res in resolution_priority:
+            if res in available_resolutions:
+                return res
+        return "medium"  # 如果都没有，返回默认质量
+
+    # 从请求的分辨率开始，向下查找可用的分辨率
+    for i in range(requested_index, len(resolution_priority)):
+        if resolution_priority[i] in available_resolutions:
+            return resolution_priority[i]
+
+    # 如果向下没找到，向上查找（虽然不太可能）
+    for i in range(requested_index - 1, -1, -1):
+        if resolution_priority[i] in available_resolutions:
+            return resolution_priority[i]
+
+    # 如果还是没找到，返回任何可用的分辨率
+    if available_resolutions:
+        # 按优先级返回最高的可用分辨率
+        for res in resolution_priority:
+            if res in available_resolutions:
+                return res
+
+    # 最后的备选方案
+    return "medium"
 
 
 # ==================== 辅助函数 ====================

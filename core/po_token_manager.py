@@ -49,8 +49,8 @@ class POTokenManager:
                 visitor_data = auth_config.get('visitor_data', '').strip()
                 oauth2_token = auth_config.get('oauth2_token', '').strip()
 
-                # 重新计算可用性，确保格式正确
-                po_token_available = bool(po_token and len(po_token) > 10 and '+' in po_token)
+                # 重新计算可用性，PO Token格式检查（长度大于10即可，不强制要求特定字符）
+                po_token_available = bool(po_token and len(po_token) > 10)
                 visitor_data_available = bool(visitor_data and len(visitor_data) > 10)
                 oauth2_available = bool(oauth2_token and len(oauth2_token) > 10)
 
@@ -247,45 +247,15 @@ class POTokenManager:
             ssl._create_default_https_context = ssl._create_unverified_context
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-            # 检查代理配置，如果可用则使用代理
+            # 使用统一的代理转换器获取代理配置
             try:
-                from core.database import get_database
-                db = get_database()
-                db_proxy_config = db.get_proxy_config()
-
-                if db_proxy_config and db_proxy_config.get('enabled'):
-                    proxy_type = db_proxy_config.get('proxy_type', 'http')
-                    host = db_proxy_config.get('host')
-                    port = db_proxy_config.get('port')
-                    username = db_proxy_config.get('username')
-                    password = db_proxy_config.get('password')
-
-                    if host and port and proxy_type == 'socks5':
-                        # 尝试使用SOCKS5代理
-                        try:
-                            import socks
-                            auth = ""
-                            if username and password:
-                                auth = f"{username}:{password}@"
-
-                            proxy_url = f"socks5://{auth}{host}:{port}"
-                            proxy_config = {
-                                'http': proxy_url,
-                                'https': proxy_url
-                            }
-                            logger.info(f"✅ {caller_name} PO Token生成使用SOCKS5代理: {host}:{port}")
-                        except ImportError:
-                            logger.warning(f"⚠️ {caller_name} 未安装PySocks，使用直连模式")
-                            proxy_config = None
-                    else:
-                        logger.info(f"🔍 {caller_name} PO Token生成使用直连模式")
-                        proxy_config = None
+                proxy_config = ProxyConverter.get_requests_proxy(f"POToken-{caller_name}")
+                if proxy_config:
+                    logger.info(f"✅ {caller_name} PO Token生成使用代理: {proxy_config}")
                 else:
-                    logger.info(f"🔍 {caller_name} PO Token生成使用直连模式（无代理配置）")
-                    proxy_config = None
-
+                    logger.info(f"🔍 {caller_name} PO Token生成使用直连模式")
             except Exception as e:
-                logger.warning(f"⚠️ {caller_name} 代理配置检查失败，使用直连: {e}")
+                logger.warning(f"⚠️ {caller_name} 代理配置获取失败，使用直连: {e}")
                 proxy_config = None
 
             # 步骤1: 生成visitor data
@@ -308,6 +278,13 @@ class POTokenManager:
                 'allow_redirects': True,
                 'stream': False
             }
+
+            # 添加代理配置（修复 BUG）
+            if proxy_config:
+                kwargs['proxies'] = proxy_config
+                logger.info(f"🔧 {caller_name} PO Token生成使用代理: {proxy_config}")
+            else:
+                logger.info(f"🔍 {caller_name} PO Token生成使用直连模式")
 
             try:
                 response = requests.get('https://www.youtube.com', **kwargs)
@@ -581,11 +558,39 @@ generatePOToken();
                     # 有PO Token时，使用mweb客户端获得最佳4K支持
                     # 修复：确保PO Token作为完整字符串传递，而不是逐字符解析
                     ydl_opts['extractor_args']['youtube'].update({
-                        'po_token': [formatted_po_token],  # 使用列表格式防止逐字符解析
-                        'visitor_data': [visitor_data],    # 使用列表格式防止逐字符解析
+                        'po_token': [formatted_po_token],  # 使用列表格式，避免逐字符解析
+                        'visitor_data': visitor_data,      # 直接使用字符串格式
                         'player_client': ['mweb', 'web'],  # 优先使用mweb客户端
                         'player_skip': ['webpage']  # 跳过网页解析，提高速度
                     })
+
+                    # 添加cookies支持以解决机器人检测（暂时禁用以避免数据库锁定问题）
+                    # 注释：Edge浏览器cookies可能被锁定，暂时跳过cookies使用PO Token
+                    if False and 'cookiesfrombrowser' not in ydl_opts and 'cookiefile' not in ydl_opts:
+                        # 尝试多种浏览器，按优先级排序
+                        browsers_to_try = ['edge', 'chrome', 'firefox', 'safari']
+                        for browser in browsers_to_try:
+                            try:
+                                ydl_opts['cookiesfrombrowser'] = (browser, None, None, None)
+                                logger.info(f"🍪 {caller_name} 尝试使用{browser}浏览器cookies")
+                                break
+                            except:
+                                continue
+                        else:
+                            logger.warning(f"⚠️ {caller_name} 无法找到可用的浏览器cookies，将跳过cookies")
+                    else:
+                        logger.info(f"🔑 {caller_name} 仅使用PO Token，跳过cookies（避免浏览器锁定）")
+
+                    # 添加User-Agent以提高成功率
+                    if 'http_headers' not in ydl_opts:
+                        ydl_opts['http_headers'] = {}
+                    if 'User-Agent' not in ydl_opts['http_headers']:
+                        ydl_opts['http_headers']['User-Agent'] = (
+                            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                            '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+                        )
+                        logger.info(f"🌐 {caller_name} 设置Chrome User-Agent")
+
                 logger.info(f"🔑 {caller_name} 使用PO Token配置 (mweb客户端，支持4K)")
                 logger.debug(f"   格式化PO Token: {formatted_po_token[:30]}...")
                 logger.debug(f"   Visitor Data: {visitor_data[:30]}...")
@@ -656,21 +661,29 @@ generatePOToken();
             # 获取有效的PO Token配置（自动验证和更新）
             config = self.get_valid_po_token_config(caller_name, auto_update=True)
 
+            # 详细调试日志
+            logger.info(f"🔍 {caller_name} PO Token配置状态:")
+            logger.info(f"   PO Token可用: {config['po_token_available']}")
+            logger.info(f"   Visitor Data可用: {config['visitor_data_available']}")
+            if config['po_token_available']:
+                logger.info(f"   PO Token: {config['po_token'][:20]}...")
+                logger.info(f"   Visitor Data: {config['visitor_data'][:20]}...")
+
             # 优先使用手动配置的PO Token（如果可用）
             if config['po_token_available']:
-                # 创建自定义PO Token验证器
+                # 使用po_token_verifier方式（避免token_file冲突问题）
                 def custom_po_token_verifier():
                     """返回预配置的PO Token和Visitor Data"""
+                    logger.debug(f"🔑 {caller_name} 自定义验证器被调用")
                     return config['visitor_data'], config['po_token']
 
-                # 使用手动配置的PO Token
                 yt_kwargs.update({
                     'use_po_token': True,  # 启用PO Token模式
                     'po_token_verifier': custom_po_token_verifier  # 自定义验证器
                 })
-                logger.info(f"🔑 {caller_name} 使用手动配置的PO Token")
-                logger.debug(f"   PO Token: {config['po_token'][:20]}...")
-                logger.debug(f"   Visitor Data: {config['visitor_data'][:20]}...")
+                logger.info(f"🔑 {caller_name} 使用po_token_verifier方式")
+                logger.info(f"   PO Token: {config['po_token'][:20]}...")
+                logger.info(f"   Visitor Data: {config['visitor_data'][:20]}...")
             else:
                 # 检查Node.js是否可用（用于自动PO Token生成）
                 nodejs_available = self._check_nodejs_available()
@@ -696,7 +709,45 @@ generatePOToken();
 
         except Exception as e:
             logger.error(f"❌ {caller_name} 应用PyTubeFix PO Token配置失败: {e}")
-            return yt_kwargs
+            return
+
+    def get_ytdlp_po_token_args(self, caller_name: str = "YtDlp") -> list:
+        """
+        获取yt-dlp的PO Token参数
+
+        Args:
+            caller_name: 调用者名称，用于日志
+
+        Returns:
+            list: yt-dlp命令行参数列表
+        """
+        try:
+            # 获取有效的PO Token配置
+            config = self.get_valid_po_token_config(caller_name, auto_update=True)
+
+            args = []
+
+            if config['po_token_available'] and config['visitor_data_available']:
+                # 构建yt-dlp的PO Token参数
+                po_token_arg = f"mweb.gvs+{config['po_token']}"
+
+                # 添加extractor-args参数
+                args.extend([
+                    '--extractor-args',
+                    f'youtube:po_token={po_token_arg}'
+                ])
+
+                logger.info(f"🔑 {caller_name} 生成yt-dlp PO Token参数")
+                logger.info(f"   PO Token: {config['po_token'][:20]}...")
+                logger.info(f"   参数: --extractor-args youtube:po_token={po_token_arg[:30]}...")
+            else:
+                logger.warning(f"⚠️ {caller_name} PO Token不可用，跳过yt-dlp参数生成")
+
+            return args
+
+        except Exception as e:
+            logger.error(f"❌ {caller_name} 生成yt-dlp PO Token参数失败: {e}")
+            return []
 
 
 

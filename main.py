@@ -57,6 +57,66 @@ def setup_environment():
         return False
 
 
+def run_dual_stack_server(app, host='0.0.0.0', port=8090, debug=False):
+    """使用Waitress生产级WSGI服务器实现双栈支持"""
+    try:
+        from waitress import serve
+
+        logger.info("🚀 启动Waitress生产级双栈服务器...")
+        logger.info("💡 Waitress提供高性能、高并发和真正的双栈支持")
+
+        # 使用Waitress的双栈监听
+        logger.info(f"🌐 双栈监听: 0.0.0.0:{port} + [::]:{port}")
+        logger.info(f"💡 IPv4访问: http://127.0.0.1:{port}")
+        logger.info(f"💡 IPv6访问: http://[::1]:{port}")
+        logger.info(f"💡 网络访问: http://0.0.0.0:{port}")
+        logger.info("🔗 Telegram Webhook可以通过IPv4或IPv6连接")
+        logger.info("⚡ 生产级性能：多线程、连接池、自动清理、双栈支持")
+
+        # 启动Waitress服务器，使用真正的双栈支持
+        serve(
+            app,
+            listen=f"0.0.0.0:{port} [::]:{port}",  # 双栈监听：IPv4和IPv6
+            threads=6,  # 线程数
+            connection_limit=1000,  # 连接限制
+            cleanup_interval=30,  # 清理间隔
+            channel_timeout=120,  # 通道超时
+            log_socket_errors=True,  # 记录socket错误
+            ipv4=True,  # 启用IPv4
+            ipv6=True,  # 启用IPv6
+        )
+
+    except ImportError:
+        logger.warning("⚠️ Waitress未安装，回退到Flask内置服务器")
+        _run_flask_server(app, host, port, debug)
+
+    except Exception as e:
+        logger.error(f"❌ Waitress服务器启动失败: {e}")
+        logger.info("🔄 回退到Flask内置服务器")
+        _run_flask_server(app, host, port, debug)
+
+
+def _run_flask_server(app, host='0.0.0.0', port=8090, debug=False):
+    """Flask内置服务器回退方案"""
+    try:
+        logger.info("🔍 尝试Flask双栈模式...")
+        app.run(
+            host='::',  # 尝试IPv6双栈
+            port=port,
+            debug=debug,
+            threaded=True
+        )
+    except Exception as e:
+        logger.warning(f"⚠️ Flask双栈模式失败: {e}")
+        logger.info("🔄 使用IPv4模式")
+        app.run(
+            host=host,  # IPv4模式
+            port=port,
+            debug=debug,
+            threaded=True
+        )
+
+
 def main():
     """主函数"""
     try:
@@ -112,18 +172,29 @@ def main():
         # 获取配置
         config = Config()
         host = config.get('app.host', '0.0.0.0')
-        port = config.get('app.port', 8080)
+        port = config.get('app.port', 8090)
         debug = config.get('app.debug', False)
-        
-        logger.info(f"🌐 启动Web服务器: http://{host}:{port}")
-        
-        # 启动应用
-        app.run(
-            host=host,
-            port=port,
-            debug=debug,
-            threaded=True
-        )
+        ipv6_enabled = config.get('app.ipv6_enabled', True)
+
+        # 根据IPv6配置决定启动方式
+        if ipv6_enabled:
+            logger.info("🌐 启动双栈服务器 (IPv4+IPv6支持)")
+            # 使用双栈启动函数
+            run_dual_stack_server(
+                app=app,
+                host=host,
+                port=port,
+                debug=debug
+            )
+        else:
+            # 仅监听IPv4
+            logger.info(f"🌐 启动Web服务器 (仅IPv4): http://{host}:{port}")
+            app.run(
+                host=host,
+                port=port,
+                debug=debug,
+                threaded=True
+            )
         
     except KeyboardInterrupt:
         logger.info("👋 用户中断，正在退出...")

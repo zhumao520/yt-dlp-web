@@ -109,6 +109,7 @@ class Events:
     DOWNLOAD_PROGRESS = 'download.progress'
     DOWNLOAD_COMPLETED = 'download.completed'
     DOWNLOAD_FAILED = 'download.failed'
+    DOWNLOAD_TITLE_UPDATED = 'download.title_updated'
 
     # 文件相关
     FILE_CREATED = 'file.created'

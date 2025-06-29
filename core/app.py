@@ -152,6 +152,14 @@ def _initialize_core_components(app: Flask):
             from .events import event_bus
             logger.info("✅ 事件总线初始化完成")
 
+            # 初始化SSE事件监听器
+            try:
+                from .sse import setup_sse_events
+                setup_sse_events()
+                logger.info("✅ SSE事件监听器初始化完成")
+            except Exception as e:
+                logger.warning(f"⚠️ SSE事件监听器初始化失败: {e}")
+
             # 初始化Telegram模块（注册事件监听器）
             try:
                 # 修复容器环境中的导入问题
