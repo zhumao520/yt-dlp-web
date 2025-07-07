@@ -1,9 +1,8 @@
 # YT-DLP Web - 轻量化Docker镜像
 FROM python:3.11-slim
 
-# 构建参数 - 决定是否安装 WARP 和启用 IPv6
+# 构建参数 - 决定是否安装 WARP
 ARG INSTALL_WARP=false
-ARG ENABLE_IPV6=true
 ARG TARGETPLATFORM
 ARG GOST_VERSION=2.11.5
 ARG WARP_VERSION=none
@@ -15,10 +14,6 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV FLASK_ENV=production
-
-# IPv6 双栈支持环境变量
-ARG ENABLE_IPV6
-ENV ENABLE_IPV6=${ENABLE_IPV6}
 
 # 安装系统依赖 (包含 TgCrypto 编译所需的依赖)
 RUN apt-get update && apt-get install -y \
@@ -131,14 +126,14 @@ RUN if [ "$INSTALL_WARP" = "true" ] && [ "$GOST_VERSION" != "none" ]; then \
 # 配置启动脚本
 RUN if [ "$INSTALL_WARP" = "true" ]; then \
         echo "🚀 配置 WARP 启动脚本..." && \
-        cp modules/warp/start-with-warp.sh /start-app.sh && \
-        chmod +x /start-app.sh && \
+        cp modules/warp/start-with-warp.sh /app/start-app.sh && \
+        chmod +x /app/start-app.sh && \
         echo "true" > /warp-available && \
         echo "✅ WARP 版本配置完成"; \
     else \
         echo "ℹ️ 配置标准启动脚本..." && \
-        cp scripts/start-standard.sh /start-app.sh && \
-        chmod +x /start-app.sh && \
+        cp scripts/start-standard.sh /app/start-app.sh && \
+        chmod +x /app/start-app.sh && \
         echo "false" > /warp-available && \
         echo "✅ 标准版配置完成"; \
     fi
@@ -150,11 +145,11 @@ RUN mkdir -p /app/downloads /app/data/downloads /app/data/logs /app/data/cookies
 RUN chmod +x main.py
 
 # 暴露端口
-EXPOSE 8090
+EXPOSE 8080
 
 # 健康检查（WARP版需要更长的启动时间）
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8090/api/health || exit 1
+    CMD curl -f http://localhost:8080/api/health || exit 1
 
 # 启动应用
-CMD ["/start-app.sh"]
+CMD ["/app/start-app.sh"]
