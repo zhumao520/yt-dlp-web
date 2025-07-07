@@ -386,7 +386,7 @@ class PyroForkUploader(BaseUploader):
             return False
 
     async def _send_with_retry(self, send_func, max_retries: int = 3, **kwargs):
-        """带重试机制的发送方法"""
+        """简化重试机制 - 学习ytdlbot的指数退避策略"""
         last_exception = None
 
         for attempt in range(max_retries):
@@ -401,7 +401,8 @@ class PyroForkUploader(BaseUploader):
                 # 检查是否是可重试的错误
                 if self._is_retryable_error(error_msg):
                     if attempt < max_retries - 1:
-                        wait_time = (attempt + 1) * 10  # 递增等待时间：10s, 20s, 30s
+                        # 简单指数退避：2^attempt 秒
+                        wait_time = 2 ** attempt  # 1s, 2s, 4s
                         logger.warning(f"⚠️ 上传失败，{wait_time}秒后重试 (尝试 {attempt + 1}/{max_retries}): {e}")
                         await asyncio.sleep(wait_time)
                         continue
@@ -466,7 +467,7 @@ class PyroForkUploader(BaseUploader):
                 # 获取代理配置
                 proxy_config = self._get_proxy_config()
 
-                # 创建客户端配置 - 使用 socksio 支持的代理配置
+                # 简化客户端配置 - 学习ytdlbot的简洁性
                 client_kwargs = {
                     'name': session_name,
                     'api_id': self.api_id,
@@ -474,9 +475,7 @@ class PyroForkUploader(BaseUploader):
                     'bot_token': self.bot_token,
                     'in_memory': True,  # 使用内存会话
                     'no_updates': True,  # 禁用更新处理
-                    # 网络优化设置
-                    'sleep_threshold': 60,  # 防洪限制阈值
-                    'max_concurrent_transmissions': 1,  # 限制并发传输
+                    # 移除过度优化的参数，使用Pyrogram默认值
                 }
 
                 # 添加代理配置到客户端参数
@@ -564,17 +563,15 @@ class PyroForkUploader(BaseUploader):
                 from core.file_utils import FileUtils
                 file_size_mb = FileUtils.get_file_size_mb(file_path)
 
-                # 根据文件大小动态计算超时时间
+                # 简化超时时间计算 - 学习ytdlbot的简洁策略
                 if file_size_mb <= 50:          # 小文件 (≤50MB)
                     timeout = 600               # 10分钟
-                elif file_size_mb <= 200:      # 中等文件 (≤200MB)
+                elif file_size_mb <= 200:       # 中等文件 (≤200MB)
                     timeout = 1200              # 20分钟
-                elif file_size_mb <= 500:      # 大文件 (≤500MB)
+                elif file_size_mb <= 500:       # 大文件 (≤500MB)
                     timeout = 1800              # 30分钟
-                elif file_size_mb <= 1000:     # 很大文件 (≤1GB)
+                else:                            # 超大文件 (>500MB)
                     timeout = 3600              # 60分钟
-                else:                           # 超大文件 (>1GB)
-                    timeout = 5400              # 90分钟
 
                 logger.info(f"🕐 文件大小: {file_size_mb:.1f}MB，设置超时时间: {timeout/60:.0f}分钟")
                 return timeout
@@ -587,66 +584,54 @@ class PyroForkUploader(BaseUploader):
             return 1800  # 30分钟默认超时
 
     def _get_proxy_config(self) -> Optional[Dict[str, Any]]:
-        """获取代理配置 - 使用项目统一的代理转换器"""
+        """简化代理配置 - 使用Pyrogram原生代理支持，支持用户开关控制"""
         try:
-            from core.proxy_converter import ProxyConverter
+            # 首先检查用户是否启用了代理上传
+            from modules.telegram.services.config_service import get_telegram_config_service
+            config_service = get_telegram_config_service()
 
-            # 直接使用项目的代理转换器获取Pyrogram格式的代理
-            proxy_config = ProxyConverter.get_pyrogram_proxy("PyroFork")
-            if proxy_config:
-                logger.info(f"✅ PyroFork使用代理配置: {proxy_config.get('scheme')}://{proxy_config.get('hostname')}:{proxy_config.get('port')}")
-                return proxy_config
+            if not config_service.use_proxy_for_upload():
+                logger.info("🌐 PyroFork 用户已禁用代理上传，使用直连模式")
+                return None
 
-            logger.info("🌐 PyroFork 无可用代理，使用直连模式")
-            return None
-
-        except Exception as e:
-            logger.error(f"❌ PyroFork 获取代理配置失败: {e}")
-            import traceback
-            logger.debug(f"详细错误: {traceback.format_exc()}")
-            return None
-
-
-
-
-
-    def _setup_pysocks_proxy(self) -> bool:
-        """设置 PySocks 代理 - 从数据库读取配置"""
-        try:
-            import socks
-            import socket
-
-            # 从数据库获取代理配置
+            # 用户启用了代理上传，读取系统代理配置
             from core.database import get_database
             db = get_database()
             proxy_config = db.get_proxy_config()
 
             if not proxy_config or not proxy_config.get('enabled'):
-                logger.debug("🔍 数据库中未启用代理配置，跳过PySocks设置")
-                return False
+                logger.warning("⚠️ PyroFork 用户启用了代理上传，但系统代理未配置或未启用")
+                return None
 
             proxy_host = proxy_config.get('host')
             proxy_port = proxy_config.get('port')
 
             if not proxy_host or not proxy_port:
                 logger.warning("⚠️ 代理配置不完整，缺少host或port")
-                return False
+                return None
 
-            logger.info(f"🔧 设置 PySocks SOCKS5 代理: {proxy_host}:{proxy_port}")
+            # 使用Pyrogram原生代理格式
+            pyrogram_proxy = {
+                'scheme': 'socks5',  # 固定使用SOCKS5
+                'hostname': proxy_host,
+                'port': proxy_port
+            }
 
-            # 设置全局 SOCKS5 代理
-            socks.set_default_proxy(socks.SOCKS5, proxy_host, proxy_port)
-            socket.socket = socks.socksocket
+            logger.info(f"✅ PyroFork使用用户启用的代理: socks5://{proxy_host}:{proxy_port}")
+            return pyrogram_proxy
 
-            logger.info("✅ PySocks SOCKS5 代理设置成功")
-            return True
-
-        except ImportError:
-            logger.debug("🔍 PySocks 库不可用，跳过代理设置")
-            return False
         except Exception as e:
-            logger.warning(f"⚠️ PySocks 代理设置失败: {e}")
-            return False
+            logger.error(f"❌ PyroFork 获取代理配置失败: {e}")
+            return None
+
+
+
+
+
+    # 移除复杂的PySocks设置，使用Pyrogram原生代理支持
+    # def _setup_pysocks_proxy(self) -> bool:
+    #     """已移除 - 使用Pyrogram原生代理支持"""
+    #     return False
 
 
 

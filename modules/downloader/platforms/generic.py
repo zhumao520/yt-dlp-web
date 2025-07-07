@@ -57,19 +57,28 @@ class GenericPlatform(BasePlatform):
         }
     
     def get_format_selector(self, quality: str = 'best', url: str = '') -> str:
-        """通用格式选择器 - 支持HLS/m3u8"""
+        """通用格式选择器 - 支持HLS/m3u8和标准化质量参数"""
         # 检查是否为HLS/m3u8链接
         is_hls = url.lower().endswith('.m3u8') or 'm3u8' in url.lower()
 
         # 对于HLS流，使用最简单的格式选择器
         if is_hls:
-            return '0'  # HLS流通常只有一个格式，ID为0
+            return 'best/worst'  # HLS流使用通用格式选择器而不是硬编码ID
 
-        # 对于其他格式，使用复杂的格式选择器
-        if quality == 'best':
-            return 'best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
-        elif quality == 'worst':
+        # 标准化质量参数
+        quality_lower = quality.lower().strip()
+
+        # 根据质量级别返回不同的格式选择器
+        if quality_lower in ['high', '1080p', '1080', 'fhd', 'full']:
+            return 'best[height<=1080][ext=mp4]/bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best'
+        elif quality_lower in ['medium', '720p', '720', 'hd']:
+            return 'best[height<=720][ext=mp4]/bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best'
+        elif quality_lower in ['low', '480p', '480', 'sd']:
+            return 'best[height<=480][ext=mp4]/bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best'
+        elif quality_lower in ['worst', '360p', '360']:
             return 'worst[ext=mp4]/worst[ext=webm]/worst'
+        elif quality_lower == 'best':
+            return 'best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
         elif quality.isdigit():
             return f'best[height<={quality}][ext=mp4]/best[height<={quality}]/bestvideo[height<={quality}]+bestaudio/best'
         else:

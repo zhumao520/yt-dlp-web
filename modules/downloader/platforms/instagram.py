@@ -58,11 +58,21 @@ class InstagramPlatform(BasePlatform):
         return False
     
     def get_format_selector(self, quality: str = 'best', url: str = '') -> str:
-        """Instagram 格式选择器"""
-        if quality == 'best':
+        """Instagram 格式选择器 - 优化的多重备用策略"""
+        # 标准化质量参数
+        quality_lower = quality.lower().strip()
+
+        # 根据质量级别返回不同的格式选择器
+        if quality_lower in ['high', '1080p', '1080', 'fhd', 'full']:
+            return 'best[height<=1080][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best[ext=m4v]/best/worst'
+        elif quality_lower in ['medium', '720p', '720', 'hd']:
+            return 'best[height<=720][ext=mp4]/best[height<=480][ext=mp4]/best[ext=mp4]/best[ext=m4v]/best/worst'
+        elif quality_lower in ['low', '480p', '480', 'sd']:
+            return 'best[height<=480][ext=mp4]/best[height<=360][ext=mp4]/best[ext=mp4]/best[ext=m4v]/best/worst'
+        elif quality_lower in ['worst', '360p', '360']:
+            return 'worst[ext=mp4]/worst[ext=m4v]/worst/best[height<=360]/best'
+        elif quality_lower == 'best':
             return 'best[ext=mp4][height<=1080]/best[ext=m4v][height<=1080]/best[height<=1080]/best/worst'
-        elif quality == 'worst':
-            return 'worst[ext=mp4]/worst[ext=m4v]/worst/best[height<=480]/best'
         elif quality.isdigit():
             return f'best[height<={quality}][ext=mp4]/best[height<={quality}]/best[ext=mp4]/best/worst'
         else:

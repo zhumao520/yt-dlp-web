@@ -18,7 +18,7 @@ class TelegramConfigService:
         self._cache_ttl = 300  # 5分钟缓存
     
     def get_config(self) -> Optional[Dict[str, Any]]:
-        """获取Telegram配置"""
+        """获取Telegram配置""" 
         try:
             import time
             current_time = time.time()
@@ -29,7 +29,11 @@ class TelegramConfigService:
                 return self._config_cache
             
             # 从数据库获取配置
-            from ....core.database import get_database
+            try:
+                from ....core.database import get_database
+            except ImportError:
+                # 回退到绝对导入
+                from core.database import get_database
             db = get_database()
             config = db.get_telegram_config()
             
@@ -72,6 +76,11 @@ class TelegramConfigService:
         """获取文件大小限制"""
         config = self.get_config()
         return config.get('file_size_limit', 50) if config else 50
+
+    def use_proxy_for_upload(self) -> bool:
+        """检查是否启用代理上传"""
+        config = self.get_config()
+        return config.get('use_proxy_for_upload', False) if config else False
     
     def has_pyrogram_config(self) -> bool:
         """检查是否配置了Pyrogram"""

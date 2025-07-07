@@ -153,28 +153,30 @@ class ModernTelegramRouter:
         try:
             # 获取用户的选择状态
             state = self.state_service.get_state(chat_id)
-            
+
             if not state:
                 notifier = self.get_notifier()
                 notifier.send_message("❌ **选择已过期**\n\n请重新发送视频链接")
                 return {'action': 'selection_expired'}
-            
+
             url = state.get('url')
             qualities = state.get('quality_options', [])
-            
+            # 获取自定义文件名
+            custom_filename = state.get('custom_filename')
+
             if not (1 <= selection <= len(qualities)):
                 notifier = self.get_notifier()
                 notifier.send_message(f"❌ **选择无效**\n\n请选择 1-{len(qualities)} 之间的数字")
                 return {'action': 'invalid_selection'}
-            
+
             # 获取选择的质量
             selected_quality = qualities[selection - 1]
-            
+
             # 清除选择状态
             self.state_service.clear_state(chat_id)
-            
-            # 开始下载
-            return self._start_download_with_quality(url, selected_quality, user_info)
+
+            # 开始下载（传递自定义文件名）
+            return self._start_download_with_quality(url, selected_quality, user_info, custom_filename)
             
         except Exception as e:
             logger.error(f"❌ 处理分辨率选择失败: {e}")
@@ -200,8 +202,8 @@ class ModernTelegramRouter:
 
             # 存储选择状态（包含自定义文件名）
             chat_id = config.get('chat_id')
-            video_info = {'custom_filename': custom_filename} if custom_filename else {}
-            self.state_service.store_state(chat_id, url, video_info, qualities)
+            video_info = {}
+            self.state_service.store_state(chat_id, url, video_info, qualities, custom_filename)
 
             # 发送质量选择菜单
             self._send_quality_selection_menu(url, qualities, custom_filename)
@@ -320,13 +322,13 @@ class ModernTelegramRouter:
         except:
             return "视频"
 
-    def _start_download_with_quality(self, url: str, quality: Dict[str, Any], user_info: Dict[str, str]) -> Dict[str, Any]:
+    def _start_download_with_quality(self, url: str, quality: Dict[str, Any], user_info: Dict[str, str], custom_filename: Optional[str] = None) -> Dict[str, Any]:
         """开始指定质量的下载"""
         try:
             from modules.downloader.manager import get_download_manager
-            
+
             download_manager = get_download_manager()
-            
+
             # 构建下载选项
             options = {
                 'format': quality['format_id'],
@@ -334,20 +336,33 @@ class ModernTelegramRouter:
                 'user': user_info['username'],
                 'quality_selected': quality['quality']
             }
-            
+
+            # 添加自定义文件名（复用web页面逻辑）
+            if custom_filename:
+                options['custom_filename'] = custom_filename
+
             # 开始下载
             download_id = download_manager.add_download(url, options)
-            
+
             notifier = self.get_notifier()
-            notifier.send_message(f"""✅ **下载已开始**
+
+            # 构建确认消息
+            confirm_msg = f"""✅ **下载已开始**
 
 📹 **质量**: {quality['quality']}
-🆔 **ID**: `{download_id[:8]}`
+🆔 **ID**: `{download_id[:8]}`"""
+
+            if custom_filename:
+                confirm_msg += f"\n📝 **文件名**: {custom_filename}"
+
+            confirm_msg += f"""
 
 📊 下载进度将实时更新
-🚫 发送 `/cancel {download_id[:8]}` 可取消下载""")
-            
-            return {'action': 'download_started', 'download_id': download_id, 'quality': quality['quality']}
+🚫 发送 `/cancel {download_id[:8]}` 可取消下载"""
+
+            notifier.send_message(confirm_msg)
+
+            return {'action': 'download_started', 'download_id': download_id, 'quality': quality['quality'], 'custom_filename': custom_filename}
             
         except Exception as e:
             logger.error(f"❌ 开始下载失败: {e}")

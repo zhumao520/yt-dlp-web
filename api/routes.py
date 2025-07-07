@@ -155,6 +155,7 @@ def api_telegram_config():
                 "auto_download": True,
                 "file_size_limit": 50,
                 "webhook_url": "",
+                "use_proxy_for_upload": False,
             }
             return jsonify(default_config)
 
@@ -170,6 +171,7 @@ def api_telegram_config():
             "auto_download": bool(config.get("auto_download", True)),
             "file_size_limit": config.get("file_size_limit", 50),
             "webhook_url": config.get("webhook_url", ""),
+            "use_proxy_for_upload": bool(config.get("use_proxy_for_upload", False)),
         }
 
         logger.info(f"📤 返回的配置: {full_config}")
@@ -211,6 +213,7 @@ def api_save_telegram_config():
             "auto_download": data.get("auto_download", True),
             "file_size_limit": data.get("file_size_limit", 50),
             "webhook_url": data.get("webhook_url", "").strip(),
+            "use_proxy_for_upload": data.get("use_proxy_for_upload", False),
         }
 
         logger.info(f"🔧 处理后的配置: {config}")
@@ -1500,7 +1503,10 @@ def api_system_paths():
 
 @api_bp.route('/shortcuts/download', methods=['POST'])
 def api_shortcuts_download():
-    """iOS快捷指令下载接口 - 支持简化认证"""
+    """iOS快捷指令下载接口 - 长连接等待模式"""
+    import time
+    from pathlib import Path
+
     try:
         # 支持多种数据格式
         if request.content_type == 'application/json':
@@ -1556,70 +1562,26 @@ def api_shortcuts_download():
             if not auth_token:
                 return jsonify({"error": "用户名或密码错误"}), 401
 
-        # 获取下载选项
+        # 获取下载选项（简化处理）
         audio_only_value = data.get("audio_only", "false")
-        # 处理布尔值或字符串
         if isinstance(audio_only_value, bool):
             audio_only = audio_only_value
         else:
             audio_only = str(audio_only_value).lower() in ["true", "1", "yes"]
 
-        # 处理分辨率选择和自动降级
-        resolution = data.get("resolution", "").strip()
-        quality = data.get("quality", "medium")
-        final_resolution = None
-
-        # 如果指定了具体分辨率，进行自动降级处理
-        if resolution:
-            # 验证分辨率格式
-            valid_resolutions = ["4320p", "2160p", "1440p", "1080p", "720p", "480p", "360p", "240p", "144p"]
-            if resolution not in valid_resolutions:
-                return jsonify({
-                    "error": f"不支持的分辨率格式: {resolution}",
-                    "error_code": "INVALID_RESOLUTION_FORMAT",
-                    "message": f"支持的分辨率格式: {', '.join(valid_resolutions)}"
-                }), 400
-
-            # 获取视频信息以检查可用分辨率
-            try:
-                from modules.downloader.api import get_unified_download_api
-                api = get_unified_download_api()
-                video_result = api.get_video_info(url)
-
-                if video_result['success']:
-                    video_info = video_result['data']
-                    formats = video_info.get('formats', [])
-
-                    # 收集可用分辨率
-                    available_resolutions = set()
-                    for fmt in formats:
-                        height = fmt.get('height')
-                        if height:
-                            available_resolutions.add(f"{height}p")
-
-                    # 自动降级逻辑
-                    final_resolution = _find_best_available_resolution(resolution, available_resolutions)
-                    quality = final_resolution
-
-                    logger.info(f"🎯 分辨率选择: 请求 {resolution} -> 实际使用 {final_resolution}")
-                else:
-                    # 如果无法获取视频信息，使用用户指定的分辨率
-                    quality = resolution
-                    logger.warning(f"⚠️ 无法获取视频信息，直接使用用户指定分辨率: {resolution}")
-            except Exception as e:
-                # 如果出错，使用用户指定的分辨率
-                quality = resolution
-                logger.warning(f"⚠️ 分辨率检查失败，直接使用用户指定分辨率: {resolution}, 错误: {e}")
+        quality = data.get("quality", "best").strip()
 
         options = {
             "quality": quality,
             "audio_only": audio_only,
             "custom_filename": data.get("custom_filename", "").strip(),
-            "source": "ios_shortcuts",
+            "source": "ios_shortcuts_wait",  # 标识长连接模式
             "ios_callback": True,
+            "client_id": data.get("client_id", ""),
+            "start_time": data.get("start_time", ""),
         }
 
-        # 使用统一的下载API
+        # 使用统一的下载API创建任务
         from modules.downloader.api import get_unified_download_api
         api = get_unified_download_api()
         result = api.create_download(url, options)
@@ -1628,38 +1590,70 @@ def api_shortcuts_download():
             return jsonify({"error": result['error']}), 500
 
         download_id = result['data']['download_id']
+        logger.info(f"📱 iOS长连接下载开始: {download_id}")
 
-        # 返回简化的响应
-        response = {
-            "success": True,
-            "message": "下载已开始",
-            "download_id": download_id,
-            "status_url": f"/api/shortcuts/status/{download_id}"
-        }
+        # 🆕 长连接等待下载完成
+        from modules.downloader.manager import get_download_manager
+        download_manager = get_download_manager()
 
-        # 如果进行了分辨率降级，告知用户
-        if final_resolution and final_resolution != resolution:
-            response["resolution_info"] = {
-                "requested": resolution,
-                "actual": final_resolution,
-                "message": f"已自动调整分辨率：{resolution} → {final_resolution}"
-            }
-        elif final_resolution:
-            response["resolution_info"] = {
-                "requested": resolution,
-                "actual": final_resolution,
-                "message": f"使用分辨率：{final_resolution}"
-            }
+        max_wait_time = 600  # 10分钟
+        check_interval = 5   # 每5秒检查一次
 
-        # 如果需要，添加认证令牌
-        if auth_token:
-            response["token"] = auth_token
+        for i in range(max_wait_time // check_interval):
+            time.sleep(check_interval)
 
-        return jsonify(response)
+            download_info = download_manager.get_download(download_id)
+
+            if not download_info:
+                return jsonify({
+                    "success": False,
+                    "error": "下载任务不存在"
+                }), 404
+
+            if download_info["status"] == "completed":
+                # 查找完成的文件
+                file_path = download_info.get("file_path")
+                if file_path:
+                    final_file = Path(file_path)
+                    if final_file.exists():
+                        logger.info(f"✅ iOS长连接下载完成: {final_file.name}")
+
+                        logger.info(f"✅ iOS长连接下载完成: {final_file.name}")
+
+                        return jsonify({
+                            "success": True,
+                            "status": "completed",
+                            "filename": final_file.name,
+                            "download_url": f"/api/shortcuts/file/{final_file.name}",
+                            "file_size": final_file.stat().st_size,
+                            "title": download_info.get("title", ""),
+                            "message": "下载完成，可以保存到设备"
+                        })
+
+            elif download_info["status"] == "failed":
+                logger.error(f"❌ iOS长连接下载失败: {download_id}")
+                return jsonify({
+                    "success": False,
+                    "status": "failed",
+                    "error": download_info.get("error_message", "下载失败")
+                }), 400
+
+        # 超时处理
+        logger.warning(f"⏰ iOS长连接下载超时: {download_id}")
+        return jsonify({
+            "success": False,
+            "status": "timeout",
+            "error": "下载超时，文件可能较大，请查看Telegram通知",
+            "download_id": download_id
+        }), 408
 
     except Exception as e:
-        logger.error(f"❌ iOS快捷指令下载失败: {e}")
-        return jsonify({"error": "下载启动失败"}), 500
+        logger.error(f"❌ iOS长连接下载异常: {str(e)}")
+        return jsonify({
+            "success": False,
+            "status": "error",
+            "error": f"服务器错误: {str(e)}"
+        }), 500
 
 
 @api_bp.route('/shortcuts/status/<download_id>')
@@ -1695,7 +1689,7 @@ def api_shortcuts_status(download_id):
                 "filename": filename,
                 "file_size": download_info.get("file_size", 0),
                 "file_size_mb": round(download_info.get("file_size", 0) / (1024 * 1024), 2),
-                "download_url": f"/files/download/{filename}",
+                "download_url": f"/api/shortcuts/file/{filename}",  # 🔧 修复：使用iOS专用的文件下载端点
                 "completed": True,
                 "duration": download_info.get("duration"),
                 "format": download_info.get("format"),
@@ -1749,7 +1743,8 @@ def api_shortcuts_quick_status(download_id):
                 "status": "completed",
                 "ready": True,
                 "filename": filename,
-                "download_url": f"/files/download/{filename}" if filename else None
+                "download_url": f"/api/shortcuts/file/{filename}" if filename else None,
+                "title": download_info.get("title", "")
             })
         elif status == "failed":
             return jsonify({
@@ -1761,7 +1756,7 @@ def api_shortcuts_quick_status(download_id):
             return jsonify({
                 "status": status,
                 "ready": False,
-                "progress": download_info["progress"]
+                "progress": download_info.get("progress", 0)
             })
 
     except Exception as e:
@@ -1859,6 +1854,47 @@ def api_shortcuts_get_formats():
         }), 500
 
 
+@api_bp.route('/shortcuts/downloads', methods=['POST'])
+def api_shortcuts_downloads():
+    """iOS快捷指令获取下载列表 - API密钥认证"""
+    try:
+        data = request.get_json()
+        if not data or 'api_key' not in data:
+            return jsonify({"error": "需要API密钥"}), 401
+
+        api_key = data['api_key']
+        if not _verify_api_key(api_key):
+            return jsonify({"error": "API密钥无效"}), 401
+
+        # 获取下载列表
+        from modules.downloader.manager import get_download_manager
+        download_manager = get_download_manager()
+
+        downloads = download_manager.get_downloads()
+
+        # 格式化下载列表
+        formatted_downloads = []
+        for download in downloads:
+            formatted_downloads.append({
+                'id': download.get('id'),
+                'status': download.get('status'),
+                'filename': download.get('filename'),
+                'title': download.get('title'),
+                'url': download.get('url'),
+                'created_at': download.get('created_at'),
+                'progress': download.get('progress', 0)
+            })
+
+        return jsonify({
+            "success": True,
+            "downloads": formatted_downloads
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 获取下载列表失败: {e}")
+        return jsonify({"error": "获取下载列表失败"}), 500
+
+
 @api_bp.route('/shortcuts/file/<filename>')
 def api_shortcuts_file(filename):
     """iOS快捷指令文件下载 - 无需认证"""
@@ -1866,25 +1902,51 @@ def api_shortcuts_file(filename):
         from core.config import get_config
         from flask import send_file
         from pathlib import Path
+        import os
 
-        # 获取下载目录
-        download_dir = Path(get_config('downloader.output_dir', '/app/downloads'))
-        file_path = download_dir / filename
+        # 获取下载目录 - 确保使用正确的相对路径
+        download_dir = get_config('downloader.output_dir', 'data/downloads')
+
+        # 🔧 iOS专用路径处理：确保相对路径基于应用根目录
+        # 注意：这个修改只影响iOS Shortcuts文件下载，不影响其他平台的下载功能
+
+        # 跨平台兼容的路径处理
+        download_path = Path(download_dir)
+
+        # 检查是否为绝对路径（跨平台兼容）
+        is_absolute = download_path.is_absolute() or (
+            # Unix风格的绝对路径在Windows上可能被误判为相对路径
+            isinstance(download_dir, str) and download_dir.startswith('/')
+        )
+
+        if not is_absolute:
+            # 获取应用根目录（从 api/routes.py 向上一级到 app/）
+            app_root = Path(__file__).parent.parent
+            download_path = app_root / download_dir
+
+        # 确保下载目录存在
+        if not download_path.exists():
+            logger.error(f"下载目录不存在: {download_path}")
+            return jsonify({"error": "下载目录不存在"}), 404
+
+        file_path = download_path / filename
 
         # 安全检查
-        if not str(file_path.resolve()).startswith(str(download_dir.resolve())):
+        if not str(file_path.resolve()).startswith(str(download_path.resolve())):
             logger.warning(f"尝试访问下载目录外的文件: {filename}")
             return jsonify({"error": "文件访问被拒绝"}), 403
 
         if not file_path.exists():
+            logger.warning(f"文件不存在: {file_path}")
             return jsonify({"error": "文件不存在"}), 404
 
         # 返回文件
-        return send_file(file_path, as_attachment=True)
+        logger.info(f"📄 发送文件: {filename}")
+        return send_file(str(file_path), as_attachment=True, download_name=filename)
 
     except Exception as e:
         logger.error(f"❌ 文件下载失败: {e}")
-        return jsonify({"error": "文件下载失败"}), 500
+        return jsonify({"error": f"文件下载失败: {str(e)}"}), 500
 
 
 
@@ -2338,14 +2400,19 @@ def _find_best_available_resolution(requested_resolution: str, available_resolut
 # ==================== 辅助函数 ====================
 
 def _extract_video_info(url: str):
-    """提取视频信息 - 使用统一的下载管理器和智能回退"""
+    """提取视频信息 - 使用视频提取器和智能回退"""
     try:
-        # 使用统一的下载管理器，它包含智能回退机制
-        from modules.downloader.manager import get_download_manager
-        download_manager = get_download_manager()
+        # 使用视频提取器获取信息
+        from modules.downloader.video_extractor import VideoExtractor
+        extractor = VideoExtractor()
 
-        # 使用下载管理器的智能回退机制
-        return download_manager._extract_video_info(url)
+        video_info = extractor.extract_info(url, {})
+
+        if video_info and not video_info.get('error'):
+            return video_info
+        else:
+            logger.error(f"❌ 视频提取器返回错误: {video_info.get('message', '未知错误') if video_info else '无返回结果'}")
+            return None
 
     except Exception as e:
         logger.error(f"❌ 提取视频信息失败: {e}")

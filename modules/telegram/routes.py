@@ -640,8 +640,12 @@ scheme = `{request.scheme}`"""
             file_size_mb = target_file.stat().st_size / (1024 * 1024)
             caption = f"📁 **文件**: {target_file.name}\n💾 **大小**: {file_size_mb:.1f} MB"
 
-            # 检查文件大小并提供预警
-            if file_size_mb > 50:
+            # 检查文件大小并提供预警（使用配置的限制）
+            from modules.telegram.services.config_service import get_telegram_config_service
+            config_service = get_telegram_config_service()
+            file_size_limit = config_service.get_file_size_limit()
+
+            if file_size_mb > file_size_limit:
                 # 检查是否有PyrogramMod支持
                 from modules.telegram.notifier import get_telegram_notifier
                 notifier_instance = get_telegram_notifier()
@@ -649,10 +653,10 @@ scheme = `{request.scheme}`"""
 
                 if uploader and hasattr(uploader, 'pyrogram_uploader') and uploader.pyrogram_uploader:
                     # 有PyrogramMod支持，正常发送
-                    notifier.send_message(f"📤 **准备发送大文件** ({file_size_mb:.1f}MB)\n⏳ 请稍候，大文件上传需要更多时间...")
+                    notifier.send_message(f"📤 **准备发送大文件** ({file_size_mb:.1f}MB > {file_size_limit}MB)\n⏳ 请稍候，大文件上传需要更多时间...")
                 else:
                     # 没有PyrogramMod支持，提前告知用户
-                    notifier.send_message(f"⚠️ **大文件警告** ({file_size_mb:.1f}MB)\n\n文件超过50MB，可能发送失败。建议配置PyrogramMod以支持大文件传输。")
+                    notifier.send_message(f"⚠️ **大文件警告** ({file_size_mb:.1f}MB > {file_size_limit}MB)\n\n文件超过{file_size_limit}MB，可能发送失败。建议配置PyrogramMod以支持大文件传输。")
 
             success = notifier.send_file(str(target_file), caption)
             if success:
@@ -1426,3 +1430,320 @@ def get_webhook_info():
     except Exception as e:
         logger.error(f"❌ 获取Webhook信息失败: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== 异步上传接口 - 学习ytdlbot ====================
+
+@telegram_bp.route('/api/upload/async', methods=['POST'])
+@auth_required
+def upload_file_async():
+    """异步上传文件接口 - 学习ytdlbot的异步策略"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '缺少请求数据'}), 400
+
+        file_path = data.get('file_path')
+        caption = data.get('caption', '')
+
+        if not file_path:
+            return jsonify({'error': '缺少文件路径'}), 400
+
+        # 检查文件是否存在
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            return jsonify({'error': f'文件不存在: {file_path}'}), 404
+
+        # 获取任务管理器
+        try:
+            from modules.telegram.tasks import get_task_manager
+            task_manager = get_task_manager()
+
+            if not task_manager.is_async_available():
+                # SQLite队列总是可用，这种情况不应该发生
+                logger.error("❌ SQLite任务队列不可用")
+                return jsonify({'error': 'SQLite任务队列不可用'}), 500
+
+            # 提交异步任务
+            task_id = task_manager.submit_upload_task(file_path, caption)
+
+            if task_id:
+                file_size_mb = file_path_obj.stat().st_size / (1024 * 1024)
+                return jsonify({
+                    'success': True,
+                    'task_id': task_id,
+                    'status': 'queued',
+                    'file_path': file_path,
+                    'file_size_mb': round(file_size_mb, 2),
+                    'message': '上传任务已提交，请使用task_id查询进度'
+                })
+            else:
+                return jsonify({'error': '提交异步任务失败'}), 500
+
+        except ImportError:
+            # SQLite队列总是可用，不需要回退
+            logger.error("❌ 任务管理器导入失败")
+            return jsonify({'error': '任务管理器不可用'}), 500
+
+    except Exception as e:
+        logger.error(f"❌ 异步上传接口错误: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@telegram_bp.route('/api/task/<task_id>/status', methods=['GET'])
+@auth_required
+def get_task_status(task_id):
+    """获取任务状态"""
+    try:
+        from modules.telegram.tasks import get_task_manager
+        task_manager = get_task_manager()
+
+        if not task_manager.is_async_available():
+            return jsonify({'error': 'SQLite任务队列不可用'}), 503
+
+        status = task_manager.get_task_status(task_id)
+        return jsonify(status)
+
+    except ImportError:
+        return jsonify({'error': '任务管理器不可用'}), 503
+    except Exception as e:
+        logger.error(f"❌ 获取任务状态失败: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def upload_file_sync_fallback(file_path: str, caption: str = ''):
+    """同步上传回退方案"""
+    try:
+        # 检查文件是否存在
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            return jsonify({'error': f'文件不存在: {file_path}'}), 404
+
+        # 创建上传器
+        from modules.telegram.uploaders.modern_hybrid import ModernHybridUploader
+        from modules.telegram.services.config_service import get_telegram_config_service
+
+        config_service = get_telegram_config_service()
+        config = config_service.get_config()
+
+        if not config:
+            return jsonify({'error': 'Telegram配置未找到'}), 500
+
+        uploader = ModernHybridUploader(config)
+
+        if not uploader.is_available():
+            return jsonify({'error': '没有可用的Telegram上传器'}), 500
+
+        # 执行同步上传
+        file_size_mb = file_path_obj.stat().st_size / (1024 * 1024)
+        logger.info(f"📤 开始同步上传: {file_path_obj.name} ({file_size_mb:.1f}MB)")
+
+        result = uploader.send_file(file_path, caption)
+
+        if result:
+            return jsonify({
+                'success': True,
+                'status': 'completed',
+                'file_path': file_path,
+                'file_size_mb': round(file_size_mb, 2),
+                'message': '文件上传成功'
+            })
+        else:
+            return jsonify({'error': '文件上传失败'}), 500
+
+    except Exception as e:
+        logger.error(f"❌ 同步上传失败: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+# ==================== 批量上传和队列管理接口 ====================
+
+@telegram_bp.route('/api/upload/batch', methods=['POST'])
+@auth_required
+def batch_upload_async():
+    """批量异步上传文件接口 - 支持多文件并发上传"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '缺少请求数据'}), 400
+
+        file_paths = data.get('file_paths', [])
+        caption = data.get('caption', '')
+
+        if not file_paths:
+            return jsonify({'error': '缺少文件路径列表'}), 400
+
+        if not isinstance(file_paths, list):
+            return jsonify({'error': 'file_paths必须是数组'}), 400
+
+        # 检查文件是否存在
+        valid_files = []
+        invalid_files = []
+
+        for file_path in file_paths:
+            file_path_obj = Path(file_path)
+            if file_path_obj.exists():
+                valid_files.append(file_path)
+            else:
+                invalid_files.append(file_path)
+
+        if not valid_files:
+            return jsonify({'error': '没有有效的文件可以上传'}), 400
+
+        # 获取任务管理器
+        try:
+            from modules.telegram.tasks import get_task_manager
+            task_manager = get_task_manager()
+
+            if not task_manager.is_async_available():
+                # SQLite队列总是可用，这种情况不应该发生
+                logger.error("❌ SQLite任务队列不可用")
+                return jsonify({'error': 'SQLite任务队列不可用'}), 500
+
+            # 提交异步批量任务
+            task_id = task_manager.submit_batch_upload_task(valid_files, caption)
+
+            if task_id:
+                total_size_mb = sum(Path(f).stat().st_size for f in valid_files) / (1024 * 1024)
+                return jsonify({
+                    'success': True,
+                    'task_id': task_id,
+                    'status': 'queued',
+                    'total_files': len(file_paths),
+                    'valid_files': len(valid_files),
+                    'invalid_files': len(invalid_files),
+                    'total_size_mb': round(total_size_mb, 2),
+                    'message': '批量上传任务已提交，请使用task_id查询进度'
+                })
+            else:
+                return jsonify({'error': '提交异步批量任务失败'}), 500
+
+        except ImportError:
+            # SQLite队列总是可用，不需要回退
+            logger.error("❌ 任务管理器导入失败")
+            return jsonify({'error': '任务管理器不可用'}), 500
+
+    except Exception as e:
+        logger.error(f"❌ 批量上传接口错误: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@telegram_bp.route('/api/queue/status', methods=['GET'])
+@auth_required
+def get_queue_status():
+    """获取上传队列状态"""
+    try:
+        from modules.telegram.tasks import get_task_manager
+        task_manager = get_task_manager()
+
+        if not task_manager.is_async_available():
+            return jsonify({'error': 'SQLite任务队列不可用'}), 503
+
+        status = task_manager.get_queue_status()
+        return jsonify(status)
+
+    except ImportError:
+        return jsonify({'error': '任务管理器不可用'}), 503
+    except Exception as e:
+        logger.error(f"❌ 获取队列状态失败: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@telegram_bp.route('/api/queue/tasks', methods=['GET'])
+@auth_required
+def get_all_tasks():
+    """获取所有跟踪的任务"""
+    try:
+        from modules.telegram.tasks import get_task_manager
+        task_manager = get_task_manager()
+
+        if not task_manager.is_async_available():
+            return jsonify({'error': 'SQLite任务队列不可用'}), 503
+
+        tasks = task_manager.get_all_tasks()
+        return jsonify({'tasks': tasks, 'total': len(tasks)})
+
+    except ImportError:
+        return jsonify({'error': '任务管理器不可用'}), 503
+    except Exception as e:
+        logger.error(f"❌ 获取任务列表失败: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@telegram_bp.route('/api/queue/cleanup', methods=['POST'])
+@auth_required
+def cleanup_completed_tasks():
+    """清理已完成的任务"""
+    try:
+        from modules.telegram.tasks import get_task_manager
+        task_manager = get_task_manager()
+
+        if not task_manager.is_async_available():
+            return jsonify({'error': 'SQLite任务队列不可用'}), 503
+
+        cleaned_count = task_manager.cleanup_completed_tasks()
+        return jsonify({
+            'success': True,
+            'cleaned_count': cleaned_count,
+            'message': f'已清理 {cleaned_count} 个已完成的任务'
+        })
+
+    except ImportError:
+        return jsonify({'error': '任务管理器不可用'}), 503
+    except Exception as e:
+        logger.error(f"❌ 清理任务失败: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+def batch_upload_sync_fallback(file_paths: list, caption: str = ''):
+    """同步批量上传回退方案"""
+    try:
+        from modules.telegram.uploaders.modern_hybrid import ModernHybridUploader
+        from modules.telegram.services.config_service import get_telegram_config_service
+
+        config_service = get_telegram_config_service()
+        config = config_service.get_config()
+
+        if not config:
+            return jsonify({'error': 'Telegram配置未找到'}), 500
+
+        uploader = ModernHybridUploader(config)
+
+        if not uploader.is_available():
+            return jsonify({'error': '没有可用的Telegram上传器'}), 500
+
+        # 执行同步批量上传
+        successful_uploads = []
+        failed_uploads = []
+
+        for i, file_path in enumerate(file_paths):
+            try:
+                logger.info(f"📤 同步上传文件 {i+1}/{len(file_paths)}: {file_path}")
+                result = uploader.send_file(file_path, caption)
+
+                if result:
+                    successful_uploads.append(file_path)
+                else:
+                    failed_uploads.append(file_path)
+
+            except Exception as e:
+                logger.error(f"❌ 文件上传异常: {file_path} - {e}")
+                failed_uploads.append(file_path)
+
+        success_rate = len(successful_uploads) / len(file_paths) * 100 if file_paths else 0
+
+        return jsonify({
+            'success': True,
+            'status': 'completed',
+            'total_files': len(file_paths),
+            'successful_uploads': len(successful_uploads),
+            'failed_uploads': len(failed_uploads),
+            'success_rate': round(success_rate, 2),
+            'successful_files': successful_uploads,
+            'failed_files': failed_uploads,
+            'message': f'同步批量上传完成: {len(successful_uploads)}/{len(file_paths)} 成功'
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 同步批量上传失败: {e}")
+        return jsonify({'error': str(e)}), 500

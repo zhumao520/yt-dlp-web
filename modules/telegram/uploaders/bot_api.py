@@ -26,16 +26,13 @@ class BotAPIUploader(BaseUploader):
         self.base_url = f"https://api.telegram.org/bot{self.bot_token}"
         self._progress_message_id = None
 
-        # 使用代理协议转换系统 - SOCKS5转HTTP解决SSL问题
-        from core.proxy_converter import ProxyConverter
-
-        # 获取适用于requests的代理配置（自动转换SOCKS5为HTTP）
-        self.proxies = ProxyConverter.get_requests_proxy("Bot API")
+        # 使用代理协议转换系统 - 支持用户开关控制
+        self.proxies = self._get_proxy_config()
 
         if self.proxies:
             logger.info(f"✅ Bot API 使用转换后的代理: {self.proxies}")
         else:
-            logger.info("ℹ️ Bot API 未配置代理或代理不可用")
+            logger.info("ℹ️ Bot API 未配置代理或用户已禁用代理上传")
 
         # 备用代理配置（保持兼容性）
         self.fallback_proxies = self.proxies
@@ -71,13 +68,39 @@ class BotAPIUploader(BaseUploader):
             logger.warning(f"⚠️ SSL配置失败，使用默认设置: {e}")
             self.session = requests
 
+    def _get_proxy_config(self) -> Optional[Dict[str, str]]:
+        """获取代理配置 - 支持用户开关控制"""
+        try:
+            # 首先检查用户是否启用了代理上传
+            from modules.telegram.services.config_service import get_telegram_config_service
+            config_service = get_telegram_config_service()
+
+            if not config_service.use_proxy_for_upload():
+                logger.info("🌐 Bot API 用户已禁用代理上传，使用直连模式")
+                return None
+
+            # 用户启用了代理上传，获取系统代理配置
+            from core.proxy_converter import ProxyConverter
+            proxies = ProxyConverter.get_requests_proxy("Bot API")
+
+            if proxies:
+                logger.info(f"✅ Bot API 使用用户启用的代理: {proxies}")
+                return proxies
+            else:
+                logger.warning("⚠️ Bot API 用户启用了代理上传，但系统代理未配置或不可用")
+                return None
+
+        except Exception as e:
+            logger.error(f"❌ Bot API 获取代理配置失败: {e}")
+            return None
+
 
 
     def is_available(self) -> bool:
         """检查 Bot API 上传器是否可用"""
         return bool(self.bot_token and self.chat_id)
 
-    def _send_with_retry(self, func, max_retries: int = 3, **kwargs):
+    def _send_with_retry(self, func, max_retries: int = 5, **kwargs):
         """带重试机制的发送方法"""
         last_exception = None
         original_proxies = self.proxies
@@ -211,9 +234,10 @@ class BotAPIUploader(BaseUploader):
             file_type = metadata.get('file_type', 'document')
             file_size_mb = metadata.get('size_mb', 0)
             
-            # 检查文件大小限制（Bot API限制50MB）
-            if file_size_mb > 50:
-                logger.warning(f"⚠️ 文件过大({file_size_mb:.1f}MB)，Bot API无法处理")
+            # 检查文件大小限制（使用配置的限制）
+            file_size_limit = self.config.get('file_size_limit', 50)
+            if file_size_mb > file_size_limit:
+                logger.info(f"📏 文件过大({file_size_mb:.1f}MB > {file_size_limit}MB)，Bot API无法处理，需要Pyrofork")
                 return False
             
             logger.info(f"📤 使用Bot API发送{file_type}文件: {file_path_obj.name} ({file_size_mb:.1f}MB)")
@@ -257,9 +281,10 @@ class BotAPIUploader(BaseUploader):
                 file_size_mb = metadata.get('size_mb', 0)
                 total_size += file_size_mb
                 
-                # 检查总大小限制
-                if total_size > 50:
-                    logger.warning(f"⚠️ 媒体组总大小超限，截止到第{i}个文件")
+                # 检查总大小限制（使用配置的限制）
+                file_size_limit = self.config.get('file_size_limit', 50)
+                if total_size > file_size_limit:
+                    logger.warning(f"⚠️ 媒体组总大小超限({total_size:.1f}MB > {file_size_limit}MB)，截止到第{i}个文件")
                     break
                 
                 # 构建媒体项

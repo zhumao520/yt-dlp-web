@@ -66,6 +66,9 @@ class BilibiliPlatform(BasePlatform):
     
     def get_format_selector(self, quality: str = 'best', url: str = '') -> str:
         """Bilibili 格式选择器 - 优化非会员格式选择"""
+        # 标准化质量参数
+        quality_lower = quality.lower().strip()
+
         # Bilibili格式选择策略：优先选择可用的非会员格式
         base_selectors = [
             # 优先选择合并格式（视频+音频）
@@ -78,20 +81,28 @@ class BilibiliPlatform(BasePlatform):
             'best/worst'
         ]
 
-        if quality == 'high':
+        if quality_lower in ['high', '1080p', '1080', 'fhd', 'full']:
             quality_selectors = [
                 'best[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080]',
                 'best[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]',
             ]
-        elif quality == 'medium':
+        elif quality_lower in ['medium', '720p', '720', 'hd']:
             quality_selectors = [
                 'best[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720]',
                 'best[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]',
             ]
-        elif quality == 'low':
+        elif quality_lower in ['low', '480p', '480', 'sd']:
             quality_selectors = [
                 'best[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480]',
                 'best[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360]',
+            ]
+        elif quality_lower in ['worst', '360p', '360']:
+            quality_selectors = [
+                'worst[ext=mp4]/worst[ext=flv]/worst',
+            ]
+        elif quality.isdigit():
+            quality_selectors = [
+                f'best[height<={quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={quality}]',
             ]
         else:
             quality_selectors = []

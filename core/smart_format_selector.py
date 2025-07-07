@@ -201,13 +201,13 @@ class SmartFormatSelector:
                 if format_id:
                     return format_id, f"降级到{quality}: {reason}"
             
-            # 如果所有降级都失败，使用最基础的格式
-            logger.warning(f"⚠️ 所有质量级别都不可用，使用最基础格式")
-            return '18', '降级到最基础360p格式'
-            
+            # 如果所有降级都失败，使用平台无关的通用格式选择器
+            logger.warning(f"⚠️ 所有质量级别都不可用，使用通用格式选择器")
+            return 'best/worst', '降级到通用格式选择器'
+
         except Exception as e:
             logger.error(f"❌ 格式选择失败: {e}")
-            return '18', f'错误降级: {str(e)}'
+            return 'best/worst', f'错误降级，使用通用格式: {str(e)}'
     
     def _normalize_quality(self, user_quality: str) -> str:
         """标准化用户输入的质量选择"""
@@ -466,9 +466,15 @@ def select_format_for_user(user_quality: str, url: str, proxy: str = None) -> Tu
         proxy: 代理配置
 
     Returns:
-        Tuple[format_id, reason, info]: (格式ID, 选择原因, 详细信息)
+        Tuple[format_selector, reason, info]: (格式选择器表达式, 选择原因, 详细信息)
     """
     try:
+        # 首先尝试使用平台特定的格式选择器
+        platform_selector = _get_platform_format_selector(url, user_quality)
+        if platform_selector:
+            return platform_selector, f"使用{_get_platform_name(url)}平台专用格式选择器", {}
+
+        # 如果平台选择器不可用，使用智能选择器
         selector = get_smart_format_selector()
 
         # 获取可用格式
@@ -476,10 +482,17 @@ def select_format_for_user(user_quality: str, url: str, proxy: str = None) -> Tu
         format_result = selector.get_available_formats(url, proxy)
 
         if not format_result['success']:
-            return '18', f"格式检测失败，使用默认: {format_result.get('error', '')}", {}
+            return _get_fallback_format_selector(user_quality), f"格式检测失败，使用通用格式: {format_result.get('error', '')}", {}
 
         # 选择最佳格式
         format_id, reason = selector.select_best_format(user_quality, format_result)
+
+        # 如果选择的是格式选择器表达式，直接返回
+        if '/' in format_id or format_id in ['best', 'worst']:
+            return format_id, reason, {
+                'total_formats': format_result['total_count'],
+                'available_qualities': list(format_result['formats'].keys())
+            }
 
         # 获取格式详细信息
         format_info = selector.get_format_info(format_id)
@@ -495,4 +508,54 @@ def select_format_for_user(user_quality: str, url: str, proxy: str = None) -> Tu
 
     except Exception as e:
         logger.error(f"❌ 智能格式选择失败: {e}")
-        return '18', f"选择失败，使用默认: {str(e)}", {}
+        return _get_fallback_format_selector(user_quality), f"选择失败，使用通用格式: {str(e)}", {}
+
+
+def _get_platform_format_selector(url: str, quality: str) -> str:
+    """获取平台特定的格式选择器"""
+    try:
+        from modules.downloader.platforms import get_platform_for_url
+        platform = get_platform_for_url(url)
+        return platform.get_format_selector(quality, url)
+    except Exception as e:
+        logger.debug(f"获取平台格式选择器失败: {e}")
+        return None
+
+
+def _get_platform_name(url: str) -> str:
+    """获取平台名称"""
+    try:
+        from urllib.parse import urlparse
+        domain = urlparse(url.lower()).netloc
+        if 'twitter.com' in domain or 'x.com' in domain:
+            return 'Twitter'
+        elif 'youtube.com' in domain or 'youtu.be' in domain:
+            return 'YouTube'
+        elif 'bilibili.com' in domain:
+            return 'Bilibili'
+        elif 'tiktok.com' in domain:
+            return 'TikTok'
+        elif 'instagram.com' in domain:
+            return 'Instagram'
+        elif 'facebook.com' in domain:
+            return 'Facebook'
+        else:
+            return '通用'
+    except:
+        return '未知'
+
+
+def _get_fallback_format_selector(quality: str) -> str:
+    """获取降级格式选择器"""
+    quality_lower = quality.lower().strip()
+
+    if quality_lower in ['high', '1080p', '1080', 'fhd', 'full']:
+        return 'best[height<=1080]/best[ext=mp4]/best/worst'
+    elif quality_lower in ['medium', '720p', '720', 'hd']:
+        return 'best[height<=720]/best[ext=mp4]/best/worst'
+    elif quality_lower in ['low', '480p', '480', 'sd']:
+        return 'best[height<=480]/best[ext=mp4]/best/worst'
+    elif quality_lower in ['worst', '360p', '360']:
+        return 'worst[ext=mp4]/worst/best[height<=360]/best'
+    else:
+        return 'best/worst'

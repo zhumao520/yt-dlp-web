@@ -248,13 +248,41 @@ class FileUtils:
 
 class ProgressUtils:
     """统一的进度处理工具类"""
-    
+
+    # 存储每个下载任务的最高进度，防止回退
+    _max_progress = {}
+
     @staticmethod
     def calculate_progress(current: int, total: int) -> int:
         """计算进度百分比 - 统一方法"""
         if total <= 0:
             return 0
         return max(0, min(100, int((current / total) * 100)))
+
+    @staticmethod
+    def calculate_smooth_progress(current: int, total: int, download_id: str = None) -> int:
+        """计算平滑进度百分比 - 防止回退"""
+        raw_progress = ProgressUtils.calculate_progress(current, total)
+
+        if download_id:
+            # 获取该下载任务的历史最高进度
+            max_progress = ProgressUtils._max_progress.get(download_id, 0)
+
+            # 只允许进度前进，不允许回退
+            smooth_progress = max(raw_progress, max_progress)
+
+            # 更新最高进度记录
+            ProgressUtils._max_progress[download_id] = smooth_progress
+
+            return smooth_progress
+
+        return raw_progress
+
+    @staticmethod
+    def reset_progress(download_id: str):
+        """重置下载任务的进度记录"""
+        if download_id in ProgressUtils._max_progress:
+            del ProgressUtils._max_progress[download_id]
     
     @staticmethod
     def format_progress_data(current: int, total: int, status: str = "downloading") -> Dict[str, Any]:

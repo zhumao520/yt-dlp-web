@@ -64,6 +64,17 @@ class Database:
                     logger.info("✅ webhook_url字段添加成功")
                 except Exception as e:
                     logger.warning(f"⚠️ 检查webhook_url字段时出错: {e}")
+
+                # 检查并添加use_proxy_for_upload字段（向后兼容）
+                try:
+                    conn.execute('SELECT use_proxy_for_upload FROM telegram_config LIMIT 1')
+                except sqlite3.OperationalError:
+                    # 字段不存在，添加它
+                    logger.info("🔧 添加use_proxy_for_upload字段到telegram_config表")
+                    conn.execute('ALTER TABLE telegram_config ADD COLUMN use_proxy_for_upload BOOLEAN DEFAULT 0')
+                    logger.info("✅ use_proxy_for_upload字段添加成功")
+                except Exception as e:
+                    logger.warning(f"⚠️ 检查use_proxy_for_upload字段时出错: {e}")
                 
                 # 下载记录表
                 conn.execute('''
@@ -329,7 +340,7 @@ class Database:
                 UPDATE telegram_config SET
                     bot_token = ?, chat_id = ?, api_id = ?, api_hash = ?,
                     enabled = ?, push_mode = ?, auto_download = ?,
-                    file_size_limit = ?, webhook_url = ?, updated_at = CURRENT_TIMESTAMP
+                    file_size_limit = ?, webhook_url = ?, use_proxy_for_upload = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (
                 config.get('bot_token', ''),
@@ -341,14 +352,15 @@ class Database:
                 config.get('auto_download', True),
                 config.get('file_size_limit', 50),
                 config.get('webhook_url', ''),
+                config.get('use_proxy_for_upload', False),
                 existing['id']
             ))
         else:
             # 创建新配置
             return self.execute_update('''
                 INSERT INTO telegram_config
-                (bot_token, chat_id, api_id, api_hash, enabled, push_mode, auto_download, file_size_limit, webhook_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (bot_token, chat_id, api_id, api_hash, enabled, push_mode, auto_download, file_size_limit, webhook_url, use_proxy_for_upload)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 config.get('bot_token', ''),
                 config.get('chat_id', ''),
@@ -358,7 +370,8 @@ class Database:
                 config.get('push_mode', 'file'),
                 config.get('auto_download', True),
                 config.get('file_size_limit', 50),
-                config.get('webhook_url', '')
+                config.get('webhook_url', ''),
+                config.get('use_proxy_for_upload', False)
             ))
     
     def save_download_record(self, download_id: str, url: str, title: str = None) -> bool:

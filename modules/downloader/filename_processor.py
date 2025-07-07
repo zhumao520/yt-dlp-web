@@ -88,8 +88,13 @@ class FilenameProcessor:
             # 3. 移除控制字符
             filename = ''.join(char for char in filename if ord(char) >= 32)
             
-            # 4. 处理连续的空格和下划线
-            filename = re.sub(r'[\s_]+', '_', filename)
+            # 4. 智能处理空格和下划线
+            # 先处理连续的空格，但保留单个空格
+            filename = re.sub(r'\s{2,}', ' ', filename)  # 多个空格变成单个空格
+            # 处理连续的下划线
+            filename = re.sub(r'_{2,}', '_', filename)   # 多个下划线变成单个下划线
+            # 处理空格和下划线的混合（如 " _ " -> "_"）
+            filename = re.sub(r'\s*_\s*', '_', filename)  # 空格+下划线+空格 -> 下划线
             
             # 5. 移除开头和结尾的特殊字符
             filename = filename.strip('._- ')
@@ -164,7 +169,9 @@ class FilenameProcessor:
             current_path = Path(current_file)
             
             # 清理自定义文件名
+            logger.info(f"🔧 调试 - 原始自定义文件名: '{custom_filename}'")
             clean_custom = self.sanitize_filename(custom_filename)
+            logger.info(f"🔧 调试 - 清理后自定义文件名: '{clean_custom}'")
             
             # 如果自定义文件名没有扩展名，使用原文件的扩展名
             if not Path(clean_custom).suffix:
@@ -243,7 +250,8 @@ class FilenameProcessor:
                     new_name = f"{base_name}.info{original_ext}"
             
             elif file_type == 'audio':
-                new_name = f"{base_name}.audio{original_ext}"
+                # 🔧 修复：音频文件不需要添加 .audio 后缀，扩展名已经表明文件类型
+                new_name = f"{base_name}{original_ext}"
             
             else:
                 new_name = f"{base_name}{original_ext}"

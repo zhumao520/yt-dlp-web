@@ -88,7 +88,7 @@ class DownloadCleanup:
                 self.stop_event.wait(300)
     
     def _get_setting(self, key: str, default):
-        """优先从数据库获取设置，然后是配置文件"""
+        """优先从数据库获取设置，然后是配置文件，并记录配置来源"""
         try:
             from core.database import get_database
             db = get_database()
@@ -97,24 +97,39 @@ class DownloadCleanup:
             db_value = db.get_setting(key)
             if db_value is not None:
                 # 转换数据类型
+                converted_value = db_value
                 if isinstance(default, bool):
-                    return str(db_value).lower() in ('true', '1', 'yes', 'on')
+                    converted_value = str(db_value).lower() in ('true', '1', 'yes', 'on')
                 elif isinstance(default, int):
-                    return int(db_value)
+                    converted_value = int(db_value)
                 elif isinstance(default, float):
-                    return float(db_value)
-                else:
-                    return db_value
+                    converted_value = float(db_value)
+
+                logger.info(f"🔧 清理器配置: {key} = {converted_value} (来源: 数据库)")
+                return converted_value
 
             # 如果数据库没有，从配置文件获取
             from core.config import get_config
-            return get_config(key, default)
+            config_value = get_config(key, None)
+            if config_value is not None:
+                logger.info(f"🔧 清理器配置: {key} = {config_value} (来源: 配置文件)")
+                return config_value
+
+            # 使用默认值
+            logger.info(f"🔧 清理器配置: {key} = {default} (来源: 默认值)")
+            return default
 
         except Exception as e:
             logger.warning(f"⚠️ 获取设置失败 {key}: {e}")
             # 出错时使用配置文件
-            from core.config import get_config
-            return get_config(key, default)
+            try:
+                from core.config import get_config
+                fallback_value = get_config(key, default)
+                logger.warning(f"🔧 清理器配置: {key} = {fallback_value} (来源: 配置文件-回退)")
+                return fallback_value
+            except:
+                logger.warning(f"🔧 清理器配置: {key} = {default} (来源: 默认值-回退)")
+                return default
 
     def _has_db_setting(self, key: str) -> bool:
         """检查数据库中是否有该设置"""
@@ -139,6 +154,12 @@ class DownloadCleanup:
             file_retention_hours = self._get_setting('downloader.file_retention_hours', 24)
             max_storage_mb = self._get_setting('downloader.max_storage_mb', 2048)
             keep_recent_files = self._get_setting('downloader.keep_recent_files', 20)
+
+            # 添加详细的配置调试信息
+            logger.info(f"🔧 清理器最终配置确认:")
+            logger.info(f"   file_retention_hours: {file_retention_hours} (类型: {type(file_retention_hours)})")
+            logger.info(f"   max_storage_mb: {max_storage_mb} (类型: {type(max_storage_mb)})")
+            logger.info(f"   keep_recent_files: {keep_recent_files} (类型: {type(keep_recent_files)})")
             
             # 获取所有下载文件
             files = self._get_download_files(output_dir)

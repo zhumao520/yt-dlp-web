@@ -17,23 +17,24 @@ class SelectionStateService:
         self._states = {}
         self._state_ttl = 600  # 10分钟过期
     
-    def store_state(self, chat_id: str, url: str, video_info: Dict[str, Any], 
-                   quality_options: list) -> None:
+    def store_state(self, chat_id: str, url: str, video_info: Dict[str, Any],
+                   quality_options: list, custom_filename: Optional[str] = None) -> None:
         """存储用户选择状态"""
         try:
             state = {
                 'url': url,
                 'video_info': video_info,
                 'quality_options': quality_options,
+                'custom_filename': custom_filename,
                 'timestamp': time.time()
             }
-            
+
             self._states[str(chat_id)] = state
-            logger.debug(f"📝 存储选择状态: chat_id={chat_id}, url={url}")
-            
+            logger.debug(f"📝 存储选择状态: chat_id={chat_id}, url={url}, custom_filename={custom_filename}")
+
             # 清理过期状态
             self._cleanup_expired_states()
-            
+
         except Exception as e:
             logger.error(f"❌ 存储选择状态失败: {e}")
     

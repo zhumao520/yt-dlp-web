@@ -242,10 +242,11 @@ class ModernHybridUploader(BaseUploader):
             file_size_mb = file_path_obj.stat().st_size / (1024 * 1024)
             logger.info(f"📤 发送文件: {file_path_obj.name} ({file_size_mb:.1f}MB)")
 
-            # 简化策略：大文件用Pyrofork，小文件优先Bot API
-            if file_size_mb > 50 and self.pyrofork_uploader:
+            # 简化策略：大文件用Pyrofork，小文件优先Bot API（使用配置的限制）
+            file_size_limit = self.config.get('file_size_limit', 50)
+            if file_size_mb > file_size_limit and self.pyrofork_uploader:
                 # 大文件直接用Pyrofork
-                logger.info("🎯 大文件，使用 Pyrofork")
+                logger.info(f"🎯 大文件({file_size_mb:.1f}MB > {file_size_limit}MB)，使用 Pyrofork")
                 return self.pyrofork_uploader.send_file(file_path, caption, **kwargs)
 
             # 小文件优先Bot API，失败则回退Pyrofork
@@ -278,26 +279,27 @@ class ModernHybridUploader(BaseUploader):
             # 检查文件总大小
             total_size_mb = sum(Path(f).stat().st_size for f in files if Path(f).exists()) / (1024 * 1024)
             
-            # 选择上传器（基于文件大小优先选择）
-            if total_size_mb > 50:
+            # 选择上传器（基于文件大小优先选择，使用配置的限制）
+            file_size_limit = self.config.get('file_size_limit', 50)
+            if total_size_mb > file_size_limit:
                 # 大文件必须使用 Pyrofork
                 if self.pyrofork_uploader:
                     uploader = self.pyrofork_uploader
                     uploader_name = "Pyrofork"
-                    logger.info(f"🎯 媒体组大文件({total_size_mb:.1f}MB) → 选择 Pyrofork")
+                    logger.info(f"🎯 媒体组大文件({total_size_mb:.1f}MB > {file_size_limit}MB) → 选择 Pyrofork")
                 else:
-                    logger.error("❌ 媒体组文件过大但 Pyrofork 不可用")
+                    logger.error(f"❌ 媒体组文件过大({total_size_mb:.1f}MB > {file_size_limit}MB)但 Pyrofork 不可用")
                     return False
             else:
                 # 小文件优先使用 Bot API
                 if self.bot_api_uploader:
                     uploader = self.bot_api_uploader
                     uploader_name = "Bot API"
-                    logger.info(f"🎯 媒体组小文件({total_size_mb:.1f}MB) → 选择 Bot API（更快）")
+                    logger.info(f"🎯 媒体组小文件({total_size_mb:.1f}MB ≤ {file_size_limit}MB) → 选择 Bot API（更快）")
                 elif self.pyrofork_uploader:
                     uploader = self.pyrofork_uploader
                     uploader_name = "Pyrofork"
-                    logger.info(f"🎯 媒体组小文件({total_size_mb:.1f}MB) → Bot API不可用，使用 Pyrofork")
+                    logger.info(f"🎯 媒体组小文件({total_size_mb:.1f}MB ≤ {file_size_limit}MB) → Bot API不可用，使用 Pyrofork")
                 else:
                     logger.error("❌ 没有可用的上传器发送媒体组")
                     return False

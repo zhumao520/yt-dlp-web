@@ -30,13 +30,17 @@ class UnifiedDownloadAPI:
         """获取视频信息 - 使用智能回退机制"""
         try:
             logger.info(f"🔍 获取视频信息: {url}")
-            
-            # 使用下载管理器的智能回退机制
-            video_info = self.download_manager._extract_video_info(url)
-            
-            if not video_info:
-                raise Exception("无法获取视频信息")
-            
+
+            # 使用视频提取器获取信息
+            from modules.downloader.video_extractor import VideoExtractor
+            extractor = VideoExtractor()
+
+            video_info = extractor.extract_info(url, {})
+
+            if not video_info or video_info.get('error'):
+                error_msg = video_info.get('message', '无法获取视频信息') if video_info else '无法获取视频信息'
+                raise Exception(error_msg)
+
             # 标准化返回格式
             result = {
                 'success': True,
@@ -50,10 +54,10 @@ class UnifiedDownloadAPI:
                     'url': url
                 }
             }
-            
+
             logger.info(f"✅ 成功获取视频信息: {result['data']['title']}")
             return result
-            
+
         except Exception as e:
             logger.error(f"❌ 获取视频信息失败: {e}")
             return {

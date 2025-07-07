@@ -98,8 +98,8 @@ class YouTubeStrategies:
         try:
             logger.info(f"🚀 YouTube策略开始下载: {download_id} - {url}")
 
-            # 获取输出目录
-            output_dir = self._get_output_dir()
+            # 智能选择输出目录：需要转换的使用临时目录
+            output_dir = self._get_smart_output_dir(options)
 
             # 双引擎策略：先尝试yt-dlp，失败后尝试PyTubeFix
             engines = [
@@ -240,7 +240,20 @@ class YouTubeStrategies:
             async def async_download():
                 quality = options.get('quality', '720')
                 # 使用新的缓存下载方法，传入已提取的视频信息
-                return await downloader.download_with_cached_info(url, str(output_dir), quality, video_info)
+                result = await downloader.download_with_cached_info(url, str(output_dir), quality, video_info)
+
+                # 如果下载成功且需要音频转换，进行后处理
+                if result and result.get('success') and self._needs_audio_conversion(options):
+                    file_path = result.get('filepath')
+                    if file_path:
+                        converted_path = self._convert_to_audio(file_path, options)
+                        if converted_path:
+                            # 更新结果中的文件路径
+                            result['filepath'] = converted_path
+                            result['file_path'] = converted_path
+                            result['filename'] = Path(converted_path).name
+
+                return result
 
             # 安全的异步处理，避免死锁
             try:
@@ -300,10 +313,10 @@ class YouTubeStrategies:
                                 downloaded = float(downloaded) if downloaded else 0.0
 
                                 if total > 0:
-                                    # 使用统一的进度处理工具
+                                    # 使用统一的进度处理工具，带平滑化处理
                                     from core.file_utils import ProgressUtils
                                     formatted_data = ProgressUtils.format_progress_data(
-                                        int(downloaded), int(total), 'downloading'
+                                        int(downloaded), int(total), 'downloading', download_id
                                     )
                                     task_progress_callback(formatted_data)
                             except (ValueError, TypeError, ZeroDivisionError) as e:
@@ -375,7 +388,7 @@ class YouTubeStrategies:
             return None
     
     def _get_output_dir(self) -> Path:
-        """获取输出目录"""
+        """获取最终输出目录"""
         try:
             from core.config import get_config
             output_dir = Path(get_config('downloader.output_dir', 'data/downloads'))
@@ -388,6 +401,48 @@ class YouTubeStrategies:
 
         output_dir.mkdir(parents=True, exist_ok=True)
         return output_dir
+
+    def _get_temp_dir(self) -> Path:
+        """获取临时目录并记录配置来源"""
+        try:
+            # 检查数据库设置
+            from core.database import get_database
+            db = get_database()
+            db_value = db.get_setting('downloader.temp_dir')
+            if db_value is not None:
+                temp_dir = Path(db_value)
+                logger.debug(f"🔧 YouTube策略临时目录: {temp_dir} (来源: 数据库)")
+            else:
+                # 检查配置文件
+                from core.config import get_config
+                config_value = get_config('downloader.temp_dir', None)
+                if config_value is not None:
+                    temp_dir = Path(config_value)
+                    logger.debug(f"🔧 YouTube策略临时目录: {temp_dir} (来源: 配置文件)")
+                else:
+                    temp_dir = Path('data/temp')
+                    logger.debug(f"🔧 YouTube策略临时目录: {temp_dir} (来源: 默认值)")
+        except ImportError:
+            temp_dir = Path('data/temp')
+            logger.debug(f"🔧 YouTube策略临时目录: {temp_dir} (来源: 默认值-导入失败)")
+
+        # 确保路径是绝对路径
+        if not temp_dir.is_absolute():
+            temp_dir = Path.cwd() / temp_dir
+
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        return temp_dir
+
+    def _get_smart_output_dir(self, options: Dict[str, Any]) -> Path:
+        """智能选择输出目录：需要转换的使用临时目录"""
+        if self._needs_audio_conversion(options):
+            temp_dir = self._get_temp_dir()
+            logger.info(f"🔄 需要音频转换，使用临时目录: {temp_dir}")
+            return temp_dir
+        else:
+            output_dir = self._get_output_dir()
+            logger.info(f"📁 无需转换，直接使用最终目录: {output_dir}")
+            return output_dir
     
     def _get_proxy_config(self) -> Optional[str]:
         """获取代理配置 - 使用统一的代理助手"""
@@ -849,24 +904,91 @@ class YouTubeStrategies:
                 audio_format = 'mp3'
                 audio_quality = 'medium'
 
-            # 生成输出文件路径
             input_file = Path(input_path)
-            output_path = str(input_file.parent / f"{input_file.stem}.{audio_format}")
+
+            # 检查输入文件是否已经是目标格式
+            current_extension = input_file.suffix.lower().lstrip('.')
+            target_extension = audio_format.lower()
+
+            # 判断是否需要实际转换
+            if current_extension == target_extension:
+                logger.info(f"✅ 文件已经是目标格式 {audio_format.upper()}，无需转换: {input_file.name}")
+                # 如果文件在临时目录，需要移动到最终目录
+                temp_dir = self._get_temp_dir()
+                if str(input_file.parent) == str(temp_dir):
+                    final_dir = self._get_output_dir()
+                    final_path = final_dir / input_file.name
+                    try:
+                        input_file.rename(final_path)
+                        logger.info(f"📁 文件已移动到最终目录: {final_path.name}")
+                        return str(final_path)
+                    except Exception as e:
+                        logger.error(f"❌ 移动文件失败: {e}")
+                        return input_path
+                else:
+                    return input_path
+
+            # 需要转换：在临时目录进行转换，然后移动到最终目录
+            temp_output_path = str(input_file.parent / f"{input_file.stem}.{audio_format}")
+
+            # 双重检查：如果路径相同，添加后缀避免冲突
+            if temp_output_path == input_path:
+                temp_output_path = str(input_file.parent / f"{input_file.stem}_converted.{audio_format}")
+                logger.warning(f"⚠️ 输入输出路径相同，使用临时文件名: {Path(temp_output_path).name}")
 
             # 使用FFmpeg工具转换
             from modules.downloader.ffmpeg_tools import FFmpegTools
             ffmpeg_tools = FFmpegTools()
 
+            logger.info(f"🔄 开始音频转换: {input_file.name} -> {Path(temp_output_path).name}")
             success = ffmpeg_tools.extract_audio(
                 input_path=input_path,
-                output_path=output_path,
+                output_path=temp_output_path,
                 format=audio_format,
                 quality=audio_quality
             )
 
-            if success and Path(output_path).exists():
+            if success and Path(temp_output_path).exists():
                 logger.info(f"✅ 音频转换成功: {audio_format} ({audio_quality})")
-                return output_path
+
+                # 移动转换后的文件到最终目录
+                temp_file = Path(temp_output_path)
+                final_dir = self._get_output_dir()
+                final_path = final_dir / temp_file.name
+
+                try:
+                    # 检查目标文件是否已经存在，如果存在则删除
+                    if final_path.exists():
+                        logger.warning(f"⚠️ 目标文件已存在，将覆盖: {final_path.name}")
+                        final_path.unlink()
+
+                    # 使用shutil.move代替rename，更可靠
+                    import shutil
+                    shutil.move(str(temp_file), str(final_path))
+                    logger.info(f"📁 转换后文件已移动到最终目录: {final_path.name}")
+
+                    # 验证文件移动成功
+                    if final_path.exists():
+                        file_size = final_path.stat().st_size
+                        logger.info(f"✅ 文件移动验证成功: {final_path.name} ({file_size} 字节)")
+                    else:
+                        logger.error(f"❌ 文件移动验证失败: {final_path.name}")
+                        return None
+
+                    # 清理原始文件
+                    try:
+                        if Path(input_path).exists():
+                            Path(input_path).unlink()
+                            logger.debug(f"🗑️ 清理原始文件: {Path(input_path).name}")
+                    except:
+                        pass
+
+                    return str(final_path)
+                except Exception as e:
+                    logger.error(f"❌ 移动转换后文件失败: {e}")
+                    logger.error(f"❌ 源文件: {temp_file}")
+                    logger.error(f"❌ 目标文件: {final_path}")
+                    return temp_output_path
             else:
                 logger.error(f"❌ 音频转换失败")
                 return None

@@ -58,17 +58,27 @@ class TwitterPlatform(BasePlatform):
         return False
     
     def get_format_selector(self, quality: str = 'best', url: str = '') -> str:
-        """Twitter 格式选择器 - 多重备用策略"""
-        if quality == 'best':
+        """Twitter 格式选择器 - 优化的多重备用策略"""
+        # 标准化质量参数
+        quality_lower = quality.lower().strip()
+
+        # 根据质量级别返回不同的格式选择器
+        if quality_lower in ['high', '1080p', '1080', 'fhd', 'full']:
+            return 'best[height<=1080][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best/worst'
+        elif quality_lower in ['medium', '720p', '720', 'hd']:
+            return 'best[height<=720][ext=mp4]/best[height<=480][ext=mp4]/best[ext=mp4]/best/worst'
+        elif quality_lower in ['low', '480p', '480', 'sd']:
+            return 'best[height<=480][ext=mp4]/best[height<=360][ext=mp4]/best[ext=mp4]/best/worst'
+        elif quality_lower in ['worst', '360p', '360']:
+            return 'worst[ext=mp4]/worst[ext=m4v]/worst/best[height<=360]/best'
+        elif quality_lower == 'best':
             return 'best[ext=mp4]/best[ext=m4v]/best[height<=720]/best/worst'
-        elif quality == 'worst':
-            return 'worst[ext=mp4]/worst[ext=m4v]/worst/best[height<=480]/best'
         elif quality.isdigit():
             # 数字质量 (如 720, 480)
             return f'best[height<={quality}][ext=mp4]/best[height<={quality}]/best[ext=mp4]/best/worst'
         else:
-            # 其他情况
-            return f'best[ext=mp4]/best[ext=m4v]/best/worst'
+            # 默认情况 - 最宽松的选择
+            return 'best[ext=mp4]/best[ext=m4v]/best/worst'
     
     def get_config(self, url: str, quality: str = 'best') -> Dict[str, Any]:
         """获取 Twitter 完整配置 - 增强版，解决SSL问题"""
