@@ -299,32 +299,64 @@ class YouTubeStrategies:
 
             # 添加安全的进度回调，避免类型错误
             def safe_progress_hook(d):
-                """安全的进度回调，避免类型转换错误"""
+                """安全的进度回调，支持HLS分片下载"""
                 try:
+                    logger.info(f"🔍 YouTube策略进度钩子: {download_id} - 状态: {d.get('status')}")
+                    logger.info(f"   数据详情: downloaded={d.get('downloaded_bytes')}, total={d.get('total_bytes')}, frag={d.get('fragment_index')}/{d.get('fragment_count')}")
+
                     if d.get('status') == 'downloading':
-                        # 安全地处理进度数据，避免类型错误
+                        # 安全地处理进度数据，支持HLS分片
                         total = d.get('total_bytes') or d.get('total_bytes_estimate')
                         downloaded = d.get('downloaded_bytes')
 
-                        # 确保数据类型正确
+                        # HLS分片下载的特殊处理
+                        fragment_index = d.get('fragment_index')
+                        fragment_count = d.get('fragment_count')
+
+                        # 如果是HLS分片下载且没有字节数据，使用分片进度
+                        if fragment_index is not None and fragment_count is not None and fragment_count > 0:
+                            if total is None or downloaded is None:
+                                # 基于分片计算进度，使用防回退机制
+                                from core.file_utils import ProgressUtils
+                                raw_progress = int((fragment_index / fragment_count) * 100)
+                                smooth_progress = ProgressUtils.calculate_smooth_progress(
+                                    fragment_index, fragment_count, download_id
+                                )
+
+                                logger.info(f"📊 YouTube策略HLS分片进度: {download_id} - {fragment_index}/{fragment_count} = {raw_progress}% -> {smooth_progress}% (防回退)")
+
+                                # 使用平滑进度调用任务进度回调
+                                formatted_data = ProgressUtils.format_progress_data(
+                                    fragment_index, fragment_count, 'downloading'
+                                )
+                                formatted_data['progress_percent'] = smooth_progress
+                                task_progress_callback(formatted_data)
+                                return
+
+                        # 普通字节下载处理
                         if total is not None and downloaded is not None:
                             try:
                                 total = float(total) if total else 0.0
                                 downloaded = float(downloaded) if downloaded else 0.0
 
                                 if total > 0:
-                                    # 使用统一的进度处理工具，带平滑化处理
+                                    # 使用统一的进度处理工具，带平滑化处理和防回退
                                     from core.file_utils import ProgressUtils
-                                    formatted_data = ProgressUtils.format_progress_data(
-                                        int(downloaded), int(total), 'downloading', download_id
+                                    smooth_progress = ProgressUtils.calculate_smooth_progress(
+                                        int(downloaded), int(total), download_id
                                     )
+
+                                    formatted_data = ProgressUtils.format_progress_data(
+                                        int(downloaded), int(total), 'downloading'
+                                    )
+                                    formatted_data['progress_percent'] = smooth_progress
                                     task_progress_callback(formatted_data)
                             except (ValueError, TypeError, ZeroDivisionError) as e:
                                 # 忽略类型转换错误，避免中断下载
-                                pass
+                                logger.debug(f"⚠️ YouTube策略进度计算错误: {e}")
                 except Exception as e:
                     # 进度回调失败不应该影响下载
-                    pass
+                    logger.debug(f"⚠️ YouTube策略进度钩子异常: {e}")
 
             # 添加进度回调到选项中
             if 'progress_hooks' not in ydl_opts:

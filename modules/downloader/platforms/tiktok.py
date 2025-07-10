@@ -63,6 +63,10 @@ class TikTokPlatform(BasePlatform):
         # 标准化质量参数
         quality_lower = quality.lower().strip()
 
+        # 处理video_前缀（iOS快捷指令格式）
+        if quality_lower.startswith('video_'):
+            quality_lower = quality_lower[6:]  # 移除 'video_' 前缀
+
         # 根据质量级别返回不同的格式选择器
         if quality_lower in ['high', '1080p', '1080', 'fhd', 'full']:
             return 'best[height<=1080][ext=mp4]/best[height<=720][ext=mp4]/best[ext=mp4]/best[ext=webm]/best/worst'

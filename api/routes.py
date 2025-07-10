@@ -448,6 +448,48 @@ def api_sse_events():
         return jsonify({"error": "SSE连接失败"}), 500
 
 
+@api_bp.route('/events/public')
+def api_sse_events_public():
+    """SSE事件流端点（无需认证，仅用于进度跟踪）"""
+    try:
+        # 获取客户端ID
+        client_id = request.args.get('client_id')
+        if not client_id:
+            return jsonify({"error": "缺少client_id参数"}), 400
+
+        logger.info(f"📡 无认证SSE连接: {client_id}")
+
+        # 创建SSE响应
+        from core.sse import create_sse_response
+        return create_sse_response(client_id)
+
+    except Exception as e:
+        logger.error(f"❌ 无认证SSE事件流创建失败: {e}")
+        return jsonify({"error": "SSE连接失败"}), 500
+
+
+@api_bp.route('/sse/status')
+@auth_required
+def api_sse_status():
+    """获取SSE连接状态（需要认证）"""
+    try:
+        from core.sse import get_sse_manager
+        sse_manager = get_sse_manager()
+
+        client_count = sse_manager.get_client_count()
+
+        return jsonify({
+            "success": True,
+            "client_count": client_count,
+            "status": "active" if client_count > 0 else "idle",
+            "timestamp": int(time.time())
+        })
+
+    except Exception as e:
+        logger.error(f"❌ 获取SSE状态失败: {e}")
+        return jsonify({"error": "获取SSE状态失败"}), 500
+
+
 @api_bp.route('/system/status')
 @auth_required
 def api_system_status():
@@ -1570,6 +1612,46 @@ def api_shortcuts_download():
             audio_only = str(audio_only_value).lower() in ["true", "1", "yes"]
 
         quality = data.get("quality", "best").strip()
+
+        # 🎵 iOS端音频格式增强：支持Web端的音频格式转换功能
+        audio_format = data.get("audio_format", "").strip()
+
+        # 如果指定了音频格式，自动转换为Web端兼容的质量参数
+        if audio_format and audio_only:
+            # 映射iOS端音频格式到Web端格式
+            ios_to_web_audio_mapping = {
+                # MP3格式
+                "mp3_high": "audio_mp3_high",
+                "mp3_medium": "audio_mp3_medium",
+                "mp3_low": "audio_mp3_low",
+                "mp3": "audio_mp3_medium",  # 默认MP3中等质量
+
+                # AAC格式
+                "aac_high": "audio_aac_high",
+                "aac_medium": "audio_aac_medium",
+                "aac": "audio_aac_medium",  # 默认AAC中等质量
+
+                # FLAC格式
+                "flac": "audio_flac",
+
+                # 兼容性映射
+                "high_mp3": "audio_mp3_high",
+                "medium_mp3": "audio_mp3_medium",
+                "low_mp3": "audio_mp3_low",
+            }
+
+            # 转换音频格式参数
+            if audio_format.lower() in ios_to_web_audio_mapping:
+                quality = ios_to_web_audio_mapping[audio_format.lower()]
+                logger.info(f"🎵 iOS音频格式转换: {audio_format} -> {quality}")
+            else:
+                # 如果是未知格式，尝试直接使用
+                if audio_format.startswith('audio_'):
+                    quality = audio_format
+                    logger.info(f"🎵 直接使用音频格式: {quality}")
+                else:
+                    logger.warning(f"⚠️ 未知音频格式 {audio_format}，使用默认MP3中等质量")
+                    quality = "audio_mp3_medium"
 
         options = {
             "quality": quality,

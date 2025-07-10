@@ -212,7 +212,15 @@ class SmartFormatSelector:
     def _normalize_quality(self, user_quality: str) -> str:
         """标准化用户输入的质量选择"""
         quality_lower = user_quality.lower().strip()
-        
+
+        # 处理video_前缀（iOS快捷指令格式）
+        if quality_lower.startswith('video_'):
+            quality_lower = quality_lower[6:]  # 移除 'video_' 前缀
+
+        # 处理audio_前缀（音频格式）
+        if quality_lower.startswith('audio_'):
+            return quality_lower  # 保持audio_前缀，后续处理
+
         # 处理各种用户输入
         quality_map = {
             '4k': '4k',
@@ -220,31 +228,31 @@ class SmartFormatSelector:
             '2160': '4k',
             'uhd': '4k',
             'ultra': '4k',
-            
+
             '1080p': '1080p',
             '1080': '1080p',
             'fhd': '1080p',
             'full': '1080p',
             'high': '1080p',
-            
+
             '720p': '720p',
             '720': '720p',
             'hd': '720p',
             'medium': '720p',
-            
+
             '480p': '480p',
             '480': '480p',
             'sd': '480p',
-            
+
             '360p': '360p',
             '360': '360p',
             'low': '360p',
-            
+
             'best': 'best',
             'worst': '360p',
             'auto': 'best'
         }
-        
+
         return quality_map.get(quality_lower, '720p')  # 默认720p
     
     def _try_quality_level(self, quality: str, available_formats: Dict) -> Tuple[Optional[str], str]:
