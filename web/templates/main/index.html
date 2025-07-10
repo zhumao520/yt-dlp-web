@@ -573,6 +573,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <h5 class="card-title" style="color: white;">
                         <i class="bi bi-activity me-2"></i>
                         🔥 当前下载 (<span id="downloadCount">0</span>)
+                        <span id="sseIndicator" class="badge bg-secondary ms-2" style="font-size: 0.7rem;">离线</span>
                     </h5>
                     <div id="downloadsContainer">
                         <!-- 下载项将通过JavaScript动态插入 -->
@@ -743,10 +744,10 @@ function downloadManager() {
         },
 
         startPolling() {
-            // 启用实时进度更新（SSE）
+            // 启用实时进度更新（无认证SSE）
             this.startSSE();
 
-            // 每10秒刷新一次活跃下载（作为备用）
+            // 每10秒刷新一次活跃下载（确保数据同步）
             setInterval(() => {
                 this.loadActiveDownloads();
             }, 10000);
@@ -762,10 +763,12 @@ function downloadManager() {
                 }
 
                 const clientId = 'download_progress_' + Date.now();
-                this.eventSource = new EventSource(`/api/events?client_id=${clientId}`);
+                // 🚀 使用无认证SSE端点（更简单、更快速、更易集成）
+                this.eventSource = new EventSource(`/api/events/public?client_id=${clientId}`);
 
                 this.eventSource.onopen = () => {
                     console.log('📡 SSE连接已建立');
+                    this.updateSSEStatus('connected');
                 };
 
                 this.eventSource.addEventListener('connected', (event) => {
@@ -775,6 +778,9 @@ function downloadManager() {
 
                 this.eventSource.addEventListener('download_progress', (event) => {
                     const data = JSON.parse(event.data);
+                    console.log('📊 收到SSE进度事件:', data);
+
+                    // 直接更新真实进度，不做任何模拟
                     this.updateDownloadProgress(data);
                 });
 
@@ -821,22 +827,24 @@ function downloadManager() {
                     // 检查连接状态
                     if (this.eventSource.readyState === EventSource.CLOSED) {
                         console.log('📡 SSE连接已关闭，5秒后重试...');
+                        this.updateSSEStatus('error');
                         // 清理当前连接
                         this.eventSource = null;
                         // 5秒后重试
                         setTimeout(() => {
                             console.log('🔄 重新连接SSE...');
+                            this.updateSSEStatus('connecting');
                             this.startSSE();
                         }, 5000);
                     } else if (this.eventSource.readyState === EventSource.CONNECTING) {
                         console.log('📡 SSE正在重连...');
+                        this.updateSSEStatus('connecting');
                     }
                 };
 
             } catch (error) {
                 console.error('❌ 启动SSE失败:', error);
-                // 降级到轮询模式
-                console.log('🔄 降级到轮询模式');
+                this.updateSSEStatus('error');
             }
         },
 
@@ -865,6 +873,7 @@ function downloadManager() {
                 console.log('📡 关闭SSE连接');
                 this.eventSource.close();
                 this.eventSource = null;
+                this.updateSSEStatus('offline');
             }
         },
 
@@ -886,7 +895,7 @@ function downloadManager() {
         },
 
         updateDownloadProgress(data) {
-            // 实时更新下载进度
+            // 实时更新下载进度（增强版）
             try {
                 if (!data || !data.download_id) {
                     console.warn('⚠️ 无效的进度数据:', data);
@@ -899,7 +908,9 @@ function downloadManager() {
                 const validProgress = Math.max(0, Math.min(100, parseInt(progress) || 0));
 
                 // 查找对应的下载卡片
+                console.log(`📊 更新进度: ${download_id.substring(0, 8)}... -> ${validProgress}% (${status})`);
                 const card = document.querySelector(`[data-download-id="${download_id}"]`);
+
                 if (card) {
                     // 更新进度条
                     const progressBar = card.querySelector('.progress-bar');
@@ -907,16 +918,28 @@ function downloadManager() {
                     const statusBadge = card.querySelector('.badge');
 
                     if (progressBar) {
+                        // 直接更新真实进度，添加平滑过渡效果
+                        progressBar.style.transition = 'width 0.5s ease-out';
                         progressBar.style.width = `${validProgress}%`;
+
+                        if (progressText) {
+                            progressText.textContent = `${validProgress}%`;
+                        }
+
+                        // 更新进度条颜色
+                        this.updateProgressColor(progressBar, validProgress);
                     }
-                    if (progressText) {
-                        progressText.textContent = `${validProgress}%`;
-                    }
+
                     if (statusBadge && status) {
                         statusBadge.textContent = this.getStatusText(status);
                         statusBadge.className = `badge ${this.getStatusClass(status)}`;
                     }
+
+                    // 添加卡片高亮效果
+                    this.highlightProgressUpdate(card);
+
                 } else {
+                    console.log(`❌ 未找到下载卡片: ${download_id}，刷新下载列表`);
                     // 如果找不到卡片，刷新下载列表
                     this.loadActiveDownloads();
                 }
@@ -924,6 +947,42 @@ function downloadManager() {
                 console.error('❌ 更新进度失败:', error);
             }
         },
+
+
+
+        updateProgressColor(progressBar, progress) {
+            // 根据进度动态更新颜色
+            if (progress >= 100) {
+                progressBar.style.background = 'linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)';
+                progressBar.style.boxShadow = '0 2px 8px rgba(67, 233, 123, 0.3)';
+            } else if (progress >= 75) {
+                progressBar.style.background = 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)';
+                progressBar.style.boxShadow = '0 2px 8px rgba(79, 172, 254, 0.3)';
+            } else if (progress >= 50) {
+                progressBar.style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)';
+                progressBar.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
+            } else if (progress >= 25) {
+                progressBar.style.background = 'linear-gradient(90deg, #ffecd2 0%, #fcb69f 100%)';
+                progressBar.style.boxShadow = '0 2px 8px rgba(252, 182, 159, 0.3)';
+            } else {
+                progressBar.style.background = 'linear-gradient(90deg, #fee140 0%, #fa709a 100%)';
+                progressBar.style.boxShadow = '0 2px 8px rgba(254, 225, 64, 0.3)';
+            }
+        },
+
+        highlightProgressUpdate(card) {
+            // 进度更新时的卡片高亮效果
+            card.style.transition = 'all 0.3s ease';
+            card.style.transform = 'scale(1.02)';
+            card.style.boxShadow = '0 4px 20px rgba(79, 172, 254, 0.4)';
+
+            setTimeout(() => {
+                card.style.transform = 'scale(1)';
+                card.style.boxShadow = '';
+            }, 600);
+        },
+
+
 
         updateDownloadTitle(data) {
             try {
@@ -996,6 +1055,35 @@ function downloadManager() {
                 'cancelled': '已取消'
             };
             return texts[status] || '未知';
+        },
+
+        updateSSEStatus(status) {
+            // 更新SSE连接状态指示器
+            const sseIndicator = document.getElementById('sseIndicator');
+
+            if (sseIndicator) {
+                switch (status) {
+                    case 'connected':
+                        sseIndicator.textContent = '实时';
+                        sseIndicator.className = 'badge bg-success ms-2';
+                        sseIndicator.style.fontSize = '0.7rem';
+                        break;
+                    case 'connecting':
+                        sseIndicator.textContent = '连接中';
+                        sseIndicator.className = 'badge bg-warning ms-2';
+                        sseIndicator.style.fontSize = '0.7rem';
+                        break;
+                    case 'error':
+                        sseIndicator.textContent = '重连中';
+                        sseIndicator.className = 'badge bg-danger ms-2';
+                        sseIndicator.style.fontSize = '0.7rem';
+                        break;
+                    default:
+                        sseIndicator.textContent = '离线';
+                        sseIndicator.className = 'badge bg-secondary ms-2';
+                        sseIndicator.style.fontSize = '0.7rem';
+                }
+            }
         }
     }
 }
@@ -1013,27 +1101,12 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-// 页面可见性变化时的SSE管理
+// 页面可见性变化时的日志记录（不影响SSE连接）
 document.addEventListener('visibilitychange', () => {
-    if (!window.downloadManagerInstance) return;
-
     if (document.hidden) {
-        console.log('📡 页面隐藏，暂停SSE');
-        window.downloadManagerInstance.closeSSE();
+        console.log('📱 页面隐藏，SSE连接保持运行');
     } else {
-        console.log('📡 页面显示，检查是否需要恢复SSE');
-        // 延迟检查，避免频繁开关
-        setTimeout(async () => {
-            try {
-                const activeDownloads = await window.downloadManagerInstance.getActiveDownloads();
-                if (activeDownloads.length > 0 && !window.downloadManagerInstance.eventSource) {
-                    console.log('📡 有活跃下载，恢复SSE连接');
-                    window.downloadManagerInstance.startSSE();
-                }
-            } catch (error) {
-                console.error('检查活跃下载失败:', error);
-            }
-        }, 1000);
+        console.log('📱 页面显示，SSE连接正常');
     }
 });
 </script>
