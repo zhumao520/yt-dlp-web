@@ -40,11 +40,11 @@ class TikTokPlatform(BasePlatform):
         }
     
     def get_retry_config(self) -> Dict[str, int]:
-        """TikTok 重试配置"""
+        """TikTok 重试配置 - 现已集成到 get_config() 中"""
         return {
-            'retries': 4,
-            'fragment_retries': 4,
-            'extractor_retries': 3,
+            'retries': 4,           # TikTok 需要更多重试
+            'fragment_retries': 4,  # 视频片段重试
+            'extractor_retries': 3, # 提取器重试
         }
     
     def get_sleep_config(self) -> Dict[str, int]:
@@ -159,7 +159,11 @@ class TikTokPlatform(BasePlatform):
             # 输出优化
             'no_warnings': False,
         })
-        
+
+        # 🔧 应用重试配置 - 从 get_retry_config() 合并
+        retry_config = self.get_retry_config()
+        config.update(retry_config)
+
         self.log_config(url)
         return config
     

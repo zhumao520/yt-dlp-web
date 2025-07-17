@@ -5,7 +5,10 @@ Bilibili 平台下载器配置
 """
 
 from typing import Dict, Any, List
+import logging
 from .base import BasePlatform
+
+logger = logging.getLogger(__name__)
 
 
 class BilibiliPlatform(BasePlatform):
@@ -37,11 +40,11 @@ class BilibiliPlatform(BasePlatform):
         }
     
     def get_retry_config(self) -> Dict[str, int]:
-        """Bilibili 重试配置"""
+        """Bilibili 重试配置 - 现已集成到 get_config() 中"""
         return {
-            'retries': 4,
-            'fragment_retries': 4,
-            'extractor_retries': 3,
+            'retries': 4,           # Bilibili 需要更多重试
+            'fragment_retries': 4,  # 视频片段重试
+            'extractor_retries': 3, # 提取器重试
         }
     
     def get_sleep_config(self) -> Dict[str, int]:
@@ -204,6 +207,10 @@ class BilibiliPlatform(BasePlatform):
             # 分P视频支持
             'playlist_items': '1-50',  # 限制播放列表项目数量
         })
+
+        # 🔧 应用重试配置 - 从 get_retry_config() 合并
+        retry_config = self.get_retry_config()
+        config.update(retry_config)
 
         self.log_config(url)
         return config

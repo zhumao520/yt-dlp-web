@@ -481,3 +481,14 @@ class FilenameProcessor:
                 'issues': ['验证过程出错'],
                 'suggestions': ['使用默认文件名']
             }
+
+
+# 全局实例
+_filename_processor = None
+
+def get_filename_processor() -> FilenameProcessor:
+    """获取文件名处理器实例（单例模式）"""
+    global _filename_processor
+    if _filename_processor is None:
+        _filename_processor = FilenameProcessor()
+    return _filename_processor

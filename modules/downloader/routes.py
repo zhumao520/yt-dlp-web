@@ -6,6 +6,7 @@
 import logging
 from flask import Blueprint, request, jsonify
 from core.auth import auth_required
+from core.filename_extractor import apply_url_filename_to_options
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +30,28 @@ def start_download():
         if not _validate_url(url):
             return jsonify({'error': 'URL格式无效'}), 400
         
+        # 🔍 调试接收到的数据
+        logger.info(f"📥 接收到下载请求数据:")
+        logger.info(f"   URL: {url}")
+        logger.info(f"   custom_filename: '{data.get('custom_filename', '')}' (长度: {len(data.get('custom_filename', ''))})")
+        logger.info(f"   quality: {data.get('quality', 'high')}")
+        logger.info(f"   audio_only: {data.get('audio_only', False)}")
+        logger.info(f"   完整data: {data}")
+
         # 获取下载选项
         options = {
             'quality': data.get('quality', 'high'),
             'audio_only': data.get('audio_only', False),
             'format': data.get('format'),
             'custom_filename': data.get('custom_filename', '').strip(),
-            'source': 'web_interface'
+            'source': 'web_interface',
+            'client_id': data.get('client_id')  # 🔧 传递客户端ID用于精准推送
         }
+
+        logger.info(f"🔧 处理后的options: {options}")
+
+        # 🔧 应用URL中的自定义文件名（如果没有手动输入）
+        options = apply_url_filename_to_options(url, options)
         
         # 创建下载任务
         from .manager import get_download_manager
@@ -52,6 +67,40 @@ def start_download():
     except Exception as e:
         logger.error(f"❌ 开始下载失败: {e}")
         return jsonify({'error': '下载启动失败'}), 500
+
+@downloader_bp.route('/active', methods=['GET'])
+def get_active_downloads():
+    """获取活跃下载任务 - 用于页面刷新后恢复进度跟踪"""
+    try:
+        from .manager import get_download_manager
+        download_manager = get_download_manager()
+
+        # 获取所有正在进行的下载任务
+        active_downloads = []
+        for download_id, download_info in download_manager.downloads.items():
+            status = download_info.get('status', 'unknown')
+            if status in ['pending', 'downloading']:
+                download_data = {
+                    'download_id': download_id,
+                    'status': status,
+                    'progress': download_info.get('progress', 0),
+                    'title': download_info.get('title', 'Unknown'),
+                    'url': download_info.get('url', ''),
+                    'created_at': download_info.get('created_at', ''),
+                    'client_id': download_info.get('client_id', '')
+                }
+                active_downloads.append(download_data)
+
+        logger.info(f"📊 返回 {len(active_downloads)} 个活跃下载任务")
+        return jsonify({
+            'success': True,
+            'active_downloads': active_downloads,
+            'count': len(active_downloads)
+        })
+
+    except Exception as e:
+        logger.error(f"获取活跃下载失败: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @downloader_bp.route('/status/<download_id>')
@@ -245,7 +294,7 @@ def _validate_url(url: str) -> bool:
     """验证URL格式"""
     try:
         import re
-        
+
         # 基本URL格式检查
         url_pattern = re.compile(
             r'^https?://'  # http:// or https://
@@ -254,21 +303,21 @@ def _validate_url(url: str) -> bool:
             r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
             r'(?::\d+)?'  # optional port
             r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-        
+
         if not url_pattern.match(url):
             return False
-        
+
         # 检查URL长度
         if len(url) > 2048:
             return False
-        
+
         # 检查是否包含危险字符（移除&，因为URL查询参数需要它）
         dangerous_chars = ['<', '>', '"', "'", '\n', '\r', '\t']
         if any(char in url for char in dangerous_chars):
             return False
-        
+
         return True
-        
+
     except Exception:
         return False
 

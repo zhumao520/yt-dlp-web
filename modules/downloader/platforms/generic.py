@@ -30,11 +30,14 @@ class GenericPlatform(BasePlatform):
         return {}
     
     def get_retry_config(self) -> Dict[str, int]:
-        """通用重试配置"""
+        """通用重试配置 - 现已集成到 get_config() 中
+
+        注意：HLS流会使用更激进的重试策略覆盖这些值
+        """
         return {
-            'retries': 3,
-            'fragment_retries': 3,
-            'extractor_retries': 2,
+            'retries': 3,           # 基础连接重试
+            'fragment_retries': 3,  # 基础片段重试
+            'extractor_retries': 2, # 基础提取器重试
         }
     
     def get_sleep_config(self) -> Dict[str, int]:
@@ -174,19 +177,32 @@ class GenericPlatform(BasePlatform):
             'no_warnings': False,
         })
 
-        # HLS/m3u8 特殊配置
+        # 🔧 应用基础重试配置 - 从 get_retry_config() 合并
+        retry_config = self.get_retry_config()
+        config.update(retry_config)
+
+        # HLS/m3u8 特殊配置 - 对HLS流使用更激进的重试策略
         if is_hls:
-            config.update({
+            hls_config = {
                 'hls_prefer_native': True,
                 'hls_use_mpegts': True,
-                'fragment_retries': 10,
                 'retry_sleep': 1,
                 'concurrent_fragments': 4,
-                'retries': 5,
                 'file_access_retries': 3,
                 # 对于HLS流，不指定格式让yt-dlp自动选择
                 'format': None,
-            })
+            }
+
+            # 🔧 HLS流使用更激进的重试策略，覆盖基础重试配置
+            hls_retry_config = {
+                'fragment_retries': 10,  # HLS需要更多片段重试
+                'retries': 5,            # HLS需要更多连接重试
+            }
+
+            # 应用HLS配置
+            config.update(hls_config)
+            config.update(hls_retry_config)
+
             # 移除可能冲突的格式选择器
             if 'format' in config:
                 del config['format']

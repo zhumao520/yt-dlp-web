@@ -42,12 +42,34 @@ class BasePlatform(ABC):
         return {}
     
     def get_retry_config(self) -> Dict[str, int]:
-        """获取重试配置"""
+        """获取重试配置 - 已弃用，配置已合并到 get_config() 中"""
+        # 保留此方法以维持向后兼容性，但实际配置在 get_config() 中
         return {
             'retries': 3,
             'fragment_retries': 3,
             'extractor_retries': 2,
         }
+
+    def _merge_retry_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """合并重试配置到主配置中 - 代码复用方法"""
+        retry_config = self.get_retry_config()
+        config.update(retry_config)
+        return config
+
+    def _build_enhanced_config(self, base_config: Dict[str, Any]) -> Dict[str, Any]:
+        """构建增强配置 - 统一应用重试、睡眠等配置的代码复用方法"""
+        # 1. 应用重试配置
+        enhanced_config = self._merge_retry_config(base_config.copy())
+
+        # 2. 应用睡眠配置
+        sleep_config = self.get_sleep_config()
+        enhanced_config.update(sleep_config)
+
+        # 3. 应用字幕配置
+        subtitle_config = self.get_subtitle_config()
+        enhanced_config.update(subtitle_config)
+
+        return enhanced_config
     
     def get_sleep_config(self) -> Dict[str, int]:
         """获取睡眠配置"""

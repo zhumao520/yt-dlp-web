@@ -26,16 +26,20 @@ class SSEManager:
         """添加客户端连接"""
         with self._lock:
             if client_id in self._clients:
-                # 如果客户端已存在，清空旧队列
+                # 如果客户端已存在，发送关闭信号给旧连接，然后创建新队列
                 try:
-                    while not self._clients[client_id].empty():
-                        self._clients[client_id].get_nowait()
-                except Empty:
-                    pass
-            else:
-                self._clients[client_id] = Queue(maxsize=100)  # 限制队列大小
+                    old_queue = self._clients[client_id]
+                    # 向旧队列发送关闭信号
+                    if not old_queue.full():
+                        old_queue.put_nowait("event: connection_replaced\ndata: {\"message\": \"连接被新连接替换\"}\n\n")
+                    logger.warning(f"⚠️ 客户端ID重复，替换旧连接: {client_id}")
+                except Exception as e:
+                    logger.debug(f"清理旧连接时出错: {e}")
+
+            # 创建新队列（无论是否存在旧连接）
+            self._clients[client_id] = Queue(maxsize=100)  # 限制队列大小
             
-            logger.info(f"📡 SSE客户端连接: {client_id}")
+            logger.info(f"📡 SSE客户端连接: {client_id} (总连接数: {len(self._clients)})")
             return self._clients[client_id]
     
     def remove_client(self, client_id: str):
@@ -197,13 +201,19 @@ def setup_sse_events():
         def handle_download_completed(data):
             """处理下载完成事件"""
             if data:
-                sse_manager.broadcast('download_completed', {
+                completed_data = {
                     'download_id': data.get('download_id'),
                     'title': data.get('title'),
                     'file_path': data.get('file_path'),
                     'file_size': data.get('file_size'),
                     'timestamp': int(time.time())
-                })
+                }
+
+                # 🔧 包含客户端ID用于精准推送
+                if 'client_id' in data:
+                    completed_data['client_id'] = data['client_id']
+
+                sse_manager.broadcast('download_completed', completed_data)
 
                 # 检查是否还有活跃下载，如果没有则建议客户端关闭连接
                 try:
@@ -228,24 +238,53 @@ def setup_sse_events():
                 download_id = data.get('download_id')
                 progress = data.get('progress')
                 status = data.get('status')
-                logger.info(f"📡 SSE广播进度事件: {download_id} - {progress}% ({status})")
 
-                sse_manager.broadcast('download_progress', {
+                # 构建广播数据，包含字节数信息
+                broadcast_data = {
                     'download_id': download_id,
                     'status': status,
                     'progress': progress,
                     'timestamp': int(time.time())
-                })
+                }
+
+                # 🔧 包含客户端ID用于精准推送
+                if 'client_id' in data:
+                    broadcast_data['client_id'] = data['client_id']
+
+                # 添加字节数信息（如果有的话）
+                if 'downloaded_bytes' in data:
+                    broadcast_data['downloaded_bytes'] = data['downloaded_bytes']
+                if 'total_bytes' in data:
+                    broadcast_data['total_bytes'] = data['total_bytes']
+                if 'downloaded_mb' in data:
+                    broadcast_data['downloaded_mb'] = data['downloaded_mb']
+                if 'total_mb' in data:
+                    broadcast_data['total_mb'] = data['total_mb']
+
+                # 记录日志
+                if progress == -1:
+                    downloaded_mb = data.get('downloaded_mb', 0)
+                    logger.info(f"📡 SSE广播进度事件: {download_id} - 已下载 {downloaded_mb:.1f}MB ({status})")
+                else:
+                    logger.info(f"📡 SSE广播进度事件: {download_id} - {progress}% ({status})")
+
+                sse_manager.broadcast('download_progress', broadcast_data)
 
         @on(Events.DOWNLOAD_FAILED)
         def handle_download_failed(data):
             """处理下载失败事件"""
             if data:
-                sse_manager.broadcast('download_failed', {
+                failed_data = {
                     'download_id': data.get('download_id'),
                     'error': data.get('error'),
                     'timestamp': int(time.time())
-                })
+                }
+
+                # 🔧 包含客户端ID用于精准推送
+                if 'client_id' in data:
+                    failed_data['client_id'] = data['client_id']
+
+                sse_manager.broadcast('download_failed', failed_data)
         
         @on(Events.DOWNLOAD_STARTED)
         def handle_download_started(data):

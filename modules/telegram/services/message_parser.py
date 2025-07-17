@@ -93,31 +93,38 @@ class TelegramMessageParser:
             }
     
     def _clean_filename(self, filename: str) -> Optional[str]:
-        """清理文件名，确保有效性"""
+        """清理文件名，确保有效性 - 复用统一的文件名清理器"""
         try:
             # 去除前后空格
             filename = filename.strip()
-            
+
             if not filename:
                 return None
-            
+
             # 移除可能的引号
             filename = filename.strip('"\'')
-            
+
             # 基本长度检查
             if len(filename) > 100:  # 限制文件名长度
                 filename = filename[:100]
-            
-            # 移除一些明显无效的字符
-            invalid_chars = ['<', '>', ':', '"', '|', '?', '*']
-            for char in invalid_chars:
-                filename = filename.replace(char, '')
-            
-            # 最终检查
-            filename = filename.strip()
-            
-            return filename if filename else None
-            
+
+            # 🔧 复用统一的文件名清理器
+            try:
+                from modules.downloader.filename_processor import get_filename_processor
+                processor = get_filename_processor()
+                cleaned = processor.sanitize_filename(filename)
+                return cleaned if cleaned else None
+            except Exception as e:
+                logger.debug(f"🔍 使用专业清理器失败，使用简单清理: {e}")
+
+                # 降级到简单清理
+                invalid_chars = ['<', '>', ':', '"', '|', '?', '*']
+                for char in invalid_chars:
+                    filename = filename.replace(char, '')
+
+                filename = filename.strip()
+                return filename if filename else None
+
         except Exception as e:
             logger.error(f"❌ 清理文件名失败: {e}")
             return None

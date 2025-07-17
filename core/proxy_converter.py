@@ -904,3 +904,7 @@ def is_proxy_enabled() -> bool:
 def get_proxy_status() -> Dict[str, Any]:
     """便捷函数：获取代理状态"""
     return ProxyHelper.get_proxy_status()
+
+def get_proxy_converter() -> ProxyConverter:
+    """便捷函数：获取代理转换器实例"""
+    return ProxyConverter()

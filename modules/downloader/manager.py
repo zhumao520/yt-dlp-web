@@ -345,6 +345,8 @@ class DownloadManagerV2:
             logger.error(f"❌ 创建下载任务失败: {e}")
             raise
 
+
+
     def _generate_url_hash(self, url: str) -> str:
         """生成URL哈希，用于续传功能"""
         try:
@@ -678,6 +680,12 @@ class DownloadManagerV2:
                         self._handle_download_failure(download_id, '最终文件不存在')
                         return
 
+                # 🔧 检测并修复 TS 容器格式问题（特别是 Pornhub 等 HLS 网站）
+                fixed_file_path = self._fix_ts_container_if_needed(str(final_file_path), url)
+                if fixed_file_path != str(final_file_path):
+                    final_file_path = Path(fixed_file_path)
+                    logger.info(f"✅ TS容器格式已修复: {final_file_path.name}")
+
                 file_size = final_file_path.stat().st_size
                 logger.info(f"📁 最终文件: {final_file_path.name} ({file_size / (1024*1024):.1f}MB)")
 
@@ -805,8 +813,37 @@ class DownloadManagerV2:
             logger.debug(f"磁盘空间检查失败: {e}")
 
     def _handle_download_failure(self, download_id: str, error_msg: str):
-        """处理下载失败 - 统一使用RetryManager"""
+        """处理下载失败 - 统一使用RetryManager（带PHP重定向回退）"""
         try:
+            # 🔧 首先检查是否是PHP重定向问题，尝试直接下载回退
+            with self.lock:
+                download_info = self.downloads.get(download_id)
+                if download_info:
+                    url = download_info['url']
+                    options = download_info['options']
+
+                    # 检查是否是PHP重定向错误且还没有尝试过回退
+                    if (("unusual and will be skipped" in error_msg or
+                         "extracted extension" in error_msg or
+                         "下载文件不存在" in error_msg) and
+                        self._is_php_redirect_url(url) and
+                        not download_info.get('_fallback_attempted', False)):
+
+                        logger.info(f"🔧 检测到PHP重定向问题，尝试直接下载回退: {download_id}")
+
+                        # 标记已尝试回退，避免无限循环
+                        self.downloads[download_id]['_fallback_attempted'] = True
+
+                        # 尝试直接下载
+                        fallback_result = self._try_direct_download_fallback(download_id, url, options)
+
+                        if fallback_result:
+                            logger.info(f"✅ 直接下载回退成功: {download_id}")
+                            return  # 成功了就直接返回
+                        else:
+                            logger.warning(f"❌ 直接下载回退也失败: {download_id}")
+                            error_msg = f"yt-dlp和直接下载都失败: {error_msg}"
+
             # 使用重试管理器判断是否重试
             should_retry = self.retry_manager.should_retry(download_id, error_msg)
 
@@ -828,10 +865,17 @@ class DownloadManagerV2:
                 self._update_download_status(download_id, 'failed', error_message=error_msg)
 
                 # 发送失败事件
-                self._emit_event('DOWNLOAD_FAILED', {
+                failed_data = {
                     'download_id': download_id,
                     'error': error_msg
-                })
+                }
+
+                # 🔧 包含客户端ID用于精准推送
+                download_info = self.downloads.get(download_id, {})
+                if download_info and 'client_id' in download_info:
+                    failed_data['client_id'] = download_info['client_id']
+
+                self._emit_event('DOWNLOAD_FAILED', failed_data)
 
                 logger.error(f"❌ 下载最终失败: {download_id} - {error_msg}")
 
@@ -863,6 +907,8 @@ class DownloadManagerV2:
     def _generic_download(self, download_id: str, url: str, video_info: Dict[str, Any], options: Dict[str, Any]) -> Optional[str]:
         """通用下载方法"""
         try:
+            import yt_dlp  # 在使用前导入
+
             # 检查是否已被取消
             if self._is_cancelled(download_id):
                 logger.info(f"🚫 下载已被取消（通用下载开始）: {download_id}")
@@ -880,14 +926,35 @@ class DownloadManagerV2:
                 return None
             else:
                 logger.error(f"❌ yt-dlp下载失败: {e}")
+
+                # 🔧 检查是否是PHP重定向问题，尝试直接下载
+                if "unusual and will be skipped" in str(e) and self._is_php_redirect_url(url):
+                    logger.info(f"🔧 检测到PHP重定向问题，尝试直接下载")
+                    return self._try_direct_download_fallback(download_id, url, options)
+
                 return None
         except Exception as e:
             logger.error(f"❌ 通用下载失败: {e}")
+
+            # 🔧 检查是否是PHP重定向问题，尝试直接下载
+            if self._is_php_redirect_url(url):
+                logger.info(f"🔧 通用下载失败，尝试PHP重定向直接下载")
+                return self._try_direct_download_fallback(download_id, url, options)
+
             return None
 
     def _prepare_download_options(self, url: str, options: Dict[str, Any], download_id: str) -> Dict[str, Any]:
-        """准备下载选项配置"""
+        """准备下载选项配置（集成平台配置）"""
         import yt_dlp
+
+        # 🎯 获取平台特定配置
+        try:
+            from modules.downloader.platforms import get_platform_for_url
+            platform = get_platform_for_url(url)
+            logger.info(f"🎯 使用平台配置: {platform.name} for {url[:50]}...")
+        except Exception as e:
+            logger.warning(f"⚠️ 无法获取平台配置，使用默认配置: {e}")
+            platform = None
 
         # 生成URL哈希用于续传
         url_hash = self._generate_url_hash(url)
@@ -902,15 +969,41 @@ class DownloadManagerV2:
             output_template = str(self.output_dir / f'{url_hash}.%(ext)s')
             logger.info(f"📁 无需转换，直接下载到最终目录: {self.output_dir}")
 
-        # 基础配置 - 优化续传支持
-        ydl_opts = {
+        # 🎯 基础配置 - 集成平台特定配置
+        if platform:
+            # 使用平台特定配置作为基础
+            quality = options.get('quality', 'high')
+            ydl_opts = platform.get_config(url, quality)
+            logger.info(f"✅ 已应用 {platform.name} 平台配置")
+
+            # 🎯 关键：应用平台提取器参数（这是Twitter成功的关键！）
+            if hasattr(platform, 'get_extractor_args'):
+                extractor_args = platform.get_extractor_args()
+                if extractor_args:
+                    ydl_opts['extractor_args'] = extractor_args
+                    logger.info(f"✅ 应用平台提取器参数: {extractor_args}")
+        else:
+            # 使用默认配置
+            ydl_opts = {}
+            logger.info("📋 使用默认配置")
+
+        # 覆盖/添加必要的基础设置
+        ydl_opts.update({
             'outtmpl': output_template,  # 智能选择输出路径
             'continue_dl': True,  # 明确启用续传
             'nooverwrites': True,  # 不覆盖已存在的文件
-            'retries': DownloadConstants.DEFAULT_RETRIES,  # 增加重试次数
-            'fragment_retries': DownloadConstants.DEFAULT_FRAGMENT_RETRIES,  # 分片重试次数
+            'retries': ydl_opts.get('retries', DownloadConstants.DEFAULT_RETRIES),  # 保留平台重试设置
+            'fragment_retries': ydl_opts.get('fragment_retries', DownloadConstants.DEFAULT_FRAGMENT_RETRIES),
             'skip_unavailable_fragments': False,  # 不跳过不可用的分片
-        }
+            'allow_unplayable_formats': True,  # 允许不可播放的格式
+            'ignore_no_formats_error': False,  # 不忽略无格式错误
+            'no_check_certificates': True,  # 不检查SSL证书
+            'prefer_insecure': False,  # 不优先使用不安全连接
+
+            # 🔧 处理异常扩展名问题（如PHP重定向）
+            # 'allowed_extractors': ['generic'],  # 注释掉：允许所有提取器自动识别
+            'force_write_download_archive': False,  # 不强制写入下载档案
+        })
 
         # 应用配置文件选项
         ydl_opts = self._apply_config_file_options(ydl_opts)
@@ -930,10 +1023,19 @@ class DownloadManagerV2:
         # 添加进度钩子 - 使用安全包装器
         ydl_opts['progress_hooks'] = [self._create_safe_progress_hook(download_id)]
 
-        # 🔧 进度控制选项（三种方式）：
-        # ydl_opts['noprogress'] = True   # 方式1：明确禁用进度
-        # ydl_opts['noprogress'] = False  # 方式2：明确启用进度
-        # 不设置 noprogress                # 方式3：使用默认值（当前使用）
+        # 🔧 智能处理异常扩展名问题（通用解决方案）
+        unusual_extension_detected = self._detect_unusual_extension_url(url)
+        if unusual_extension_detected:
+            logger.info(f"🔧 检测到异常扩展名URL: {unusual_extension_detected['type']}")
+            ydl_opts = self._apply_unusual_extension_fix(ydl_opts, unusual_extension_detected, options)
+
+        # 🔧 特殊处理：PHP重定向文件下载
+        if self._is_php_redirect_url(url):
+            logger.info(f"🔧 检测到PHP重定向URL，应用特殊处理")
+            ydl_opts = self._apply_php_redirect_fix(ydl_opts, url, options)
+
+        # 🔧 进度控制选项：明确启用进度回调
+        ydl_opts['noprogress'] = False  # 明确启用进度，避免下载问题
 
         logger.info(f"🔄 使用续传文件名: {url_hash} (来自URL: {url[:50]}...)")
 
@@ -1123,20 +1225,70 @@ class DownloadManagerV2:
         return self._create_safe_progress_hook(download_id)
 
     def _execute_generic_download(self, download_id: str, url: str, ydl_opts: Dict[str, Any], options: Dict[str, Any] = None) -> Optional[str]:
-        """执行通用下载"""
+        """执行通用下载（带PHP重定向回退）"""
         import yt_dlp
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
 
-        # 最后检查是否已被取消
-        if self._is_cancelled(download_id):
-            logger.info(f"🚫 下载已被取消（下载完成后）: {download_id}")
-            return None
+            # 最后检查是否已被取消
+            if self._is_cancelled(download_id):
+                logger.info(f"🚫 下载已被取消（下载完成后）: {download_id}")
+                return None
 
-        # 查找下载的文件（使用URL哈希）
-        url_hash = self._generate_url_hash(url)
-        return self._find_downloaded_file(url_hash, options)
+            # 查找下载的文件（使用URL哈希）
+            url_hash = self._generate_url_hash(url)
+            result = self._find_downloaded_file(url_hash, options)
+
+            # 🔧 如果下载失败且是PHP重定向URL，尝试直接下载回退
+            if result is None and self._is_php_redirect_url(url):
+                logger.info(f"🔧 yt-dlp下载失败，检测到PHP重定向URL，启动直接下载回退")
+
+                # 标记已尝试回退，避免重复
+                with self.lock:
+                    if download_id in self.downloads:
+                        self.downloads[download_id]['_fallback_attempted'] = True
+
+                fallback_result = self._try_direct_download_fallback(download_id, url, options or {})
+
+                if fallback_result:
+                    logger.info(f"✅ 直接下载回退成功: {download_id}")
+                    return fallback_result
+                else:
+                    logger.error(f"❌ 直接下载回退也失败: {download_id}")
+
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ yt-dlp执行失败: {e}")
+
+            # 🔧 检查是否是PHP重定向问题，尝试直接下载
+            error_str = str(e)
+            is_extension_error = ("unusual and will be skipped" in error_str or
+                                "extracted extension" in error_str)
+            is_php_redirect = self._is_php_redirect_url(url)
+
+            if is_extension_error and is_php_redirect:
+                logger.info(f"🔧 检测到PHP重定向问题，启动直接下载回退")
+
+                # 标记已尝试回退，避免重复
+                with self.lock:
+                    if download_id in self.downloads:
+                        self.downloads[download_id]['_fallback_attempted'] = True
+
+                fallback_result = self._try_direct_download_fallback(download_id, url, options or {})
+
+                if fallback_result:
+                    logger.info(f"✅ 直接下载回退成功: {download_id}")
+                    return fallback_result
+                else:
+                    logger.error(f"❌ 直接下载回退也失败: {download_id}")
+                    # 回退也失败了，抛出包含原始错误信息的异常
+                    raise Exception(f"yt-dlp和直接下载都失败: {error_str}")
+
+            # 重新抛出异常让上层处理
+            raise
 
     def _find_downloaded_file(self, url_hash: str, options: Dict[str, Any] = None) -> Optional[str]:
         """安全地查找下载的文件 - 支持临时目录和最终目录"""
@@ -1479,12 +1631,19 @@ class DownloadManagerV2:
                 # 更新统计
                 self._update_stats('download_completed', file_size=kwargs.get('file_size', 0))
 
-                self._emit_event('DOWNLOAD_COMPLETED', {
+                # 构建完成事件数据
+                completed_data = {
                     'download_id': download_id,
                     'file_path': kwargs.get('file_path'),
                     'title': download_info.get('title', 'Unknown'),
                     'file_size': kwargs.get('file_size')
-                })
+                }
+
+                # 🔧 包含客户端ID用于精准推送
+                if download_info and 'client_id' in download_info:
+                    completed_data['client_id'] = download_info['client_id']
+
+                self._emit_event('DOWNLOAD_COMPLETED', completed_data)
                 logger.info(f"📡 发送下载完成事件: {download_id}")
             elif status == 'failed':
                 # 更新统计
@@ -1494,11 +1653,27 @@ class DownloadManagerV2:
                 self._update_stats('download_cancelled')
             elif status in ['downloading', 'retrying']:
                 # 发送进度事件
-                self._emit_event('DOWNLOAD_PROGRESS', {
+                progress_data = {
                     'download_id': download_id,
                     'status': status,
                     'progress': progress or 0
-                })
+                }
+
+                # 🔧 包含客户端ID用于精准推送
+                if download_info and 'client_id' in download_info:
+                    progress_data['client_id'] = download_info['client_id']
+
+                # 如果有下载字节数信息，添加到事件中
+                if 'downloaded_bytes' in kwargs:
+                    progress_data['downloaded_bytes'] = kwargs['downloaded_bytes']
+                    progress_data['downloaded_mb'] = kwargs['downloaded_bytes'] / (1024 * 1024)
+
+                if 'total_bytes' in kwargs:
+                    progress_data['total_bytes'] = kwargs['total_bytes']
+                    if kwargs['total_bytes']:
+                        progress_data['total_mb'] = kwargs['total_bytes'] / (1024 * 1024)
+
+                self._emit_event('DOWNLOAD_PROGRESS', progress_data)
 
         except Exception as e:
             logger.error(f"❌ 更新下载状态失败: {e}")
@@ -1704,6 +1879,433 @@ class DownloadManagerV2:
                 }
         except Exception as e:
             return {'healthy': True, 'active_downloads': 0, 'stuck_downloads': 0}
+
+    def _detect_unusual_extension_url(self, url: str) -> Optional[Dict[str, Any]]:
+        """智能检测异常扩展名URL（通用检测器）"""
+        try:
+            url_lower = url.lower()
+
+            # 白名单：已知的正常平台，不需要特殊处理
+            normal_platforms = [
+                'youtube.com', 'youtu.be', 'vimeo.com', 'dailymotion.com',
+                'twitch.tv', 'facebook.com', 'instagram.com', 'twitter.com',
+                'tiktok.com', 'bilibili.com', 'iqiyi.com', 'youku.com'
+            ]
+
+            # 如果是已知正常平台，跳过检测
+            for platform in normal_platforms:
+                if platform in url_lower:
+                    return None
+
+            # 定义异常扩展名模式（可扩展）
+            unusual_patterns = {
+                # 服务器脚本扩展名（更精确的检测）
+                'server_script': ['.php', '.jsp', '.asp', '.aspx', '.cgi'],
+                # 重定向控制文件
+                'redirect_control': ['remote_control', 'proxy_redirect', 'file_redirect'],
+                # 动态生成文件
+                'dynamic_file': ['get_file', 'download_file', 'stream_file'],
+            }
+
+            detected_type = None
+            detected_patterns = []
+
+            # 检测各种模式
+            for pattern_type, patterns in unusual_patterns.items():
+                for pattern in patterns:
+                    if pattern in url_lower:
+                        detected_type = pattern_type
+                        detected_patterns.append(pattern)
+
+            # 特殊检测：URL中包含大量参数且有可疑的文件扩展名
+            if (url.count('?') > 0 and url.count('&') > 5 and
+                any(ext in url_lower for ext in ['.php', '.jsp', '.asp', '.cgi'])):
+                detected_type = 'param_heavy_script'
+                detected_patterns.append('multiple_params_with_script')
+
+            if detected_type:
+                logger.info(f"🔍 检测到异常URL模式: {detected_type} - {detected_patterns}")
+                return {
+                    'type': detected_type,
+                    'patterns': detected_patterns,
+                    'url': url
+                }
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"异常扩展名检测失败: {e}")
+            return None
+
+    def _apply_unusual_extension_fix(self, ydl_opts: Dict[str, Any], detection_info: Dict[str, Any], options: Dict[str, Any]) -> Dict[str, Any]:
+        """应用异常扩展名修复策略（智能策略选择）"""
+        try:
+            detection_type = detection_info.get('type')
+            patterns = detection_info.get('patterns', [])
+
+            logger.info(f"🔧 应用修复策略: {detection_type}")
+
+            # 策略1: 强制扩展名修复
+            target_format = self._determine_target_format(options)
+            base_template = ydl_opts['outtmpl'].replace('.%(ext)s', f'.{target_format}')
+            ydl_opts['outtmpl'] = base_template
+
+            # 策略2: 添加后处理器
+            postprocessors = ydl_opts.get('postprocessors', [])
+
+            if options.get('audio_only'):
+                # 音频下载
+                postprocessors.append({
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': options.get('audio_format', 'mp3'),
+                    'preferredquality': '192',
+                })
+            else:
+                # 视频下载
+                postprocessors.append({
+                    'key': 'FFmpegVideoConvertor',
+                    'preferedformat': target_format,
+                })
+
+            ydl_opts['postprocessors'] = postprocessors
+
+            # 策略3: 增强容错配置
+            ydl_opts.update({
+                'ignore_errors': False,  # 不忽略错误，但用后处理器处理
+                'extract_flat': False,   # 完整提取信息
+                'force_generic_extractor': False,  # 不强制使用通用提取器
+            })
+
+            logger.info(f"✅ 异常扩展名修复策略已应用: 目标格式={target_format}")
+            return ydl_opts
+
+        except Exception as e:
+            logger.error(f"❌ 应用异常扩展名修复失败: {e}")
+            return ydl_opts
+
+    def _determine_target_format(self, options: Dict[str, Any]) -> str:
+        """智能确定目标格式"""
+        if options.get('audio_only'):
+            return options.get('audio_format', 'mp3')
+        else:
+            # 根据质量选择视频格式
+            quality = options.get('quality', 'high')
+            if quality in ['4k', 'high']:
+                return 'mp4'  # 高质量使用mp4
+            elif quality in ['medium', 'low']:
+                return 'mp4'  # 中低质量也使用mp4（兼容性最好）
+            else:
+                return 'mp4'  # 默认mp4
+
+    def _is_php_redirect_url(self, url: str) -> bool:
+        """检测是否为PHP重定向URL"""
+        try:
+            import re
+            # 检测可能导致PHP重定向的URL模式
+            php_redirect_patterns = [
+                r'/get_file/',
+                r'/download\.php',
+                r'/stream\.php',
+                r'/video\.php',
+                r'/media\.php',
+                r'/remote_control\.php',  # 远程控制PHP文件
+                r'\.php\?',  # 任何带参数的PHP文件
+                r'\.mp4$',  # 直接指向mp4但可能重定向到PHP
+            ]
+
+            for pattern in php_redirect_patterns:
+                if re.search(pattern, url, re.IGNORECASE):
+                    logger.debug(f"🔍 匹配PHP重定向模式: {pattern}")
+                    return True
+
+            return False
+
+        except Exception as e:
+            logger.debug(f"PHP重定向检测失败: {e}")
+            return False
+
+    def _apply_php_redirect_fix(self, ydl_opts: Dict[str, Any], url: str, options: Dict[str, Any]) -> Dict[str, Any]:
+        """应用PHP重定向修复策略"""
+        try:
+            logger.info(f"🔧 应用PHP重定向修复策略")
+
+            # 1. 强制使用通用提取器
+            ydl_opts['force_generic_extractor'] = True
+
+            # 2. 允许异常扩展名
+            ydl_opts['allow_unplayable_formats'] = True
+
+            # 3. 修改输出模板，强制使用正确的扩展名
+            target_format = self._determine_target_format(options)
+            if '.%(ext)s' in ydl_opts['outtmpl']:
+                # 替换为固定扩展名
+                ydl_opts['outtmpl'] = ydl_opts['outtmpl'].replace('.%(ext)s', f'.{target_format}')
+                logger.info(f"🔧 强制输出格式: {target_format}")
+
+            # 4. 添加后处理器确保格式正确
+            postprocessors = ydl_opts.get('postprocessors', [])
+
+            if not options.get('audio_only'):
+                # 视频文件：确保转换为mp4
+                postprocessors.append({
+                    'key': 'FFmpegVideoConvertor',
+                    'preferedformat': target_format,
+                })
+
+            ydl_opts['postprocessors'] = postprocessors
+
+            # 5. 绕过yt-dlp的扩展名安全检查
+            ydl_opts.update({
+                'ignoreerrors': True,  # 忽略错误继续下载
+                'no_warnings': True,   # 不显示警告
+                'extract_flat': False,  # 完整提取
+                'writeinfojson': False,  # 不写入info.json
+                'writethumbnail': False,  # 不下载缩略图
+                'writesubtitles': False,  # 不下载字幕
+            })
+
+            # 6. 增强网络配置
+            ydl_opts.update({
+                'socket_timeout': 60,  # 增加超时时间
+                'retries': 5,  # 增加重试次数
+                'fragment_retries': 10,  # 增加分片重试
+                'http_chunk_size': 1048576,  # 1MB chunks
+            })
+
+            # 7. 如果yt-dlp仍然失败，准备直接下载方案
+            ydl_opts['_php_redirect_fallback'] = {
+                'url': url,
+                'target_format': target_format,
+                'options': options
+            }
+
+            logger.info(f"✅ PHP重定向修复策略已应用")
+            return ydl_opts
+
+        except Exception as e:
+            logger.error(f"❌ PHP重定向修复失败: {e}")
+            return ydl_opts
+
+    def _direct_download_php_redirect(self, url: str, output_path: str, options: Dict[str, Any], download_id: str = None) -> bool:
+        """直接下载PHP重定向文件（绕过yt-dlp）"""
+        try:
+            import requests
+            from core.proxy_converter import ProxyConverter
+
+            logger.info(f"🔧 尝试直接下载PHP重定向文件")
+
+            # 获取代理配置
+            proxy_config = ProxyConverter.get_requests_proxy("DirectDownload")
+            proxies = proxy_config if proxy_config else None
+
+            # 设置请求头
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'video/mp4,video/*,*/*;q=0.9',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'identity',  # 不压缩，直接下载
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            }
+
+            # 发送请求
+            logger.info(f"📥 开始直接下载: {url}")
+            response = requests.get(url, headers=headers, proxies=proxies, stream=True, timeout=60)
+            response.raise_for_status()
+
+            # 检查内容类型
+            content_type = response.headers.get('content-type', '').lower()
+            content_length = response.headers.get('content-length', 'Unknown')
+            logger.info(f"📄 内容类型: {content_type}")
+            logger.info(f"📏 内容长度: {content_length}")
+            logger.info(f"🆔 下载ID: {download_id}")
+
+            if 'video' in content_type or 'octet-stream' in content_type:
+                # 确保输出目录存在
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+                # 下载文件
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded = 0
+                last_progress = 0
+                chunk_count = 0
+
+                logger.info(f"📏 文件总大小: {total_size:,} bytes ({total_size/(1024*1024):.1f}MB)")
+
+                with open(output_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=1024*1024):  # 1MB chunks
+                        if chunk:
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            chunk_count += 1
+
+                            if total_size > 0:
+                                progress = int((downloaded / total_size) * 100)
+
+                                # 每1%更新一次进度
+                                if progress > last_progress or progress == 100:
+                                    logger.info(f"📈 直接下载进度: {progress}% ({downloaded:,}/{total_size:,}) - {downloaded/(1024*1024):.1f}MB")
+
+                                    # 更新下载状态和发送SSE事件，包含字节数信息
+                                    if download_id:
+                                        self._update_download_status(download_id, 'downloading', progress,
+                                                                   downloaded_bytes=downloaded,
+                                                                   total_bytes=total_size)
+
+                                    last_progress = progress
+                            else:
+                                # 如果没有总大小信息，每5MB显示一次进度
+                                mb_downloaded = downloaded / (1024 * 1024)
+                                if int(mb_downloaded) % 5 == 0 and int(mb_downloaded) > int((downloaded - len(chunk)) / (1024 * 1024)):
+                                    logger.info(f"📈 直接下载进度: {downloaded:,} bytes ({mb_downloaded:.1f}MB) - 总大小未知")
+
+                                    if download_id:
+                                        # 没有总大小时，传递实际下载的字节数，前端可以显示为MB
+                                        self._update_download_status(download_id, 'downloading', -1,
+                                                                   downloaded_bytes=downloaded,
+                                                                   total_bytes=None)
+
+                logger.info(f"✅ 直接下载完成: {output_path}")
+                logger.info(f"📏 文件大小: {downloaded / (1024*1024):.1f}MB")
+
+                return True
+            else:
+                logger.warning(f"⚠️ 内容类型不是视频: {content_type}")
+                return False
+
+        except Exception as e:
+            logger.error(f"❌ 直接下载失败: {e}")
+            return False
+
+    def _try_direct_download_fallback(self, download_id: str, url: str, options: Dict[str, Any]) -> Optional[str]:
+        """尝试直接下载回退方案"""
+        try:
+            logger.info(f"🔧 启动直接下载回退方案: {download_id}")
+
+            # 生成输出文件路径
+            target_format = self._determine_target_format(options)
+            filename = f"{download_id}.{target_format}"
+            output_path = os.path.join(self.output_dir, filename)
+
+            # 尝试直接下载
+            success = self._direct_download_php_redirect(url, output_path, options, download_id)
+
+            if success and os.path.exists(output_path):
+                logger.info(f"✅ 直接下载成功: {output_path}")
+
+                # 更新下载状态
+                file_size = os.path.getsize(output_path)
+                self._update_download_status(download_id, 'completed', 100,
+                                           file_path=output_path, file_size=file_size)
+
+                return output_path
+            else:
+                logger.error(f"❌ 直接下载失败或文件不存在")
+                return None
+
+        except Exception as e:
+            logger.error(f"❌ 直接下载回退失败: {e}")
+            return None
+
+    def _fix_ts_container_if_needed(self, file_path: str, url: str) -> str:
+        """检测并修复TS容器格式问题（特别是Pornhub等HLS网站）
+
+        Args:
+            file_path: 文件路径
+            url: 原始URL，用于判断是否为特定网站
+
+        Returns:
+            str: 修复后的文件路径（如果没有修复，返回原路径）
+        """
+        try:
+            # 检查是否为MP4文件
+            path_obj = Path(file_path)
+            if not path_obj.suffix.lower() == '.mp4':
+                return file_path  # 不是MP4文件，不需要处理
+
+            # 检查是否为特定网站（Pornhub等）
+            is_pornhub = 'pornhub.com' in url.lower()
+            is_xvideos = 'xvideos.com' in url.lower()
+            is_xhamster = 'xhamster.com' in url.lower()
+            is_adult_site = is_pornhub or is_xvideos or is_xhamster
+
+            # 如果不是特定网站，使用更通用的检测方法
+            if not is_adult_site:
+                # 检查URL是否包含HLS相关关键词
+                is_hls = '.m3u8' in url.lower() or 'hls' in url.lower()
+                if not is_hls:
+                    return file_path  # 不是HLS流，不需要处理
+
+            logger.info(f"🔍 检测到可能的TS容器问题，开始检查: {path_obj.name}")
+
+            # 简单检测：使用FFmpeg获取文件信息
+            from modules.downloader.ffmpeg_tools import get_ffmpeg_tools
+            ffmpeg_tools = get_ffmpeg_tools()
+
+            if not ffmpeg_tools.is_available():
+                logger.warning(f"⚠️ FFmpeg不可用，跳过TS容器检测")
+                return file_path
+
+            # 使用FFmpeg检测容器格式（快速检测，只读取文件头）
+            import subprocess
+            try:
+                ffmpeg_exe = ffmpeg_tools.get_ffmpeg_executable()
+                result = subprocess.run([
+                    ffmpeg_exe, '-i', file_path, '-t', '0.1', '-f', 'null', '-'
+                ], capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=15)
+
+                # 检查输出中是否包含MPEG-TS相关信息
+                output = result.stderr.lower()
+                is_ts_container = 'mpegts' in output or 'mpeg-ts' in output
+
+                logger.debug(f"🔍 FFmpeg容器检测结果: {is_ts_container} (输出包含: {'mpegts' if 'mpegts' in output else 'other'})")
+
+                if not is_ts_container:
+                    logger.info(f"✅ 文件容器格式正常: {path_obj.name}")
+                    return file_path
+
+                logger.info(f"🔧 检测到TS容器格式，开始修复: {path_obj.name}")
+
+                # 创建临时文件路径
+                temp_file = path_obj.parent / f"{path_obj.stem}_fixed{path_obj.suffix}"
+
+                # 使用FFmpeg重新封装为MP4容器（仅复制流，不重新编码）
+                convert_result = subprocess.run([
+                    ffmpeg_exe, '-i', file_path,
+                    '-c', 'copy',  # 复制所有流，不重新编码
+                    '-y', str(temp_file)  # 覆盖输出文件
+                ], capture_output=True, text=True, encoding='utf-8', errors='ignore', timeout=300)
+
+                if convert_result.returncode == 0 and temp_file.exists():
+                    # 转换成功，替换原文件
+                    try:
+                        # 删除原文件
+                        path_obj.unlink()
+                        # 重命名新文件
+                        temp_file.rename(path_obj)
+                        logger.info(f"✅ TS容器格式修复成功: {path_obj.name}")
+                        return file_path
+                    except Exception as e:
+                        logger.error(f"❌ 替换文件失败: {e}")
+                        # 如果替换失败，返回临时文件路径
+                        return str(temp_file)
+                else:
+                    logger.error(f"❌ TS容器格式修复失败: {convert_result.stderr}")
+                    # 清理临时文件
+                    if temp_file.exists():
+                        temp_file.unlink()
+                    return file_path
+
+            except subprocess.TimeoutExpired:
+                logger.error(f"❌ TS容器检测超时")
+                return file_path
+            except Exception as e:
+                logger.error(f"❌ TS容器检测失败: {e}")
+                return file_path
+
+        except Exception as e:
+            logger.error(f"❌ TS容器格式修复异常: {e}")
+            return file_path
 
 
 

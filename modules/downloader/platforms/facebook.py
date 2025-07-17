@@ -38,11 +38,11 @@ class FacebookPlatform(BasePlatform):
         }
     
     def get_retry_config(self) -> Dict[str, int]:
-        """Facebook 重试配置"""
+        """Facebook 重试配置 - 现已集成到 get_config() 中"""
         return {
-            'retries': 4,
-            'fragment_retries': 4,
-            'extractor_retries': 3,
+            'retries': 4,           # Facebook 需要更多重试
+            'fragment_retries': 4,  # 视频片段重试
+            'extractor_retries': 3, # 提取器重试
         }
     
     def get_sleep_config(self) -> Dict[str, int]:
@@ -139,10 +139,10 @@ class FacebookPlatform(BasePlatform):
     def get_config(self, url: str, quality: str = 'best') -> Dict[str, Any]:
         """获取 Facebook 完整配置"""
         config = self.get_base_config()
-        
+
         # 添加格式选择器
         config['format'] = self.get_format_selector(quality)
-        
+
         # Facebook 特殊配置
         config.update({
             # 字幕配置
@@ -150,18 +150,22 @@ class FacebookPlatform(BasePlatform):
             'writeautomaticsub': True,
             'subtitleslangs': ['en', 'es', 'fr', 'de', 'zh-CN'],
             'writethumbnail': True,   # Facebook 缩略图有用
-            
+
             # 网络优化
             'socket_timeout': 30,
             'http_chunk_size': 10485760,  # 10MB chunks
-            
+
             # Facebook 特殊选项
             'extract_flat': False,
             'ignoreerrors': False,
-            
+
             # 输出优化
             'no_warnings': False,
         })
+
+        # 🔧 应用重试配置 - 从 get_retry_config() 合并
+        retry_config = self.get_retry_config()
+        config.update(retry_config)
         
         self.log_config(url)
         return config

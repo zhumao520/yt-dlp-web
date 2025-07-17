@@ -7,6 +7,7 @@ import logging
 import time
 from flask import Blueprint, request, jsonify
 from core.auth import auth_required, optional_auth
+from core.filename_extractor import apply_url_filename_to_options
 
 logger = logging.getLogger(__name__)
 
@@ -416,36 +417,6 @@ def api_health_check():
             "timestamp": int(time.time())
         }), 500
 
-
-@api_bp.route('/events')
-def api_sse_events():
-    """SSE事件流端点（需要认证）"""
-    try:
-        # 检查认证
-        from core.auth import get_auth_manager
-        auth_manager = get_auth_manager()
-
-        # 从cookie或header获取token
-        token = request.cookies.get('auth_token') or request.headers.get('Authorization', '').replace('Bearer ', '')
-        if not token:
-            return jsonify({"error": "未授权"}), 401
-
-        current_user = auth_manager.get_current_user(token)
-        if not current_user:
-            return jsonify({"error": "未授权"}), 401
-
-        # 获取客户端ID
-        client_id = request.args.get('client_id')
-        if not client_id:
-            return jsonify({"error": "缺少client_id参数"}), 400
-
-        # 创建SSE响应
-        from core.sse import create_sse_response
-        return create_sse_response(client_id)
-
-    except Exception as e:
-        logger.error(f"❌ SSE事件流创建失败: {e}")
-        return jsonify({"error": "SSE连接失败"}), 500
 
 
 @api_bp.route('/events/public')
@@ -1662,6 +1633,9 @@ def api_shortcuts_download():
             "client_id": data.get("client_id", ""),
             "start_time": data.get("start_time", ""),
         }
+
+        # 🔧 应用URL中的自定义文件名（如果没有手动输入）
+        options = apply_url_filename_to_options(url, options)
 
         # 使用统一的下载API创建任务
         from modules.downloader.api import get_unified_download_api

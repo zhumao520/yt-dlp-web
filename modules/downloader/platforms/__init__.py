@@ -3,12 +3,12 @@
 
 支持的平台：
 - Twitter/X
-- Instagram  
+- Instagram
 - TikTok
 - Bilibili
 - Facebook
 - YouTube (通过专门的策略处理)
-- 通用平台
+- 通用平台 (包括 Pornhub 等)
 """
 
 from .base import BasePlatform
@@ -37,7 +37,7 @@ PLATFORM_MAPPING = {
     # Facebook
     'facebook.com': FacebookPlatform,
     'fb.com': FacebookPlatform,
-    
+
     # 其他网站使用通用平台
 }
 
@@ -61,7 +61,7 @@ def get_platform_for_url(url: str) -> BasePlatform:
 
 __all__ = [
     'BasePlatform',
-    'TwitterPlatform', 
+    'TwitterPlatform',
     'InstagramPlatform',
     'TikTokPlatform',
     'BilibiliPlatform',

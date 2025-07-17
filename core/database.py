@@ -381,20 +381,24 @@ class Database:
             VALUES (?, ?, ?, 'pending')
         ''', (download_id, url, title))
     
-    def update_download_status(self, download_id: str, status: str, 
+    def update_download_status(self, download_id: str, status: str,
                              progress: int = None, file_path: str = None,
-                             file_size: int = None, error_message: str = None) -> bool:
-        """更新下载状态"""
+                             file_size: int = None, error_message: str = None,
+                             **kwargs) -> bool:
+        """更新下载状态（支持额外参数）"""
+        # 忽略不支持的参数（如downloaded_bytes, total_bytes等）
+        # 这些参数主要用于SSE事件，不需要存储到数据库
+
         if status == 'completed':
             return self.execute_update('''
-                UPDATE downloads SET 
+                UPDATE downloads SET
                     status = ?, progress = ?, file_path = ?, file_size = ?,
                     completed_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (status, progress or 100, file_path, file_size, download_id))
         else:
             return self.execute_update('''
-                UPDATE downloads SET 
+                UPDATE downloads SET
                     status = ?, progress = ?, error_message = ?
                 WHERE id = ?
             ''', (status, progress or 0, error_message, download_id))

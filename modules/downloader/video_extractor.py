@@ -147,8 +147,20 @@ class VideoExtractor:
                     'quiet': True,
                     'no_warnings': True,
                     'extract_flat': False,
-                    'noprogress': True,         # 防止数据类型错误
+                    'noprogress': False,        # 允许进度回调，避免下载问题
                 }
+
+                # 🔧 集成平台特定配置（特别是SSL设置）
+                platform_config = self._get_platform_config(url, user_quality)
+                if platform_config:
+                    ydl_opts.update(platform_config)
+                    logger.info(f"✅ 应用平台特定配置: {len(platform_config)} 个选项")
+
+                # 🎯 关键：应用平台提取器参数（这是Twitter成功的关键！）
+                extractor_args = self._get_platform_extractor_args(url)
+                if extractor_args:
+                    ydl_opts['extractor_args'] = extractor_args
+                    logger.info(f"✅ 应用平台提取器参数: {extractor_args}")
 
                 if proxy:
                     ydl_opts['proxy'] = proxy
@@ -188,8 +200,20 @@ class VideoExtractor:
                     'quiet': True,
                     'no_warnings': True,
                     'extract_flat': False,
-                    'noprogress': True,         # 防止数据类型错误
+                    'noprogress': False,        # 允许进度回调，避免下载问题
                 }
+
+                # 🔧 集成平台特定配置（传统方法也需要SSL设置）
+                platform_config = self._get_platform_config(url, user_quality)
+                if platform_config:
+                    ydl_opts.update(platform_config)
+                    logger.info(f"✅ 传统方法应用平台配置: {len(platform_config)} 个选项")
+
+                # 🎯 关键：传统方法也需要提取器参数
+                extractor_args = self._get_platform_extractor_args(url)
+                if extractor_args:
+                    ydl_opts['extractor_args'] = extractor_args
+                    logger.info(f"✅ 传统方法应用提取器参数: {extractor_args}")
 
                 proxy = self._get_proxy_config()
                 if proxy:
@@ -244,6 +268,69 @@ class VideoExtractor:
         """获取PyTubeFix专用的代理配置 - 使用统一的代理助手"""
         from core.proxy_converter import ProxyHelper
         return ProxyHelper.get_pytubefix_proxy("VideoExtractor-PyTubeFix")
+
+    def _get_platform_config(self, url: str, quality: str = 'best') -> Dict[str, Any]:
+        """获取平台特定配置（特别是SSL和网络设置）"""
+        try:
+            from modules.downloader.platforms import get_platform_for_url
+
+            # 获取平台实例
+            platform = get_platform_for_url(url)
+            if platform:
+                # 获取平台配置
+                config = platform.get_config(url, quality)
+
+                # 提取yt-dlp相关的配置
+                ytdlp_config = {}
+
+                # SSL相关配置
+                ssl_configs = [
+                    'nocheckcertificate', 'insecure', 'no_check_certificate',
+                    'socket_timeout', 'read_timeout', 'connect_timeout'
+                ]
+
+                for key in ssl_configs:
+                    if key in config:
+                        ytdlp_config[key] = config[key]
+
+                # 重试相关配置
+                retry_configs = ['retries', 'extractor_retries', 'fragment_retries']
+                for key in retry_configs:
+                    if key in config:
+                        ytdlp_config[key] = config[key]
+
+                # 其他网络配置
+                network_configs = ['source_address', 'force_ipv4', 'legacy_server_connect']
+                for key in network_configs:
+                    if key in config:
+                        ytdlp_config[key] = config[key]
+
+                logger.debug(f"🔧 平台配置提取: {ytdlp_config}")
+                return ytdlp_config
+
+            return {}
+
+        except Exception as e:
+            logger.debug(f"🔍 获取平台配置失败: {e}")
+            return {}
+
+    def _get_platform_extractor_args(self, url: str) -> Dict[str, Any]:
+        """获取平台特定的提取器参数（这是Twitter成功的关键！）"""
+        try:
+            from modules.downloader.platforms import get_platform_for_url
+
+            # 获取平台实例
+            platform = get_platform_for_url(url)
+            if platform and hasattr(platform, 'get_extractor_args'):
+                extractor_args = platform.get_extractor_args()
+                logger.debug(f"🎯 平台提取器参数: {extractor_args}")
+                return extractor_args
+
+            return {}
+
+        except Exception as e:
+            logger.debug(f"🔍 获取平台提取器参数失败: {e}")
+            return {}
 
 
 
