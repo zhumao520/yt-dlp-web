@@ -388,6 +388,109 @@
 .audio-format-option, .video-quality-option {
     transition: all 0.3s ease;
 }
+
+/* 🔧 统一输入框高度对齐 */
+.modern-input {
+    height: 56px !important;
+    min-height: 56px !important;
+}
+
+/* 🔧 统一标签高度，确保输入框对齐 */
+.form-label {
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.form-label .badge {
+    margin-left: 0.5rem;
+    font-size: 0.7rem;
+}
+
+/* 🔧 重新设计：紧凑的URL输入框布局 */
+.url-input-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 12px 16px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.url-input-row:focus-within {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.1);
+}
+
+.url-input {
+    flex: 1;
+    background: transparent !important;
+    border: none !important;
+    color: white !important;
+    font-size: 1rem;
+    padding: 8px 0;
+    outline: none;
+}
+
+.url-input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.options-compact {
+    display: flex;
+    gap: 20px;
+    flex-shrink: 0;
+}
+
+.option-compact {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.option-compact .form-check-input {
+    margin: 0;
+    transform: scale(0.9);
+}
+
+.option-compact .form-check-label {
+    margin: 0;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.9);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.option-compact .form-check-label i {
+    font-size: 0.8rem;
+}
+
+/* 响应式：移动端调整 */
+@media (max-width: 768px) {
+    .url-input-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        padding: 16px;
+    }
+
+    .options-compact {
+        justify-content: center;
+        gap: 24px;
+    }
+
+    .option-compact .form-check-label {
+        font-size: 0.9rem;
+    }
+}
 </style>
 {% endblock %}
 
@@ -461,19 +564,32 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="modern-card p-4">
                 <form id="downloadForm" x-on:submit.prevent="startDownload()">
 
-                    <!-- URL输入区域 -->
+                    <!-- URL输入区域 + 右侧选项 -->
                     <div class="mb-3">
                         <label for="videoUrl" class="form-label fw-semibold mb-2">
                             <i class="bi bi-link-45deg me-2 text-primary"></i>视频链接
                         </label>
-                        <div class="input-group input-group-lg">
+                        <div class="url-input-row">
                             <input type="url"
-                                   class="modern-input form-control"
+                                   class="url-input"
                                    id="videoUrl"
                                    x-model="form.url"
                                    placeholder="粘贴 YouTube、Bilibili、Twitter 等平台视频链接..."
                                    required>
-
+                            <div class="options-compact">
+                                <div class="option-compact">
+                                    <input class="form-check-input" type="checkbox" id="downloadThumbnail" x-model="form.download_thumbnail">
+                                    <label class="form-check-label" for="downloadThumbnail">
+                                        <i class="bi bi-image text-primary"></i>缩略图
+                                    </label>
+                                </div>
+                                <div class="option-compact">
+                                    <input class="form-check-input" type="checkbox" id="downloadSubtitles" x-model="form.download_subtitles">
+                                    <label class="form-check-label" for="downloadSubtitles">
+                                        <i class="bi bi-chat-square-text text-success"></i>字幕
+                                    </label>
+                                </div>
+                            </div>
                         </div>
                         <div class="form-text mt-2">
                             <i class="bi bi-lightbulb text-warning me-1"></i>
@@ -490,8 +606,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <i class="bi bi-collection-play me-1 text-primary"></i>下载类型
                             </label>
                             <select class="form-select modern-input" id="downloadType" x-model="form.download_type">
-                                <option value="video">🎬 视频+音频</option>
-                                <option value="audio">🎵 仅音频</option>
+                                <option value="video">🎬 视频</option>
+                                <option value="audio">🎵 音频</option>
                             </select>
                         </div>
 
@@ -539,8 +655,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                    class="form-control modern-input"
                                    id="customFilename"
                                    x-model="form.custom_filename"
-                                   placeholder="留空使用默认命名"
-                                   style="height: 56px;">
+                                   placeholder="留空使用默认命名">
                         </div>
 
                         <div class="col-md-3 d-flex align-items-end">
@@ -596,7 +711,9 @@ function downloadManager() {
             quality: 'high',
             download_type: 'video',
             audio_format: 'audio_mp3_medium',
-            custom_filename: ''
+            custom_filename: '',
+            download_thumbnail: false,
+            download_subtitles: false
         },
         loading: false,
         activeDownloads: [],
@@ -621,7 +738,9 @@ function downloadManager() {
                 const options = {
                     quality: this.form.download_type === 'audio' ? this.form.audio_format : this.form.quality,
                     audio_only: this.form.download_type === 'audio',
-                    custom_filename: this.form.custom_filename
+                    custom_filename: this.form.custom_filename,
+                    download_thumbnail: this.form.download_thumbnail,
+                    download_subtitles: this.form.download_subtitles
                 };
 
                 const response = await apiRequest('/download/start', {

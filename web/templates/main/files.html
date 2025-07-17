@@ -484,14 +484,16 @@
     background: #000;
 }
 
-/* 移动端优化 */
+/* 🔧 统一的移动端优化 - 合并所有768px断点 */
 @media (max-width: 768px) {
-    #videoPlayer {
-        height: 50vh !important;
+    /* 基础视频播放器优化 */
+    #filesApp #videoPlayer {
+        height: 60vh !important; /* 统一使用60vh，比50vh更适合移动端 */
+        min-height: 300px;
     }
 
-    #videoModal .modal-dialog {
-        margin: 10px;
+    #filesApp #videoModal .modal-dialog {
+        margin: 5px; /* 减少边距以增加可用空间 */
     }
 
     /* 移动端卡片优化 */
@@ -517,6 +519,227 @@
     .card-title {
         word-break: break-all;
         line-height: 1.3;
+    }
+
+    /* 音频播放器移动端优化 */
+    #filesApp .modern-audio-player .modal-dialog {
+        margin: 8px;
+        max-width: calc(100vw - 16px);
+    }
+
+    #filesApp .album-cover {
+        width: 180px;
+        height: 180px;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #filesApp .album-cover.playing {
+        animation: spin 20s linear infinite;
+    }
+
+    #filesApp .song-info h4 {
+        font-size: 1.3rem;
+    }
+
+    #filesApp .player-controls {
+        gap: 10px;
+    }
+
+    #filesApp .control-btn {
+        width: 48px;
+        height: 48px;
+        font-size: 1.2rem;
+        min-width: 44px;
+        min-height: 44px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    #filesApp .control-btn:active {
+        transform: scale(0.95);
+        background: rgba(255,255,255,0.4);
+    }
+
+    #filesApp .play-btn {
+        width: 64px;
+        height: 64px;
+        font-size: 1.8rem;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    #filesApp .volume-slider {
+        width: 120px;
+        height: 6px;
+    }
+
+    #filesApp #lyricsPanel {
+        margin-top: 20px;
+    }
+
+    #filesApp .lyrics-container {
+        height: 300px;
+        padding: 20px;
+    }
+
+    #filesApp .lyrics-content {
+        font-size: 14px;
+        line-height: 1.8;
+    }
+
+    /* 现代化视频播放器移动端优化 */
+    #filesApp .modern-video-player .modal-dialog {
+        margin: 0;
+        max-width: 100vw;
+        height: 100vh;
+    }
+
+    #filesApp .video-container {
+        height: calc(100vh - 60px);
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: manipulation;
+    }
+
+    #filesApp .video-info-panel {
+        padding: 20px;
+        max-width: 90%;
+    }
+
+    #filesApp .video-details h4 {
+        font-size: 1.5rem;
+    }
+
+    #filesApp .video-poster {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 20px;
+    }
+
+    #filesApp .controls-content {
+        padding: 15px 20px;
+    }
+
+    #filesApp .video-control-btn {
+        width: 44px; /* 保持足够的触摸目标 */
+        height: 44px;
+        font-size: 1.1rem;
+        min-width: 44px;
+        min-height: 44px;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    #filesApp .video-control-btn:active {
+        transform: scale(0.95);
+        background: rgba(255,255,255,0.4);
+    }
+
+    #filesApp .video-volume-slider {
+        width: 100px; /* 增加滑块长度便于操作 */
+        height: 6px;
+    }
+
+    #filesApp .video-stats .badge {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+        margin: 2px;
+    }
+
+    /* 现代化控制栏优化 */
+    #filesApp .custom-video-controls {
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+    }
+
+    /* 现代化进度条交互 */
+    #filesApp .video-progress,
+    #filesApp .custom-progress {
+        transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+    }
+
+    #filesApp .video-progress:active,
+    #filesApp .custom-progress:active {
+        height: 8px;
+    }
+
+    /* 现代化手势反馈 */
+    #filesApp .gesture-feedback {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        font-weight: 500;
+        z-index: 1000;
+        pointer-events: none;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    #filesApp .gesture-feedback.show {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.05);
+    }
+
+    #filesApp .gesture-feedback i {
+        font-size: 1.5rem;
+        margin-right: 10px;
+        vertical-align: middle;
+    }
+
+    /* 现代化滑块优化 */
+    #filesApp .form-range {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255,255,255,0.3);
+        outline: none;
+    }
+
+    #filesApp .form-range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: white;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        transition: transform 0.2s ease;
+    }
+
+    #filesApp .form-range::-webkit-slider-thumb:active {
+        transform: scale(1.2);
+    }
+
+    #filesApp .form-range::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: white;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* 动画效果 */
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
 }
 
@@ -893,56 +1116,7 @@
     border-radius: 0 2px 2px 0;
 }
 
-/* 移动端现代化音频播放器优化 */
-@media (max-width: 768px) {
-    .modern-audio-player .modal-dialog {
-        margin: 10px;
-        max-width: calc(100vw - 20px);
-    }
 
-    .album-cover {
-        width: 180px;
-        height: 180px;
-    }
-
-    .song-info h4 {
-        font-size: 1.3rem;
-    }
-
-    .player-controls {
-        gap: 10px;
-    }
-
-    .control-btn {
-        width: 45px;
-        height: 45px;
-        font-size: 1.1rem;
-    }
-
-    .play-btn {
-        width: 60px;
-        height: 60px;
-        font-size: 1.6rem;
-    }
-
-    .volume-slider {
-        width: 100px;
-    }
-
-    #lyricsPanel {
-        margin-top: 20px;
-    }
-
-    .lyrics-container {
-        height: 300px;
-        padding: 20px;
-    }
-
-    .lyrics-content {
-        font-size: 14px;
-        line-height: 1.8;
-    }
-}
 
 @media (max-width: 576px) {
     .modern-audio-player .modal-body {
@@ -1218,52 +1392,39 @@
     font-weight: 500;
 }
 
-/* 移动端视频播放器优化 */
-@media (max-width: 768px) {
-    .modern-video-player .modal-dialog {
-        margin: 0;
-        max-width: 100vw;
-        height: 100vh;
-    }
 
-    .video-container {
-        height: calc(100vh - 60px);
-    }
 
-    .video-info-panel {
-        padding: 20px;
-        max-width: 90%;
-    }
 
-    .video-details h4 {
-        font-size: 1.5rem;
-    }
 
-    .video-poster {
-        width: 80px;
-        height: 80px;
-        margin-bottom: 20px;
+/* 现代化动画 */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
     }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
-    .controls-content {
-        padding: 15px 20px;
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
     }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+}
 
-    .video-control-btn {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
-    }
+#filesApp .animate-fade-in-up {
+    animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-    .video-volume-slider {
-        width: 80px;
-    }
-
-    .video-stats .badge {
-        font-size: 0.8rem;
-        padding: 6px 10px;
-        margin: 2px;
-    }
+#filesApp .animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 </style>
 {% endblock %}
@@ -1624,8 +1785,13 @@ class FilesApp {
     }
     
     playVideo(filename) {
+        console.log('🎬 playVideo被调用, filename:', filename);
         this.currentVideo = this.files.find(f => f.name === filename);
-        if (!this.currentVideo) return;
+        if (!this.currentVideo) {
+            console.error('❌ 找不到视频文件:', filename);
+            return;
+        }
+        console.log('✅ 找到视频文件:', this.currentVideo);
 
         // 获取播放器元素
         const video = document.getElementById('videoPlayer');
@@ -1656,10 +1822,14 @@ class FilesApp {
         }
 
         // 先清理之前的视频资源
+        console.log('🧹 开始清理之前的视频资源...');
         this.cleanupVideo();
+        console.log('✅ 视频资源清理完成');
 
         // 重新获取video元素
+        console.log('🔧 重新获取video元素...');
         const newVideo = document.getElementById('videoPlayer');
+        console.log('🔧 获取到的video元素:', newVideo);
 
         // 确保覆盖层显示
         overlay.classList.remove('hidden');
@@ -1670,9 +1840,6 @@ class FilesApp {
 
         // 设置视频源
         newVideo.src = `/files/stream/${encodeURIComponent(filename)}`;
-
-        // 初始化视频控制
-        this.initVideoControls();
 
         // 添加事件监听器
         const loadStartHandler = () => {
@@ -1720,19 +1887,8 @@ class FilesApp {
         newVideo.addEventListener('canplay', canPlayHandler, { once: true });
         newVideo.addEventListener('error', errorHandler, { once: true });
 
-        // 添加备用的点击事件来隐藏覆盖层（防止canplay事件未触发）
-        overlay.addEventListener('click', () => {
-            console.log('用户点击覆盖层，手动隐藏');
-            overlay.classList.add('hidden');
-            const customControls = document.getElementById('customControls');
-            if (customControls) {
-                customControls.classList.add('visible');
-            }
-            // 尝试播放视频
-            if (newVideo.readyState >= 2) { // HAVE_CURRENT_DATA
-                newVideo.play().catch(e => console.log('自动播放失败:', e));
-            }
-        }, { once: true });
+        // 🔧 移除旧的覆盖层点击事件，避免与ModernVideoController冲突
+        // 现在由ModernVideoController统一处理覆盖层点击事件和播放控制
 
         // 添加超时机制，5秒后如果还没有canplay事件，就显示点击提示
         setTimeout(() => {
@@ -1755,6 +1911,10 @@ class FilesApp {
         const modal = new bootstrap.Modal(document.getElementById('videoModal'));
         modal.show();
 
+        // 🔧 初始化视频控制器
+        console.log('🔧 初始化视频控制器...');
+        this.initVideoControls();
+
         // 检查内存使用情况
         this.checkMemoryUsage();
 
@@ -1772,6 +1932,18 @@ class FilesApp {
     }
 
     initVideoControls() {
+        // 🔧 现代化重构：创建视频播放器控制器实例
+        if (this.videoController) {
+            this.videoController.destroy();
+        }
+        this.videoController = new ModernVideoController('videoPlayer', {
+            onPlay: () => this.onVideoPlay(),
+            onPause: () => this.onVideoPause(),
+            onTimeUpdate: (currentTime, duration) => this.onVideoTimeUpdate(currentTime, duration),
+            onVolumeChange: (volume, muted) => this.onVideoVolumeChange(volume, muted)
+        });
+
+        // 保持向后兼容的元素引用
         const video = document.getElementById('videoPlayer');
         const playPauseBtn = document.getElementById('videoPlayPauseBtn');
         const playIcon = document.getElementById('videoPlayIcon');
@@ -1788,195 +1960,8 @@ class FilesApp {
         const pipBtn = document.getElementById('videoPipBtn');
         const customControls = document.getElementById('customControls');
 
-        // 清理旧的事件监听器 - 重新创建元素来移除所有事件监听器
-        console.log('🧹 清理旧的视频事件监听器...');
-        const newVideo = video.cloneNode(true);
-        video.parentNode.replaceChild(newVideo, video);
-
-        // 重新获取新的video元素
-        const videoElement = document.getElementById('videoPlayer');
-
-        // 清理覆盖层的事件监听器
-        const videoOverlay = document.getElementById('videoOverlay');
-        if (videoOverlay) {
-            const newOverlay = videoOverlay.cloneNode(true);
-            videoOverlay.parentNode.replaceChild(newOverlay, videoOverlay);
-        }
-
-        // 播放/暂停按钮 - 使用统一的切换函数
-        playPauseBtn.onclick = (e) => {
-            e.stopPropagation(); // 阻止事件冒泡
-            console.log('播放按钮点击，当前状态:', videoElement.paused ? '暂停' : '播放');
-
-            if (videoElement.paused) {
-                videoElement.play().then(() => {
-                    // play事件会自动同步UI
-                }).catch(e => console.log('播放失败:', e));
-            } else {
-                videoElement.pause();
-                // pause事件会自动同步UI
-            }
-        };
-
-        // 音量控制
-        volumeSlider.oninput = () => {
-            videoElement.volume = volumeSlider.value / 100;
-            this.updateVolumeIcon();
-        };
-
-        // 静音按钮
-        muteBtn.onclick = () => {
-            videoElement.muted = !videoElement.muted;
-            this.updateVolumeIcon();
-        };
-
-        // 进度条控制
-        let isDragging = false;
-
-        progressContainer.onclick = (e) => {
-            if (!isDragging) {
-                const rect = progressContainer.getBoundingClientRect();
-                const percent = (e.clientX - rect.left) / rect.width;
-                videoElement.currentTime = percent * videoElement.duration;
-            }
-        };
-
-        progressContainer.onmousedown = (e) => {
-            isDragging = true;
-            const rect = progressContainer.getBoundingClientRect();
-            const percent = (e.clientX - rect.left) / rect.width;
-            videoElement.currentTime = percent * videoElement.duration;
-        };
-
-        document.onmouseup = () => {
-            isDragging = false;
-        };
-
-        document.onmousemove = (e) => {
-            if (isDragging) {
-                const rect = progressContainer.getBoundingClientRect();
-                const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                videoElement.currentTime = percent * videoElement.duration;
-            }
-        };
-
-        // 全屏控制
-        fullscreenBtn.onclick = () => {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            } else {
-                videoElement.requestFullscreen();
-            }
-        };
-
-        // 画中画
-        pipBtn.onclick = () => {
-            if (videoElement.requestPictureInPicture) {
-                videoElement.requestPictureInPicture();
-            }
-        };
-
-        // 时间更新
-        videoElement.ontimeupdate = () => {
-            if (!isDragging && videoElement.duration) {
-                const percent = (videoElement.currentTime / videoElement.duration) * 100;
-                progressFill.style.width = percent + '%';
-                progressHandle.style.left = percent + '%';
-
-                currentTimeEl.textContent = this.formatTime(videoElement.currentTime);
-                timeDisplay.textContent = `${this.formatTime(videoElement.currentTime)} / ${this.formatTime(videoElement.duration)}`;
-            }
-        };
-
-        // 视频结束
-        videoElement.onended = () => {
-            playIcon.className = 'bi bi-play-fill';
-            progressFill.style.width = '0%';
-            progressHandle.style.left = '0%';
-            currentTimeEl.textContent = '0:00';
-        };
-
-        // 鼠标移动显示控制栏
-        let hideControlsTimer;
-        const showControls = () => {
-            customControls.classList.add('visible');
-            clearTimeout(hideControlsTimer);
-            hideControlsTimer = setTimeout(() => {
-                if (!videoElement.paused) {
-                    customControls.classList.remove('visible');
-                }
-            }, 3000);
-        };
-
-        videoElement.addEventListener('mousemove', showControls);
-
-        // 防抖变量
-        let isToggling = false;
-
-        // 统一的播放/暂停切换函数
-        const togglePlayPause = (e) => {
-            e.stopPropagation(); // 阻止事件冒泡
-            e.preventDefault(); // 阻止默认行为
-
-            // 防抖：如果正在切换状态，忽略新的点击
-            if (isToggling) {
-                console.log('正在切换状态，忽略点击');
-                return;
-            }
-
-            isToggling = true;
-            console.log('切换播放状态，当前状态:', videoElement.paused ? '暂停' : '播放');
-
-            if (videoElement.paused) {
-                videoElement.play().then(() => {
-                    console.log('播放成功');
-                    isToggling = false;
-                }).catch(e => {
-                    console.log('播放失败:', e);
-                    isToggling = false;
-                });
-            } else {
-                videoElement.pause();
-                console.log('暂停成功');
-                // 暂停是同步的，立即重置状态
-                setTimeout(() => {
-                    isToggling = false;
-                }, 100);
-            }
-            showControls();
-        };
-
-        // 视频点击事件
-        videoElement.addEventListener('click', togglePlayPause);
-
-        // 覆盖层点击事件
-        const currentOverlay = document.getElementById('videoOverlay');
-        if (currentOverlay) {
-            currentOverlay.addEventListener('click', togglePlayPause);
-        }
-
-        // 监听播放和暂停事件，仅同步UI状态（不执行播放控制）
-        videoElement.addEventListener('play', () => {
-            console.log('视频开始播放 - 同步UI');
-            const overlayEl = document.getElementById('videoOverlay');
-            if (overlayEl) overlayEl.classList.add('hidden');
-            playIcon.className = 'bi bi-pause-fill';
-        });
-
-        videoElement.addEventListener('pause', () => {
-            console.log('视频暂停 - 同步UI');
-            const overlayEl = document.getElementById('videoOverlay');
-            const overlayText = document.getElementById('videoOverlayText');
-            if (overlayEl) {
-                overlayEl.classList.remove('hidden');
-                // 更新提示文字为暂停状态
-                if (overlayText) overlayText.textContent = '点击继续播放';
-            }
-            playIcon.className = 'bi bi-play-fill';
-        });
-
-        // 初始显示控制栏
-        showControls();
+        // 🔧 ModernVideoController已经在上面创建完成，会自动处理所有事件绑定和清理
+        console.log('✅ ModernVideoController初始化完成');
     }
 
     updateVideoInfo() {
@@ -2132,6 +2117,21 @@ class FilesApp {
     }
 
     initAudioControls() {
+        console.log('🎵 开始初始化音频控制器...');
+        // 🔧 现代化重构：创建音频播放器控制器实例
+        if (this.audioController) {
+            console.log('🧹 销毁旧的音频控制器...');
+            this.audioController.destroy();
+        }
+        console.log('🔧 创建新的ModernAudioController...');
+        this.audioController = new ModernAudioController('audioPlayer', {
+            onPlay: () => this.onAudioPlay(),
+            onPause: () => this.onAudioPause(),
+            onTimeUpdate: (currentTime, duration) => this.onAudioTimeUpdate(currentTime, duration)
+        });
+        console.log('✅ 音频控制器初始化完成:', !!this.audioController);
+
+        // 保持向后兼容的元素引用
         const audio = document.getElementById('audioPlayer');
         const playPauseBtn = document.getElementById('playPauseBtn');
         const playIcon = document.getElementById('playIcon');
@@ -2144,81 +2144,11 @@ class FilesApp {
         const albumCover = document.getElementById('albumCover');
         const audioWaves = document.querySelector('.audio-waves');
 
-        // 播放/暂停按钮
-        playPauseBtn.onclick = () => {
-            if (audio.paused) {
-                audio.play();
-                playIcon.className = 'bi bi-pause-fill';
-                albumCover.classList.add('playing');
-                audioWaves.classList.add('playing');
-            } else {
-                audio.pause();
-                playIcon.className = 'bi bi-play-fill';
-                albumCover.classList.remove('playing');
-                audioWaves.classList.remove('playing');
-            }
-        };
+        // 🔧 移除旧的播放控制，现在由ModernAudioController统一处理
+        // playPauseBtn的点击事件由ModernAudioController管理
 
-        // 音量控制
-        volumeSlider.oninput = () => {
-            audio.volume = volumeSlider.value / 100;
-        };
-
-        // 进度条控制
-        let isDragging = false;
-
-        progressContainer.onclick = (e) => {
-            if (!isDragging) {
-                const rect = progressContainer.getBoundingClientRect();
-                const percent = (e.clientX - rect.left) / rect.width;
-                audio.currentTime = percent * audio.duration;
-            }
-        };
-
-        progressContainer.onmousedown = (e) => {
-            isDragging = true;
-            const rect = progressContainer.getBoundingClientRect();
-            const percent = (e.clientX - rect.left) / rect.width;
-            audio.currentTime = percent * audio.duration;
-        };
-
-        document.onmouseup = () => {
-            isDragging = false;
-        };
-
-        document.onmousemove = (e) => {
-            if (isDragging) {
-                const rect = progressContainer.getBoundingClientRect();
-                const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                audio.currentTime = percent * audio.duration;
-            }
-        };
-
-        // 时间更新
-        audio.ontimeupdate = () => {
-            if (!isDragging && audio.duration) {
-                const percent = (audio.currentTime / audio.duration) * 100;
-                progressFill.style.width = percent + '%';
-                progressHandle.style.left = percent + '%';
-
-                currentTimeEl.textContent = this.formatTime(audio.currentTime);
-
-                // 同步歌词
-                if (this.currentLyrics) {
-                    this.syncLyrics(audio.currentTime);
-                }
-            }
-        };
-
-        // 音频结束
-        audio.onended = () => {
-            playIcon.className = 'bi bi-play-fill';
-            albumCover.classList.remove('playing');
-            audioWaves.classList.remove('playing');
-            progressFill.style.width = '0%';
-            progressHandle.style.left = '0%';
-            currentTimeEl.textContent = '0:00';
-        };
+        // 🔧 移除所有旧的事件绑定，现在由ModernAudioController统一处理
+        // 包括：音量控制、进度条控制、时间更新、音频结束等所有功能
 
         // 其他控制按钮（暂时只是样式，功能可以后续添加）
         document.getElementById('shuffleBtn').onclick = () => {
@@ -2239,12 +2169,9 @@ class FilesApp {
         };
     }
 
+    // 🔧 使用CommonUtils中的统一formatTime函数
     formatTime(seconds) {
-        if (isNaN(seconds)) return '0:00';
-
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
-        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        return CommonUtils.formatTime(seconds);
     }
 
     async loadLyrics(audioFilename) {
@@ -2427,6 +2354,12 @@ class FilesApp {
         if (audio) {
             console.log('🧹 清理音频资源...');
 
+            // 🔧 现代化清理：使用控制器的destroy方法
+            if (this.audioController) {
+                this.audioController.destroy();
+                this.audioController = null;
+            }
+
             // 1. 暂停播放
             audio.pause();
 
@@ -2481,10 +2414,49 @@ class FilesApp {
         }
     }
 
+    // 🔧 现代化播放器回调方法
+    onVideoPlay() {
+        console.log('视频开始播放');
+    }
+
+    onVideoPause() {
+        console.log('视频暂停');
+    }
+
+    onVideoTimeUpdate(currentTime, duration) {
+        // 更新时间显示
+        const timeDisplay = document.getElementById('videoTimeDisplay');
+        if (timeDisplay) {
+            timeDisplay.textContent = `${this.formatTime(currentTime)} / ${this.formatTime(duration)}`;
+        }
+    }
+
+    onVideoVolumeChange(volume, muted) {
+        console.log('视频音量变化:', { volume, muted });
+    }
+
+    onAudioPlay() {
+        console.log('音频开始播放');
+    }
+
+    onAudioPause() {
+        console.log('音频暂停');
+    }
+
+    onAudioTimeUpdate(currentTime, duration) {
+        console.log('音频时间更新:', { currentTime, duration });
+    }
+
     cleanupVideo() {
         const video = document.getElementById('videoPlayer');
         if (video) {
             console.log('🧹 清理视频资源...');
+
+            // 🔧 现代化清理：使用控制器的destroy方法
+            if (this.videoController) {
+                this.videoController.destroy();
+                this.videoController = null;
+            }
 
             // 1. 暂停播放
             video.pause();
@@ -2774,6 +2746,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const date = new Date(timestamp * 1000);
                 return date.toLocaleString('zh-CN');
             },
+            // 🔧 统一的时间格式化函数，避免重复定义
+            formatTime: function(seconds) {
+                if (isNaN(seconds)) return '0:00';
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            },
             escapeHtml: function(text) {
                 if (!text) return '';
                 const div = document.createElement('div');
@@ -2797,11 +2776,607 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     app = new FilesApp();
+    window.app = app;  // 🔧 确保app对象可以全局访问
+    console.log('✅ FilesApp已初始化并设置为全局对象');
 
-    // 模态框关闭时完整清理视频资源
-    document.getElementById('videoModal').addEventListener('hidden.bs.modal', () => {
-        app.cleanupVideo();
-    });
+    // 🔧 移除重复的事件监听器，避免与FilesApp.bindEvents()中的监听器冲突
+    // 视频清理现在由FilesApp类统一处理
 });
+
+// 🚀 现代化播放器控制器类
+class ModernVideoController {
+    constructor(videoId, callbacks = {}) {
+        console.log('🎬 初始化ModernVideoController, videoId:', videoId);
+        this.video = document.getElementById(videoId);
+        console.log('🎬 video元素:', this.video);
+        this.callbacks = callbacks;
+        this.elements = this.getElements();
+        console.log('🎬 获取到的元素:', this.elements);
+        this.state = {
+            isDragging: false,
+            isVolumeGesture: false,
+            lastTouchTime: 0,
+            gestureStartY: 0,
+            gestureStartVolume: 0
+        };
+
+        if (this.video && this.elements.overlay) {
+            this.init();
+            console.log('✅ ModernVideoController初始化完成');
+        } else {
+            console.error('❌ ModernVideoController初始化失败，缺少关键元素');
+        }
+    }
+
+    getElements() {
+        return {
+            playPauseBtn: document.getElementById('videoPlayPauseBtn'),
+            playIcon: document.getElementById('videoPlayIcon'),
+            progressContainer: document.getElementById('videoProgressContainer'),
+            progressFill: document.getElementById('videoProgressFill'),
+            progressHandle: document.getElementById('videoProgressHandle'),
+            volumeSlider: document.getElementById('videoVolumeSlider'),
+            muteBtn: document.getElementById('videoMuteBtn'),
+            volumeIcon: document.getElementById('videoVolumeIcon'),
+            currentTimeEl: document.getElementById('videoCurrentTime'),
+            totalTimeEl: document.getElementById('videoTotalTime'),
+            fullscreenBtn: document.getElementById('videoFullscreenBtn'),
+            pipBtn: document.getElementById('videoPipBtn'),
+            customControls: document.getElementById('customControls'),
+            overlay: document.getElementById('videoOverlay'),
+            gestureFeedback: document.getElementById('gestureFeedback'),
+            gestureText: document.getElementById('gestureText')
+        };
+    }
+
+    init() {
+        this.setupEventListeners();
+        this.setupControlsAutoHide();
+        this.setupMobileOptimizations();
+    }
+
+    setupEventListeners() {
+        // 🎯 现代化事件处理：使用事件委托和AbortController
+        this.abortController = new AbortController();
+        const { signal } = this.abortController;
+
+        // 播放控制
+        this.elements.playPauseBtn?.addEventListener('click', this.togglePlayPause.bind(this), { signal });
+        this.video.addEventListener('click', this.togglePlayPause.bind(this), { signal });
+        this.elements.overlay?.addEventListener('click', this.togglePlayPause.bind(this), { signal });
+
+        // 音量控制
+        this.elements.volumeSlider?.addEventListener('input', this.handleVolumeChange.bind(this), { signal });
+        this.elements.muteBtn?.addEventListener('click', this.toggleMute.bind(this), { signal });
+
+        // 进度控制
+        this.setupProgressControl(signal);
+
+        // 全屏和画中画
+        this.elements.fullscreenBtn?.addEventListener('click', this.toggleFullscreen.bind(this), { signal });
+        this.elements.pipBtn?.addEventListener('click', this.togglePictureInPicture.bind(this), { signal });
+
+        // 视频事件
+        this.video.addEventListener('play', this.onPlay.bind(this), { signal });
+        this.video.addEventListener('pause', this.onPause.bind(this), { signal });
+        this.video.addEventListener('timeupdate', this.onTimeUpdate.bind(this), { signal });
+        this.video.addEventListener('volumechange', this.onVolumeChange.bind(this), { signal });
+        this.video.addEventListener('loadedmetadata', this.onLoadedMetadata.bind(this), { signal });
+    }
+
+    setupProgressControl(signal) {
+        if (!this.elements.progressContainer) return;
+
+        // 统一的进度更新函数
+        const updateProgress = (clientX) => {
+            const rect = this.elements.progressContainer.getBoundingClientRect();
+            const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+            this.video.currentTime = percent * this.video.duration;
+        };
+
+        // 鼠标事件
+        this.elements.progressContainer.addEventListener('click', (e) => {
+            if (!this.state.isDragging) updateProgress(e.clientX);
+        }, { signal });
+
+        this.elements.progressContainer.addEventListener('mousedown', (e) => {
+            this.state.isDragging = true;
+            updateProgress(e.clientX);
+        }, { signal });
+
+        document.addEventListener('mouseup', () => {
+            this.state.isDragging = false;
+        }, { signal });
+
+        document.addEventListener('mousemove', (e) => {
+            if (this.state.isDragging) updateProgress(e.clientX);
+        }, { signal });
+
+        // 🔧 现代化触摸支持
+        this.elements.progressContainer.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.state.isDragging = true;
+            const touch = e.touches[0];
+            updateProgress(touch.clientX);
+        }, { signal, passive: false });
+
+        document.addEventListener('touchend', () => {
+            this.state.isDragging = false;
+        }, { signal });
+
+        document.addEventListener('touchmove', (e) => {
+            if (this.state.isDragging) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                updateProgress(touch.clientX);
+            }
+        }, { signal, passive: false });
+    }
+
+    setupControlsAutoHide() {
+        let hideTimer;
+
+        const showControls = () => {
+            this.elements.customControls?.classList.add('visible');
+            clearTimeout(hideTimer);
+            hideTimer = setTimeout(() => {
+                // 🔧 安全检查：确保video元素存在且未暂停
+                if (this.video && !this.video.paused) {
+                    this.elements.customControls?.classList.remove('visible');
+                }
+            }, 3000);
+        };
+
+        // 🔧 现代化：支持鼠标和触摸
+        ['mousemove', 'touchstart', 'touchmove'].forEach(event => {
+            this.video.addEventListener(event, showControls, {
+                signal: this.abortController.signal,
+                passive: true
+            });
+        });
+
+        this.showControls = showControls;
+    }
+
+    setupMobileOptimizations() {
+        if (!('ontouchstart' in window)) return;
+
+        // 🔧 双击全屏
+        this.video.addEventListener('touchend', this.handleTouchEnd.bind(this), {
+            signal: this.abortController.signal
+        });
+
+        // 🔧 垂直滑动调音量
+        this.video.addEventListener('touchstart', this.handleTouchStart.bind(this), {
+            signal: this.abortController.signal
+        });
+
+        this.video.addEventListener('touchmove', this.handleTouchMove.bind(this), {
+            signal: this.abortController.signal,
+            passive: false
+        });
+    }
+
+    // 🎯 现代化事件处理方法
+    async togglePlayPause(e) {
+        console.log('🎬 togglePlayPause被调用, video:', this.video, 'paused:', this.video?.paused);
+        e?.preventDefault();
+        e?.stopPropagation();
+
+        if (!this.video) {
+            console.error('❌ video元素不存在');
+            return;
+        }
+
+        try {
+            if (this.video.paused) {
+                console.log('🎬 尝试播放视频...');
+                await this.video.play();
+                console.log('✅ 视频播放成功');
+            } else {
+                console.log('🎬 暂停视频...');
+                this.video.pause();
+                console.log('✅ 视频暂停成功');
+            }
+        } catch (error) {
+            console.error('❌ 播放控制失败:', error);
+        }
+
+        this.showControls?.();
+    }
+
+    handleVolumeChange(e) {
+        this.video.volume = e.target.value / 100;
+    }
+
+    toggleMute() {
+        this.video.muted = !this.video.muted;
+    }
+
+    async toggleFullscreen() {
+        try {
+            if (document.fullscreenElement) {
+                await document.exitFullscreen();
+            } else {
+                await this.video.requestFullscreen();
+            }
+        } catch (error) {
+            console.error('全屏操作失败:', error);
+        }
+    }
+
+    async togglePictureInPicture() {
+        try {
+            if (this.video.requestPictureInPicture) {
+                await this.video.requestPictureInPicture();
+            }
+        } catch (error) {
+            console.error('画中画操作失败:', error);
+        }
+    }
+
+    // 🔧 移动端手势处理 - 优化双击检测
+    handleTouchEnd(e) {
+        const currentTime = Date.now();
+        const tapLength = currentTime - this.state.lastTouchTime;
+
+        // 🎯 优化双击检测：更宽松的时间窗口，更好的用户体验
+        if (tapLength < 600 && tapLength > 50) {
+            // 双击全屏
+            console.log('🔄 检测到双击，切换全屏状态');
+            e.preventDefault();
+            e.stopPropagation();
+
+            // 清除可能的单击定时器
+            clearTimeout(this.singleTapTimeout);
+
+            this.toggleFullscreen();
+
+            // 显示手势反馈
+            this.showFullscreenFeedback();
+        } else {
+            // 单击播放/暂停 - 使用可清理的定时器
+            this.singleTapTimeout = setTimeout(() => {
+                // 确保这不是双击的第一次点击
+                if (Date.now() - this.state.lastTouchTime >= 600 && this.video) {
+                    console.log('🎬 单击播放/暂停');
+                    this.togglePlayPause(e);
+                }
+            }, 600); // 增加延迟以更好地区分单击和双击
+        }
+
+        this.state.lastTouchTime = currentTime;
+        this.state.isVolumeGesture = false;
+    }
+
+    handleTouchStart(e) {
+        if (e.touches.length === 1) {
+            this.state.gestureStartY = e.touches[0].clientY;
+            this.state.gestureStartVolume = this.video.volume;
+            this.state.isVolumeGesture = false;
+        }
+    }
+
+    handleTouchMove(e) {
+        if (e.touches.length === 1 && !this.state.isDragging) {
+            const currentY = e.touches[0].clientY;
+            const deltaY = this.state.gestureStartY - currentY;
+
+            // 检测垂直滑动手势
+            if (Math.abs(deltaY) > 20 && !this.state.isVolumeGesture) {
+                this.state.isVolumeGesture = true;
+                e.preventDefault();
+            }
+
+            if (this.state.isVolumeGesture) {
+                e.preventDefault();
+                const volumeChange = deltaY / 200;
+                const newVolume = Math.max(0, Math.min(1, this.state.gestureStartVolume + volumeChange));
+
+                this.video.volume = newVolume;
+                this.elements.volumeSlider && (this.elements.volumeSlider.value = newVolume * 100);
+
+                this.showGestureFeedback(newVolume);
+                this.showControls?.();
+            }
+        }
+    }
+
+    showGestureFeedback(volume) {
+        if (!this.elements.gestureFeedback || !this.elements.gestureText) return;
+
+        const volumePercent = Math.round(volume * 100);
+        this.elements.gestureText.textContent = `音量: ${volumePercent}%`;
+
+        // 更新图标
+        const icon = this.elements.gestureFeedback.querySelector('i');
+        if (icon) {
+            if (volume === 0) {
+                icon.className = 'bi bi-volume-mute';
+            } else if (volume < 0.5) {
+                icon.className = 'bi bi-volume-down';
+            } else {
+                icon.className = 'bi bi-volume-up';
+            }
+        }
+
+        this.elements.gestureFeedback.classList.add('show');
+
+        clearTimeout(this.gestureTimeout);
+        this.gestureTimeout = setTimeout(() => {
+            this.elements.gestureFeedback?.classList.remove('show');
+        }, 1500);
+    }
+
+    // 🔄 全屏切换反馈
+    showFullscreenFeedback() {
+        if (!this.elements.gestureFeedback || !this.elements.gestureText) return;
+
+        const isFullscreen = !!document.fullscreenElement;
+        this.elements.gestureText.textContent = isFullscreen ? '退出全屏' : '进入全屏';
+
+        // 更新图标
+        const icon = this.elements.gestureFeedback.querySelector('i');
+        if (icon) {
+            icon.className = isFullscreen ? 'bi bi-fullscreen-exit' : 'bi bi-fullscreen';
+        }
+
+        this.elements.gestureFeedback.classList.add('show');
+
+        clearTimeout(this.gestureTimeout);
+        this.gestureTimeout = setTimeout(() => {
+            this.elements.gestureFeedback?.classList.remove('show');
+        }, 1500);
+    }
+
+    // 🎯 视频事件处理
+    onPlay() {
+        this.elements.playIcon && (this.elements.playIcon.className = 'bi bi-pause-fill');
+        this.elements.overlay?.classList.add('hidden');
+        this.callbacks.onPlay?.();
+    }
+
+    onPause() {
+        this.elements.playIcon && (this.elements.playIcon.className = 'bi bi-play-fill');
+        this.elements.overlay?.classList.remove('hidden');
+
+        const overlayText = document.getElementById('videoOverlayText');
+        if (overlayText) overlayText.textContent = '点击继续播放';
+
+        this.callbacks.onPause?.();
+    }
+
+    onTimeUpdate() {
+        if (this.state.isDragging || !this.video.duration) return;
+
+        const percent = (this.video.currentTime / this.video.duration) * 100;
+
+        if (this.elements.progressFill) {
+            this.elements.progressFill.style.width = percent + '%';
+        }
+
+        if (this.elements.progressHandle) {
+            this.elements.progressHandle.style.left = percent + '%';
+        }
+
+        if (this.elements.currentTimeEl) {
+            this.elements.currentTimeEl.textContent = this.formatTime(this.video.currentTime);
+        }
+
+        this.callbacks.onTimeUpdate?.(this.video.currentTime, this.video.duration);
+    }
+
+    onVolumeChange() {
+        if (this.elements.volumeSlider) {
+            this.elements.volumeSlider.value = this.video.volume * 100;
+        }
+
+        this.updateVolumeIcon();
+        this.callbacks.onVolumeChange?.(this.video.volume, this.video.muted);
+    }
+
+    onLoadedMetadata() {
+        if (this.elements.totalTimeEl) {
+            this.elements.totalTimeEl.textContent = this.formatTime(this.video.duration);
+        }
+
+        // 显示移动端提示
+        if ('ontouchstart' in window && window.innerWidth <= 768) {
+            const overlayText = document.getElementById('videoOverlayText');
+            if (overlayText && this.video.paused) {
+                overlayText.innerHTML = '👆 点击播放 • 👆👆 双击全屏<br><small class="text-white-50">📱 上下滑动调节音量</small>';
+            }
+        }
+    }
+
+    updateVolumeIcon() {
+        if (!this.elements.volumeIcon) return;
+
+        if (this.video.muted || this.video.volume === 0) {
+            this.elements.volumeIcon.className = 'bi bi-volume-mute';
+        } else if (this.video.volume < 0.5) {
+            this.elements.volumeIcon.className = 'bi bi-volume-down';
+        } else {
+            this.elements.volumeIcon.className = 'bi bi-volume-up';
+        }
+    }
+
+    // 🔧 使用CommonUtils中的统一formatTime函数
+    formatTime(seconds) {
+        return CommonUtils.formatTime(seconds);
+    }
+
+    // 🧹 现代化清理
+    destroy() {
+        // 🔧 确保视频完全停止
+        if (this.video) {
+            this.video.pause();
+            this.video.currentTime = 0;
+            // 清空视频源，释放资源
+            this.video.src = '';
+            this.video.removeAttribute('src');
+            this.video.load();
+        }
+
+        // 清理事件和定时器
+        this.abortController?.abort();
+        clearTimeout(this.gestureTimeout);
+        clearTimeout(this.singleTapTimeout);  // 🔧 清理单击定时器
+
+        // 🔧 安全地清理手势反馈
+        if (this.elements && this.elements.gestureFeedback) {
+            this.elements.gestureFeedback.classList.remove('show');
+        }
+
+        // 清理引用
+        this.video = null;
+        this.elements = null;
+        this.callbacks = null;
+        this.state = null;
+    }
+}
+
+// 🚀 现代化音频播放器控制器类
+class ModernAudioController {
+    constructor(audioId, callbacks = {}) {
+        this.audio = document.getElementById(audioId);
+        this.callbacks = callbacks;
+        this.elements = this.getAudioElements();
+        this.state = { isDragging: false };
+
+        this.init();
+    }
+
+    getAudioElements() {
+        return {
+            playPauseBtn: document.getElementById('playPauseBtn'),
+            playIcon: document.getElementById('playIcon'),
+            progressContainer: document.getElementById('progressContainer'),
+            progressFill: document.getElementById('progressFill'),
+            progressHandle: document.getElementById('progressHandle'),
+            volumeSlider: document.getElementById('volumeSlider'),
+            currentTimeEl: document.getElementById('currentTime'),
+            totalTimeEl: document.getElementById('totalTime'),
+            albumCover: document.getElementById('albumCover'),
+            audioWaves: document.querySelector('.audio-waves')
+        };
+    }
+
+    init() {
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        this.abortController = new AbortController();
+        const { signal } = this.abortController;
+
+        // 播放控制
+        this.elements.playPauseBtn?.addEventListener('click', this.togglePlayPause.bind(this), { signal });
+
+        // 音量控制
+        this.elements.volumeSlider?.addEventListener('input', (e) => {
+            this.audio.volume = e.target.value / 100;
+        }, { signal });
+
+        // 进度控制
+        this.setupAudioProgressControl(signal);
+
+        // 音频事件
+        this.audio.addEventListener('timeupdate', this.onTimeUpdate.bind(this), { signal });
+        this.audio.addEventListener('loadedmetadata', this.onLoadedMetadata.bind(this), { signal });
+    }
+
+    setupAudioProgressControl(signal) {
+        if (!this.elements.progressContainer) return;
+
+        const updateProgress = (clientX) => {
+            const rect = this.elements.progressContainer.getBoundingClientRect();
+            const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+            this.audio.currentTime = percent * this.audio.duration;
+        };
+
+        // 鼠标和触摸事件
+        this.elements.progressContainer.addEventListener('click', (e) => {
+            if (!this.state.isDragging) updateProgress(e.clientX);
+        }, { signal });
+
+        this.elements.progressContainer.addEventListener('mousedown', (e) => {
+            this.state.isDragging = true;
+            updateProgress(e.clientX);
+        }, { signal });
+
+        // 触摸支持
+        this.elements.progressContainer.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.state.isDragging = true;
+            updateProgress(e.touches[0].clientX);
+        }, { signal, passive: false });
+
+        document.addEventListener('mouseup', () => this.state.isDragging = false, { signal });
+        document.addEventListener('touchend', () => this.state.isDragging = false, { signal });
+
+        document.addEventListener('mousemove', (e) => {
+            if (this.state.isDragging) updateProgress(e.clientX);
+        }, { signal });
+
+        document.addEventListener('touchmove', (e) => {
+            if (this.state.isDragging) {
+                e.preventDefault();
+                updateProgress(e.touches[0].clientX);
+            }
+        }, { signal, passive: false });
+    }
+
+    async togglePlayPause() {
+        try {
+            if (this.audio.paused) {
+                await this.audio.play();
+                this.elements.playIcon && (this.elements.playIcon.className = 'bi bi-pause-fill');
+                this.elements.albumCover?.classList.add('playing');
+                this.elements.audioWaves?.classList.add('playing');
+            } else {
+                this.audio.pause();
+                this.elements.playIcon && (this.elements.playIcon.className = 'bi bi-play-fill');
+                this.elements.albumCover?.classList.remove('playing');
+                this.elements.audioWaves?.classList.remove('playing');
+            }
+        } catch (error) {
+            console.error('音频播放控制失败:', error);
+        }
+    }
+
+    onTimeUpdate() {
+        if (this.state.isDragging || !this.audio.duration) return;
+
+        const percent = (this.audio.currentTime / this.audio.duration) * 100;
+
+        if (this.elements.progressFill) {
+            this.elements.progressFill.style.width = percent + '%';
+        }
+
+        if (this.elements.progressHandle) {
+            this.elements.progressHandle.style.left = percent + '%';
+        }
+
+        if (this.elements.currentTimeEl) {
+            this.elements.currentTimeEl.textContent = this.formatTime(this.audio.currentTime);
+        }
+    }
+
+    onLoadedMetadata() {
+        if (this.elements.totalTimeEl) {
+            this.elements.totalTimeEl.textContent = this.formatTime(this.audio.duration);
+        }
+    }
+
+    // 🔧 使用CommonUtils中的统一formatTime函数
+    formatTime(seconds) {
+        return CommonUtils.formatTime(seconds);
+    }
+
+    destroy() {
+        this.abortController?.abort();
+    }
+}
 </script>
 {% endblock %}
