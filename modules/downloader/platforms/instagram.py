@@ -129,9 +129,9 @@ class InstagramPlatform(BasePlatform):
         all_selectors = quality_selectors + base_selectors
         return '/'.join(all_selectors)
     
-    def get_config(self, url: str, quality: str = 'best') -> Dict[str, Any]:
-        """获取 Instagram 完整配置"""
-        config = self.get_base_config()
+    def get_config(self, url: str, quality: str = 'best', user_options: Dict[str, Any] = None) -> Dict[str, Any]:
+        """获取 Instagram 完整配置 - 支持用户自定义选择"""
+        config = self.get_base_config(user_options)
 
         # 添加格式选择器
         config['format'] = self.get_format_selector(quality)

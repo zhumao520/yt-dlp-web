@@ -104,14 +104,21 @@ class FilenameProcessor:
             if name_without_ext in self.reserved_names:
                 filename = f"_{filename}"
             
-            # 7. 限制长度
+            # 7. 限制长度 - 改进版，确保扩展名完整性
             if len(filename) > max_length:
                 name = Path(filename).stem
                 ext = Path(filename).suffix
-                max_name_length = max_length - len(ext)
-                if max_name_length > 0:
-                    filename = name[:max_name_length] + ext
+
+                # 如果有扩展名，确保为扩展名预留空间
+                if ext:
+                    max_name_length = max_length - len(ext)
+                    if max_name_length > 10:  # 确保文件名至少有10个字符
+                        filename = name[:max_name_length] + ext
+                    else:
+                        # 如果扩展名太长，使用更短的默认扩展名
+                        filename = name[:max_length-4] + ext[:4]  # 保留前4个字符的扩展名
                 else:
+                    # 没有扩展名的情况
                     filename = filename[:max_length]
             
             # 8. 确保不为空
@@ -167,16 +174,28 @@ class FilenameProcessor:
         """应用自定义文件名"""
         try:
             current_path = Path(current_file)
-            
+            original_ext = current_path.suffix
+
             # 清理自定义文件名
             logger.info(f"🔧 调试 - 原始自定义文件名: '{custom_filename}'")
-            clean_custom = self.sanitize_filename(custom_filename)
-            logger.info(f"🔧 调试 - 清理后自定义文件名: '{clean_custom}'")
-            
-            # 如果自定义文件名没有扩展名，使用原文件的扩展名
-            if not Path(clean_custom).suffix:
-                clean_custom = f"{clean_custom}{current_path.suffix}"
-            
+
+            # 先检查自定义文件名是否已有扩展名
+            custom_path = Path(custom_filename)
+            custom_ext = custom_path.suffix
+            custom_stem = custom_path.stem
+
+            # 如果自定义文件名有扩展名，但与原文件不同，优先使用原文件扩展名
+            if custom_ext and custom_ext.lower() != original_ext.lower():
+                logger.info(f"🔧 调试 - 自定义文件名扩展名不匹配，使用原文件扩展名: '{original_ext}'")
+                custom_filename = custom_stem  # 移除自定义扩展名
+
+            # 清理文件名（不含扩展名）
+            clean_custom_stem = self.sanitize_filename(custom_stem if custom_ext else custom_filename)
+
+            # 确保使用原文件扩展名
+            clean_custom = f"{clean_custom_stem}{original_ext}"
+            logger.info(f"🔧 调试 - 最终文件名(带扩展名): '{clean_custom}'")
+
             # 构建新路径，确保唯一性
             target_path = current_path.parent / clean_custom
             unique_path = self._get_unique_filename(target_path, set())
