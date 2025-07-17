@@ -762,7 +762,7 @@ function downloadManager() {
                     this.eventSource = null;
                 }
 
-                const clientId = 'download_progress_' + Date.now();
+                const clientId = 'webpage_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
                 // 🚀 使用无认证SSE端点（更简单、更快速、更易集成）
                 this.eventSource = new EventSource(`/api/events/public?client_id=${clientId}`);
 
@@ -895,39 +895,67 @@ function downloadManager() {
         },
 
         updateDownloadProgress(data) {
-            // 实时更新下载进度（增强版）
+            // 实时更新下载进度（增强版 - 支持字节数显示）
             try {
                 if (!data || !data.download_id) {
                     console.warn('⚠️ 无效的进度数据:', data);
                     return;
                 }
 
-                const { download_id, status, progress } = data;
+                const { download_id, status, progress, downloaded_bytes, total_bytes, downloaded_mb, total_mb } = data;
 
                 // 验证进度值
                 const validProgress = Math.max(0, Math.min(100, parseInt(progress) || 0));
 
+                // 生成进度文本
+                let progressText = '';
+                if (progress === -1) {
+                    // 没有总大小时，显示已下载的数据量
+                    if (downloaded_mb !== undefined) {
+                        progressText = `已下载 ${downloaded_mb.toFixed(1)} MB`;
+                    } else if (downloaded_bytes !== undefined) {
+                        progressText = `已下载 ${(downloaded_bytes / (1024 * 1024)).toFixed(1)} MB`;
+                    } else {
+                        progressText = '下载中...';
+                    }
+                } else {
+                    // 有总大小时，显示百分比和数据量
+                    if (downloaded_mb !== undefined && total_mb !== undefined) {
+                        progressText = `${validProgress}% (${downloaded_mb.toFixed(1)}/${total_mb.toFixed(1)} MB)`;
+                    } else {
+                        progressText = `${validProgress}%`;
+                    }
+                }
+
                 // 查找对应的下载卡片
-                console.log(`📊 更新进度: ${download_id.substring(0, 8)}... -> ${validProgress}% (${status})`);
+                console.log(`📊 更新进度: ${download_id.substring(0, 8)}... -> ${progressText} (${status})`);
                 const card = document.querySelector(`[data-download-id="${download_id}"]`);
 
                 if (card) {
                     // 更新进度条
                     const progressBar = card.querySelector('.progress-bar');
-                    const progressText = card.querySelector('.progress-text');
+                    const progressTextElement = card.querySelector('.progress-text');
                     const statusBadge = card.querySelector('.badge');
 
                     if (progressBar) {
-                        // 直接更新真实进度，添加平滑过渡效果
+                        // 更新进度条宽度
                         progressBar.style.transition = 'width 0.5s ease-out';
-                        progressBar.style.width = `${validProgress}%`;
-
-                        if (progressText) {
-                            progressText.textContent = `${validProgress}%`;
+                        if (progress === -1) {
+                            // 没有总大小时，显示不确定进度条
+                            progressBar.style.width = '100%';
+                            progressBar.classList.add('progress-bar-striped', 'progress-bar-animated');
+                        } else {
+                            // 有总大小时，显示确定进度条
+                            progressBar.style.width = `${validProgress}%`;
+                            progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
                         }
 
                         // 更新进度条颜色
                         this.updateProgressColor(progressBar, validProgress);
+                    }
+
+                    if (progressTextElement) {
+                        progressTextElement.textContent = progressText;
                     }
 
                     if (statusBadge && status) {

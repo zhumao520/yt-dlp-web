@@ -1,0 +1,49 @@
+# YT-DLP Web - 轻量化依赖
+# 运行时必需依赖：13个核心包 + 2个Telegram可选包 + 2个异步任务可选包
+# 核心框架
+Flask>=3.1.1
+Flask-CORS>=6.0.0
+
+# 认证和安全
+PyJWT>=2.10.1
+
+# HTTP请求和代理支持
+requests>=2.32.3
+PySocks>=1.7.1
+
+# 异步HTTP和代理支持 (已移除，项目不使用)
+# aiohttp>=3.9.0
+# aiohttp-socks>=0.8.0
+
+# 文件类型检测
+filetype>=1.2.0
+
+# 配置管理
+PyYAML>=6.0.2
+
+# 系统监控
+psutil>=6.1.0
+
+# Telegram集成 (可选) - 使用Pyrofork替代停止维护的pyrogram
+pyrofork>=2.3.41
+TgCrypto-pyrofork>=1.2.5
+
+# SOCKS5代理支持 - pyrofork 使用 socksio 提供原生 SOCKS5 支持
+socksio>=1.0.0
+
+# 异步任务队列 (可选) - 基于SQLite的轻量级异步上传
+# 无需外部依赖，使用内置SQLite数据库
+
+# 下载引擎 (双引擎系统)
+yt-dlp>=2025.5.22
+pytubefix>=9.1.2
+
+# 生产部署 (可选)
+gunicorn>=23.0.0
+# 环境变量管理 (已移除，项目直接使用os.environ)
+# python-dotenv>=1.0.1
+
+# 开发工具 (已移除，生产环境不需要)
+# pytest>=8.2.2
+# black>=24.4.2
+# flake8>=7.2.0

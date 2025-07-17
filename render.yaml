@@ -1,0 +1,21 @@
+# Render.com部署配置\n# MTProto代理 - Fake TLS混淆\n\n{
+  "services": [
+    {
+      "type": "web",
+      "name": "mtproto-proxy",
+      "env": "docker",
+      "repo": "https://github.com/9seconds/mtg.git",
+      "dockerCommand": "./mtg run --bind-to 0.0.0.0:$PORT --secret dd825fdb3a6c745e102df937f5b4226f26google.com",
+      "envVars": [
+        {
+          "key": "MTG_SECRET",
+          "value": "dd825fdb3a6c745e102df937f5b4226f26google.com"
+        },
+        {
+          "key": "MTG_BIND",
+          "value": "0.0.0.0:$PORT"
+        }
+      ]
+    }
+  ]
+}
