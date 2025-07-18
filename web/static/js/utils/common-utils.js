@@ -51,20 +51,6 @@ class CommonUtils {
     }
 
     /**
-     * 格式化时间 - 统一实现
-     * @param {number} seconds 秒数
-     * @returns {string} 格式化后的时间字符串 (mm:ss)
-     */
-    static formatTime(seconds) {
-        if (isNaN(seconds) || seconds < 0) return '0:00';
-
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
-
-        return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-    }
-
-    /**
      * HTML转义 - 统一实现
      * @param {string} text 需要转义的文本
      * @returns {string} 转义后的HTML安全文本

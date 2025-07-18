@@ -178,112 +178,100 @@
     
 </div>
 
-<!-- Netflix风格视频播放器模态框 -->
+<!-- 现代化视频播放器模态框 -->
 <div class="modal fade" id="videoModal" tabindex="-1">
     <div class="modal-dialog modal-fullscreen modal-dialog-centered">
-        <div class="modal-content netflix-video-player">
-            <!-- 顶部信息栏 -->
-            <div class="netflix-header" id="netflixHeader">
+        <div class="modal-content modern-video-player">
+            <div class="modal-header border-0 p-3">
                 <div class="d-flex align-items-center">
-                    <button type="button" class="netflix-back-btn" data-bs-dismiss="modal" title="返回">
-                        <i class="bi bi-arrow-left"></i>
-                    </button>
-                    <div class="video-title-info ms-3">
-                        <h5 class="netflix-title mb-0" id="videoTitle">视频播放器</h5>
-                        <div class="video-meta">
-                            <span id="videoFileName">视频文件</span>
-                            <span class="separator">•</span>
-                            <span id="videoFileInfo">正在加载...</span>
-                        </div>
-                    </div>
+                    <i class="bi bi-play-circle me-2 text-white fs-4"></i>
+                    <h5 class="modal-title text-white fw-bold mb-0" id="videoTitle">视频播放器</h5>
                 </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-
             <div class="modal-body p-0 position-relative">
                 <!-- 视频播放区域 -->
-                <div class="netflix-video-container">
+                <div class="video-container">
                     <video id="videoPlayer"
                            crossorigin
                            playsinline
-                           class="netflix-video">
+                           class="main-video">
                         您的浏览器不支持视频播放
                     </video>
 
-                    <!-- 加载覆盖层 -->
-                    <div class="netflix-loading-overlay" id="videoOverlay">
-                        <div class="loading-content">
-                            <div class="netflix-spinner">
-                                <div class="spinner-circle"></div>
+                    <!-- 视频信息覆盖层 -->
+                    <div class="video-overlay" id="videoOverlay">
+                        <div class="video-info-panel">
+                            <div class="video-poster" id="videoPoster">
+                                <i class="bi bi-play-circle display-1 text-white"></i>
+                                <div class="mt-3">
+                                    <small class="text-white-50" id="videoOverlayText">点击播放视频</small>
+                                </div>
                             </div>
-                            <div class="loading-info mt-4">
-                                <h4 class="loading-title" id="videoFileName">视频文件</h4>
-                                <p class="loading-subtitle" id="videoOverlayText">正在加载视频...</p>
-                                <div class="video-badges mt-3">
-                                    <span class="netflix-badge" id="videoResolution">分辨率</span>
-                                    <span class="netflix-badge" id="videoDuration">时长</span>
-                                    <span class="netflix-badge" id="videoSize">大小</span>
+                            <div class="video-details">
+                                <h4 class="text-white fw-bold mb-2" id="videoFileName">视频文件</h4>
+                                <p class="text-white-50 mb-3" id="videoFileInfo">正在加载...</p>
+                                <div class="video-stats">
+                                    <span class="badge bg-primary me-2" id="videoResolution">分辨率</span>
+                                    <span class="badge bg-success me-2" id="videoDuration">时长</span>
+                                    <span class="badge bg-info" id="videoSize">大小</span>
                                 </div>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- 中央播放按钮 -->
-                    <div class="netflix-center-play" id="centerPlayBtn">
-                        <button class="center-play-button">
-                            <i class="bi bi-play-fill" id="centerPlayIcon"></i>
-                        </button>
-                    </div>
-
-                    <!-- 控制栏 -->
-                    <div class="netflix-controls" id="customControls">
-                        <!-- 进度条区域 -->
-                        <div class="progress-area">
-                            <div class="netflix-progress" id="videoProgressContainer">
-                                <div class="progress-track"></div>
+                <!-- 自定义控制栏 -->
+                <div class="custom-video-controls" id="customControls">
+                    <div class="controls-background"></div>
+                    <div class="controls-content">
+                        <!-- 进度条 -->
+                        <div class="video-progress-container mb-3">
+                            <div class="d-flex justify-content-between text-white small mb-2">
+                                <span id="videoCurrentTime">0:00</span>
+                                <span id="videoTotalTime">0:00</span>
+                            </div>
+                            <div class="video-progress" id="videoProgressContainer">
+                                <div class="progress-bg"></div>
                                 <div class="progress-fill" id="videoProgressFill"></div>
                                 <div class="progress-handle" id="videoProgressHandle"></div>
-                                <div class="progress-preview" id="progressPreview">
-                                    <div class="preview-time">0:00</div>
-                                </div>
                             </div>
                         </div>
 
-                        <!-- 控制按钮区域 -->
-                        <div class="controls-area">
-                            <div class="controls-left">
-                                <!-- 播放/暂停 -->
-                                <button class="netflix-control-btn play-btn" id="videoPlayPauseBtn" title="播放/暂停">
+                        <!-- 控制按钮 -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center gap-3">
+                                <!-- 播放控制 -->
+                                <button class="video-control-btn" id="videoPlayPauseBtn" title="播放/暂停">
                                     <i class="bi bi-play-fill" id="videoPlayIcon"></i>
                                 </button>
 
                                 <!-- 音量控制 -->
-                                <div class="volume-group">
-                                    <button class="netflix-control-btn" id="videoMuteBtn" title="静音">
+                                <div class="volume-control d-flex align-items-center gap-2">
+                                    <button class="video-control-btn" id="videoMuteBtn" title="静音">
                                         <i class="bi bi-volume-up" id="videoVolumeIcon"></i>
                                     </button>
-                                    <div class="volume-slider-container">
-                                        <input type="range" id="videoVolumeSlider" min="0" max="100" value="100" class="netflix-volume-slider">
+                                    <div class="video-volume-slider">
+                                        <input type="range" id="videoVolumeSlider" min="0" max="100" value="100" class="form-range">
                                     </div>
                                 </div>
 
                                 <!-- 时间显示 -->
-                                <div class="time-info">
-                                    <span id="videoCurrentTime">0:00</span>
-                                    <span class="time-separator">/</span>
-                                    <span id="videoTotalTime">0:00</span>
+                                <div class="time-display text-white">
+                                    <span id="videoTimeDisplay">0:00 / 0:00</span>
                                 </div>
                             </div>
 
-                            <div class="controls-right">
+                            <div class="d-flex align-items-center gap-2">
                                 <!-- 播放速度 -->
                                 <div class="dropdown">
-                                    <button class="netflix-control-btn" type="button" data-bs-toggle="dropdown" title="播放速度">
+                                    <button class="video-control-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" title="播放速度">
                                         <i class="bi bi-speedometer2"></i>
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-dark netflix-dropdown">
+                                    <ul class="dropdown-menu dropdown-menu-dark">
                                         <li><a class="dropdown-item" href="#" onclick="app.setVideoSpeed(0.5)">0.5x</a></li>
                                         <li><a class="dropdown-item" href="#" onclick="app.setVideoSpeed(0.75)">0.75x</a></li>
-                                        <li><a class="dropdown-item active" href="#" onclick="app.setVideoSpeed(1)">正常</a></li>
+                                        <li><a class="dropdown-item active" href="#" onclick="app.setVideoSpeed(1)">1x</a></li>
                                         <li><a class="dropdown-item" href="#" onclick="app.setVideoSpeed(1.25)">1.25x</a></li>
                                         <li><a class="dropdown-item" href="#" onclick="app.setVideoSpeed(1.5)">1.5x</a></li>
                                         <li><a class="dropdown-item" href="#" onclick="app.setVideoSpeed(2)">2x</a></li>
@@ -291,17 +279,17 @@
                                 </div>
 
                                 <!-- 画中画 -->
-                                <button class="netflix-control-btn" id="videoPipBtn" title="画中画">
+                                <button class="video-control-btn" id="videoPipBtn" title="画中画">
                                     <i class="bi bi-pip"></i>
                                 </button>
 
                                 <!-- 全屏 -->
-                                <button class="netflix-control-btn" id="videoFullscreenBtn" title="全屏">
+                                <button class="video-control-btn" id="videoFullscreenBtn" title="全屏">
                                     <i class="bi bi-fullscreen"></i>
                                 </button>
 
                                 <!-- 下载 -->
-                                <button class="netflix-control-btn" onclick="app.downloadCurrentVideo()" title="下载">
+                                <button class="video-control-btn" onclick="app.downloadCurrentVideo()" title="下载">
                                     <i class="bi bi-download"></i>
                                 </button>
                             </div>
@@ -400,74 +388,9 @@
                                 <button type="button" class="btn btn-outline-light btn-sm me-2" onclick="app.downloadCurrentAudio()">
                                     <i class="bi bi-download"></i> 下载
                                 </button>
-                                <button type="button" class="btn btn-outline-light btn-sm me-2" onclick="app.toggleLyrics()">
+                                <button type="button" class="btn btn-outline-light btn-sm" onclick="app.toggleLyrics()">
                                     <i class="bi bi-chat-quote"></i> <span id="lyricsToggleText">显示歌词</span>
                                 </button>
-                                <button type="button" class="btn btn-outline-light btn-sm" onclick="app.toggleManualLyrics()">
-                                    <i class="bi bi-search"></i> 获取歌词
-                                </button>
-                            </div>
-
-                            <!-- 手动获取歌词面板 -->
-                            <div class="manual-lyrics-panel mt-3" id="manualLyricsPanel" style="display: none;">
-                                <div class="card bg-dark border-secondary">
-                                    <div class="card-header">
-                                        <h6 class="mb-0 text-white">
-                                            <i class="bi bi-search me-2"></i>手动获取歌词
-                                        </h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label for="manualSongTitle" class="form-label text-white-50">歌曲名</label>
-                                                <input type="text" class="form-control bg-dark border-secondary text-white"
-                                                       id="manualSongTitle"
-                                                       placeholder="请输入歌曲名">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label for="manualArtist" class="form-label text-white-50">演唱者</label>
-                                                <input type="text" class="form-control bg-dark border-secondary text-white"
-                                                       id="manualArtist"
-                                                       placeholder="请输入演唱者（可选）">
-                                            </div>
-                                        </div>
-                                        <div class="mt-3">
-                                            <label for="manualApiUrl" class="form-label text-white-50">歌词API地址</label>
-                                            <input type="url" class="form-control bg-dark border-secondary text-white"
-                                                   id="manualApiUrl"
-                                                   placeholder="请输入您的歌词API地址，如：https://your-api.com/lrc?title={title}&artist={artist}">
-                                            <div class="form-text text-white-50">
-                                                使用 {title} 和 {artist} 作为参数占位符
-                                            </div>
-                                        </div>
-                                        <div class="mt-3">
-                                            <div class="alert alert-info border-0" style="background: rgba(139, 92, 246, 0.1); border-left: 3px solid #8B5CF6 !important;">
-                                                <small class="text-white">
-                                                    <i class="bi bi-info-circle me-1"></i>
-                                                    <strong>请配置您自己的歌词API服务</strong><br>
-                                                    API需要返回JSON格式：<code>[{"title": "歌曲名", "artist": "艺术家", "lyrics": "LRC格式歌词"}]</code>
-                                                </small>
-                                            </div>
-                                        </div>
-                                        <div class="d-flex gap-2 mt-3">
-                                            <button type="button" class="btn btn-primary btn-sm" onclick="app.fetchManualLyrics()">
-                                                <i class="bi bi-download"></i> 获取歌词
-                                            </button>
-                                            <button type="button" class="btn btn-secondary btn-sm" onclick="app.fillCurrentSongInfo()" title="从当前播放的文件名自动解析歌曲信息">
-                                                <i class="bi bi-magic"></i> 自动解析文件名
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="app.clearManualInputs()">
-                                                <i class="bi bi-x"></i> 清空
-                                            </button>
-                                        </div>
-                                        <div class="mt-2">
-                                            <small class="text-white-50">
-                                                <i class="bi bi-info-circle me-1"></i>
-                                                "自动解析文件名"会从当前播放的音频文件名中提取歌曲名和演唱者信息
-                                            </small>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -530,7 +453,36 @@
     padding: 0.3rem 0.5rem;
 }
 
+/* 简洁视频播放器样式 */
+#videoModal .modal-content {
+    background: #000 !important;
+}
 
+#videoPlayer {
+    object-fit: contain; /* 保持视频完整显示，不裁剪 */
+}
+
+/* 全屏时保持视频完整显示 */
+#videoPlayer:fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: contain !important;
+    background: #000;
+}
+
+#videoPlayer:-webkit-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: contain !important;
+    background: #000;
+}
+
+#videoPlayer:-moz-full-screen {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: contain !important;
+    background: #000;
+}
 
 /* 移动端优化 */
 @media (max-width: 768px) {
@@ -923,93 +875,11 @@
 
 /* 当前播放歌词的特殊样式 */
 .lyric-line.current {
-    background: linear-gradient(135deg, rgba(139,92,246,0.3), rgba(167,139,250,0.3));
+    background: linear-gradient(135deg, rgba(255,107,107,0.3), rgba(78,205,196,0.3));
     color: #fff;
     font-weight: 600;
     transform: scale(1.02);
-    box-shadow: 0 4px 15px rgba(139,92,246,0.3);
-    border: 1px solid rgba(139,92,246,0.4);
-    border-radius: 8px;
-}
-
-/* 手动获取歌词面板样式 */
-.manual-lyrics-panel {
-    animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.manual-lyrics-panel .card {
-    border-radius: 12px;
-    backdrop-filter: blur(10px);
-    background: rgba(33, 37, 41, 0.95) !important;
-}
-
-.manual-lyrics-panel .card-header {
-    background: rgba(139, 92, 246, 0.1);
-    border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-    border-radius: 12px 12px 0 0 !important;
-}
-
-.manual-lyrics-panel .form-control {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(139, 92, 246, 0.3) !important;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-.manual-lyrics-panel .form-control:focus {
-    background: rgba(255, 255, 255, 0.1) !important;
-    border-color: #8B5CF6 !important;
-    box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25) !important;
-}
-
-.manual-lyrics-panel .btn-primary {
-    background: linear-gradient(135deg, #8B5CF6, #6D28D9);
-    border: none;
-    border-radius: 6px;
-    transition: all 0.3s ease;
-}
-
-.manual-lyrics-panel .btn-primary:hover {
-    background: linear-gradient(135deg, #7C3AED, #5B21B6);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
-}
-
-.manual-lyrics-panel .btn-secondary {
-    background: rgba(108, 117, 125, 0.8);
-    border: 1px solid rgba(108, 117, 125, 0.5);
-    border-radius: 6px;
-}
-
-.manual-lyrics-panel .btn-outline-secondary {
-    border-color: rgba(139, 92, 246, 0.3);
-    color: #8B5CF6;
-    border-radius: 6px;
-}
-
-.manual-lyrics-panel .btn-outline-secondary:hover {
-    background: rgba(139, 92, 246, 0.1);
-    border-color: #8B5CF6;
-    color: #A78BFA;
-}
-
-.manual-lyrics-panel code {
-    background: rgba(139, 92, 246, 0.1);
-    color: #A78BFA;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.85rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
 
 .lyric-line.current::after {
@@ -1123,626 +993,277 @@
     }
 }
 
-/* Netflix风格视频播放器样式 */
-.netflix-video-player {
-    background: #000;
+/* 现代化视频播放器样式 */
+.modern-video-player {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     border: none;
     border-radius: 0;
-    overflow: hidden;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
 }
 
-.netflix-video-container {
+.video-container {
     position: relative;
     width: 100%;
-    height: 100vh;
+    height: calc(100vh - 80px);
     background: #000;
-    cursor: none;
-    transition: cursor 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.netflix-video-container.show-cursor {
-    cursor: default;
-}
-
-.netflix-video {
+.main-video {
     width: 100%;
     height: 100%;
     object-fit: contain;
     background: #000;
 }
 
-/* 顶部信息栏 */
-.netflix-header {
+/* 视频信息覆盖层 */
+.video-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    padding: 20px 30px;
-    background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
-    z-index: 20;
-    opacity: 0;
-    transform: translateY(-20px);
-    transition: all 0.3s ease;
-    pointer-events: none;
-}
-
-.netflix-header.visible {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: all;
-}
-
-.netflix-back-btn {
-    width: 44px;
-    height: 44px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(42, 42, 42, 0.8);
-    color: white;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(26,26,46,0.9) 0%, rgba(22,33,62,0.8) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    pointer-events: auto;
     cursor: pointer;
-    transition: all 0.2s ease;
-    backdrop-filter: blur(10px);
+    z-index: 10;
 }
 
-.netflix-back-btn:hover {
-    background: rgba(139, 92, 246, 0.8);
-    transform: scale(1.1);
-}
-
-.netflix-title {
-    color: white;
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin: 0;
-}
-
-.video-meta {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.9rem;
-    margin-top: 4px;
-}
-
-.separator {
-    margin: 0 8px;
-}
-
-/* 加载覆盖层 */
-.netflix-loading-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 15;
-    opacity: 1;
-    transition: opacity 0.5s ease;
-}
-
-.netflix-loading-overlay.hidden {
+.video-overlay.hidden {
     opacity: 0;
     pointer-events: none;
 }
 
-.loading-content {
+.video-info-panel {
     text-align: center;
-    color: white;
+    max-width: 600px;
+    padding: 40px;
 }
 
-.netflix-spinner {
-    width: 60px;
-    height: 60px;
-    margin: 0 auto 20px;
-    position: relative;
-}
-
-.spinner-circle {
-    width: 100%;
-    height: 100%;
-    border: 3px solid rgba(139, 92, 246, 0.3);
-    border-top: 3px solid #8B5CF6;
+.video-poster {
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.loading-title {
-    font-size: 1.8rem;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: white;
-}
-
-.loading-subtitle {
-    font-size: 1rem;
-    color: rgba(255, 255, 255, 0.7);
-    margin-bottom: 0;
-}
-
-.video-badges {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     display: flex;
-    gap: 8px;
+    align-items: center;
     justify-content: center;
-    flex-wrap: wrap;
+    margin: 0 auto 30px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    animation: pulse 2s ease-in-out infinite;
 }
 
-.netflix-badge {
-    background: rgba(139, 92, 246, 0.2);
-    color: #A78BFA;
-    padding: 6px 12px;
-    border-radius: 16px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    border: 1px solid rgba(139, 92, 246, 0.3);
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
 }
 
-/* 中央播放按钮 */
-.netflix-center-play {
+.video-details h4 {
+    font-size: 2rem;
+    margin-bottom: 15px;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.video-stats .badge {
+    font-size: 0.9rem;
+    padding: 8px 12px;
+    border-radius: 20px;
+}
+
+/* 自定义视频控制栏 */
+.custom-video-controls {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 10;
+    bottom: 0;
+    left: 0;
+    width: 100%;
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
 }
 
-.netflix-center-play.visible {
+.custom-video-controls.visible {
     opacity: 1;
     pointer-events: all;
 }
 
-.center-play-button {
-    width: 80px;
-    height: 80px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(139, 92, 246, 0.9);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 2rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(139, 92, 246, 0.4);
-}
-
-.center-play-button:hover {
-    background: rgba(139, 92, 246, 1);
-    transform: scale(1.1);
-    box-shadow: 0 12px 40px rgba(139, 92, 246, 0.6);
-}
-
-.center-play-button:active {
-    transform: scale(0.95);
-}
-
-/* Netflix控制栏 */
-.netflix-controls {
+.controls-background {
     position: absolute;
     bottom: 0;
     left: 0;
     width: 100%;
+    height: 120px;
     background: linear-gradient(transparent, rgba(0,0,0,0.8));
-    padding: 20px 30px 30px;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.3s ease;
-    pointer-events: none;
-    z-index: 20;
+    backdrop-filter: blur(10px);
 }
 
-.netflix-controls.visible {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: all;
-}
-
-/* 进度条区域 */
-.progress-area {
-    margin-bottom: 20px;
-}
-
-.netflix-progress {
+.controls-content {
     position: relative;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-    cursor: pointer;
-    margin-bottom: 8px;
-    transition: height 0.2s ease;
+    padding: 20px 30px;
+    z-index: 10;
 }
 
-.netflix-progress:hover {
+/* 视频进度条 */
+.video-progress {
+    position: relative;
     height: 6px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 3px;
+    cursor: pointer;
+    overflow: hidden;
 }
 
-.progress-track {
+.video-progress .progress-bg {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 3px;
 }
 
-.progress-fill {
+.video-progress .progress-fill {
     position: absolute;
     top: 0;
     left: 0;
     height: 100%;
-    background: #8B5CF6;
-    border-radius: 2px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 3px;
     width: 0%;
     transition: width 0.1s ease;
 }
 
-.progress-handle {
+.video-progress .progress-handle {
     position: absolute;
     top: 50%;
     left: 0%;
-    width: 14px;
-    height: 14px;
-    background: #8B5CF6;
-    border: 2px solid white;
+    width: 16px;
+    height: 16px;
+    background: white;
     border-radius: 50%;
     transform: translate(-50%, -50%);
-    opacity: 0;
-    transition: opacity 0.2s ease;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-
-.netflix-progress:hover .progress-handle {
-    opacity: 1;
-}
-
-.progress-preview {
-    position: absolute;
-    bottom: 20px;
-    left: 0;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
     opacity: 0;
     transition: opacity 0.2s ease;
-    pointer-events: none;
-    backdrop-filter: blur(10px);
 }
 
-.progress-preview.visible {
+.video-progress:hover .progress-handle {
     opacity: 1;
 }
 
-/* 控制按钮区域 */
-.controls-area {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.controls-left,
-.controls-right {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-/* Netflix控制按钮 */
-.netflix-control-btn {
-    width: 40px;
-    height: 40px;
+/* 视频控制按钮 */
+.video-control-btn {
+    width: 44px;
+    height: 44px;
     border: none;
     border-radius: 50%;
-    background: transparent;
+    background: rgba(255,255,255,0.2);
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.1rem;
     cursor: pointer;
-    transition: all 0.2s ease;
-    opacity: 0.8;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
 }
 
-.netflix-control-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    opacity: 1;
+.video-control-btn:hover {
+    background: rgba(255,255,255,0.3);
     transform: scale(1.1);
 }
 
-.netflix-control-btn:active {
-    transform: scale(0.9);
+.video-control-btn:active {
+    transform: scale(0.95);
 }
 
-.netflix-control-btn.play-btn {
-    width: 48px;
-    height: 48px;
-    background: rgba(255, 255, 255, 0.1);
-    font-size: 1.3rem;
+/* 视频音量控制 */
+.video-volume-slider {
+    width: 100px;
 }
 
-.netflix-control-btn.play-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-/* 音量控制组 */
-.volume-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.volume-slider-container {
-    width: 0;
-    overflow: hidden;
-    transition: width 0.3s ease;
-}
-
-.volume-group:hover .volume-slider-container {
-    width: 80px;
-}
-
-.netflix-volume-slider {
-    width: 80px;
-    height: 4px;
-    background: linear-gradient(to right, #8B5CF6 0%, #8B5CF6 var(--volume-percent, 100%), rgba(255, 255, 255, 0.3) var(--volume-percent, 100%), rgba(255, 255, 255, 0.3) 100%);
-    outline: none;
-    border: none;
-    cursor: pointer;
-    -webkit-appearance: none;
-    border-radius: 2px;
-    transition: all 0.2s ease;
-}
-
-.netflix-volume-slider:hover {
-    height: 6px;
-}
-
-.netflix-volume-slider::-webkit-slider-track {
-    height: 4px;
+.video-volume-slider .form-range {
     background: transparent;
+    border: none;
+    height: 4px;
+}
+
+.video-volume-slider .form-range::-webkit-slider-track {
+    background: rgba(255,255,255,0.3);
     border-radius: 2px;
+    height: 4px;
 }
 
-.netflix-volume-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
-    background: #8B5CF6;
-    border-radius: 50%;
-    cursor: pointer;
-    border: 2px solid white;
-    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.4);
-    transition: all 0.2s ease;
-}
-
-.netflix-volume-slider:hover::-webkit-slider-thumb {
+.video-volume-slider .form-range::-webkit-slider-thumb {
+    appearance: none;
     width: 16px;
     height: 16px;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.6);
-}
-
-.netflix-volume-slider::-moz-range-track {
-    height: 4px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-    border: none;
-}
-
-.netflix-volume-slider::-moz-range-progress {
-    height: 4px;
-    background: #8B5CF6;
-    border-radius: 2px;
-    border: none;
-}
-
-.netflix-volume-slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    background: #8B5CF6;
     border-radius: 50%;
+    background: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     cursor: pointer;
-    border: 2px solid white;
-    box-shadow: 0 2px 6px rgba(139, 92, 246, 0.4);
-    transition: all 0.2s ease;
 }
 
-.netflix-volume-slider:hover::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.6);
-}
-
-/* 时间信息 */
-.time-info {
-    color: white;
-    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+/* 时间显示 */
+.time-display {
+    font-family: 'Courier New', monospace;
     font-size: 0.9rem;
     font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 4px;
 }
 
-.time-separator {
-    opacity: 0.6;
-}
-
-/* 下拉菜单样式 */
-.netflix-dropdown {
-    background: rgba(42, 42, 42, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    backdrop-filter: blur(20px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-}
-
-.netflix-dropdown .dropdown-item {
-    color: white;
-    padding: 8px 16px;
-    transition: background-color 0.2s ease;
-}
-
-.netflix-dropdown .dropdown-item:hover {
-    background: rgba(139, 92, 246, 0.2);
-    color: #A78BFA;
-}
-
-.netflix-dropdown .dropdown-item.active {
-    background: rgba(139, 92, 246, 0.3);
-    color: #8B5CF6;
-}
-
-/* 移动端Netflix播放器优化 */
+/* 移动端视频播放器优化 */
 @media (max-width: 768px) {
-    .netflix-video-player .modal-dialog {
+    .modern-video-player .modal-dialog {
         margin: 0;
         max-width: 100vw;
         height: 100vh;
     }
 
-    .netflix-header {
+    .video-container {
+        height: calc(100vh - 60px);
+    }
+
+    .video-info-panel {
+        padding: 20px;
+        max-width: 90%;
+    }
+
+    .video-details h4 {
+        font-size: 1.5rem;
+    }
+
+    .video-poster {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 20px;
+    }
+
+    .controls-content {
         padding: 15px 20px;
     }
 
-    .netflix-title {
-        font-size: 1.2rem;
-    }
-
-    .video-meta {
-        font-size: 0.8rem;
-    }
-
-    .netflix-back-btn {
+    .video-control-btn {
         width: 40px;
         height: 40px;
         font-size: 1rem;
     }
 
-    .center-play-button {
-        width: 60px;
-        height: 60px;
-        font-size: 1.5rem;
+    .video-volume-slider {
+        width: 80px;
     }
 
-    .netflix-controls {
-        padding: 15px 20px 25px;
-    }
-
-    .controls-left,
-    .controls-right {
-        gap: 12px;
-    }
-
-    .netflix-control-btn {
-        width: 36px;
-        height: 36px;
-        font-size: 1rem;
-    }
-
-    .netflix-control-btn.play-btn {
-        width: 42px;
-        height: 42px;
-        font-size: 1.2rem;
-    }
-
-    .volume-group:hover .volume-slider-container {
-        width: 60px;
-    }
-
-    .netflix-volume-slider {
-        width: 60px;
-    }
-
-    .time-info {
+    .video-stats .badge {
         font-size: 0.8rem;
+        padding: 6px 10px;
+        margin: 2px;
     }
-
-    .loading-title {
-        font-size: 1.4rem;
-    }
-
-    .loading-subtitle {
-        font-size: 0.9rem;
-    }
-
-    .netflix-badge {
-        font-size: 0.7rem;
-        padding: 4px 8px;
-    }
-
-    .netflix-spinner {
-        width: 50px;
-        height: 50px;
-    }
-}
-
-/* 键盘快捷键提示 */
-.keyboard-shortcuts {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: all 0.3s ease;
-    pointer-events: none;
-    backdrop-filter: blur(10px);
-    z-index: 25;
-}
-
-.keyboard-shortcuts.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.keyboard-shortcuts h6 {
-    margin: 0 0 8px 0;
-    font-size: 0.9rem;
-    color: #8B5CF6;
-}
-
-.keyboard-shortcuts ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.keyboard-shortcuts li {
-    margin: 4px 0;
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-}
-
-.keyboard-shortcuts .key {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 0.7rem;
 }
 </style>
 {% endblock %}
@@ -1773,13 +1294,6 @@ class FilesApp {
     init() {
         this.bindEvents();
         this.loadFiles();
-        this.initManualLyricsSettings();
-    }
-
-    // 初始化手动歌词设置
-    initManualLyricsSettings() {
-        // 不设置默认API，让用户自己配置
-        console.log('🎵 手动歌词API设置已初始化');
     }
     
     bindEvents() {
@@ -2125,16 +1639,21 @@ class FilesApp {
 
         // 解析视频信息
         const videoInfo = this.parseVideoInfo(this.currentVideo.name);
-        const isLargeVideo = this.currentVideo.size > 100 * 1024 * 1024;
+        const isLargeVideo = this.currentVideo.size > 100 * 1024 * 1024; // 100MB+
         const sizeInfo = this.formatSize(this.currentVideo.size);
 
         // 设置视频信息
-        title.textContent = videoInfo.title;
+        title.textContent = '视频播放器';
         fileName.textContent = videoInfo.title;
-        fileInfo.textContent = `${sizeInfo} • ${this.formatDate(this.currentVideo.modified)}`;
+        fileInfo.textContent = `${this.formatDate(this.currentVideo.modified)}`;
         videoSize.textContent = sizeInfo;
         videoDuration.textContent = '计算中...';
         videoResolution.textContent = '检测中...';
+
+        // 大视频提示
+        if (isLargeVideo) {
+            showNotification(`正在加载大视频文件 (${sizeInfo})，请稍候...`, 'info', 5000);
+        }
 
         // 先清理之前的视频资源
         this.cleanupVideo();
@@ -2142,41 +1661,47 @@ class FilesApp {
         // 重新获取video元素
         const newVideo = document.getElementById('videoPlayer');
 
-        // 确保覆盖层显示，隐藏控制栏和中央播放按钮
+        // 确保覆盖层显示
         overlay.classList.remove('hidden');
         const customControls = document.getElementById('customControls');
-        const centerPlayBtn = document.getElementById('centerPlayBtn');
-        if (customControls) customControls.classList.remove('visible');
-        if (centerPlayBtn) centerPlayBtn.classList.remove('visible');
+        if (customControls) {
+            customControls.classList.remove('visible');
+        }
 
         // 设置视频源
         newVideo.src = `/files/stream/${encodeURIComponent(filename)}`;
 
-        // 初始化Netflix风格的视频控制
-        this.initNetflixVideoControls();
+        // 初始化视频控制
+        this.initVideoControls();
 
         // 添加事件监听器
         const loadStartHandler = () => {
             console.log('开始加载视频:', filename);
-            const overlayText = document.getElementById('videoOverlayText');
-            if (overlayText) overlayText.textContent = '正在加载视频...';
+            fileInfo.textContent = '正在加载视频...';
         };
 
         const canPlayHandler = () => {
             console.log('视频可以播放:', filename);
 
-            // 隐藏加载覆盖层
+            // 安全检查currentVideo
+            if (this.currentVideo && this.currentVideo.modified) {
+                fileInfo.textContent = `${this.formatDate(this.currentVideo.modified)}`;
+            } else {
+                fileInfo.textContent = '视频已加载';
+            }
+
+            // 隐藏覆盖层
             overlay.classList.add('hidden');
 
-            // 显示中央播放按钮
-            if (centerPlayBtn) {
-                centerPlayBtn.classList.add('visible');
+            // 显示自定义控制栏
+            const customControls = document.getElementById('customControls');
+            if (customControls) {
+                customControls.classList.add('visible');
             }
 
             // 更新视频信息
             this.updateVideoInfo();
 
-            // 显示成功通知
             if (isLargeVideo) {
                 showNotification('大视频加载完成，可以播放了！', 'success');
             } else {
@@ -2186,11 +1711,7 @@ class FilesApp {
 
         const errorHandler = (e) => {
             console.error('视频加载失败:', e);
-            const overlayText = document.getElementById('videoOverlayText');
-            if (overlayText) {
-                overlayText.textContent = '视频加载失败，点击重试';
-                overlayText.classList.add('text-danger');
-            }
+            fileInfo.textContent = '视频加载失败';
             showNotification('视频加载失败，请检查网络连接或文件完整性', 'danger');
         };
 
@@ -2199,18 +1720,36 @@ class FilesApp {
         newVideo.addEventListener('canplay', canPlayHandler, { once: true });
         newVideo.addEventListener('error', errorHandler, { once: true });
 
-        // 添加备用的点击事件来隐藏覆盖层
+        // 添加备用的点击事件来隐藏覆盖层（防止canplay事件未触发）
         overlay.addEventListener('click', () => {
             console.log('用户点击覆盖层，手动隐藏');
             overlay.classList.add('hidden');
-            if (centerPlayBtn) {
-                centerPlayBtn.classList.add('visible');
+            const customControls = document.getElementById('customControls');
+            if (customControls) {
+                customControls.classList.add('visible');
             }
             // 尝试播放视频
-            if (newVideo.readyState >= 2) {
-                this.playPauseVideo();
+            if (newVideo.readyState >= 2) { // HAVE_CURRENT_DATA
+                newVideo.play().catch(e => console.log('自动播放失败:', e));
             }
         }, { once: true });
+
+        // 添加超时机制，5秒后如果还没有canplay事件，就显示点击提示
+        setTimeout(() => {
+            if (!overlay.classList.contains('hidden')) {
+                console.log('视频加载超时，显示点击提示');
+                const posterText = overlay.querySelector('.video-poster small');
+                if (posterText) {
+                    posterText.textContent = '点击开始播放';
+                    posterText.classList.add('text-warning');
+                }
+                // 添加脉冲动画
+                const playIcon = overlay.querySelector('.bi-play-circle');
+                if (playIcon) {
+                    playIcon.style.animation = 'pulse 1.5s ease-in-out infinite';
+                }
+            }
+        }, 5000);
 
         // 显示模态框
         const modal = new bootstrap.Modal(document.getElementById('videoModal'));
@@ -2232,385 +1771,212 @@ class FilesApp {
         };
     }
 
-    initNetflixVideoControls() {
+    initVideoControls() {
         const video = document.getElementById('videoPlayer');
-        const container = document.querySelector('.netflix-video-container');
-        const header = document.getElementById('netflixHeader');
-        const controls = document.getElementById('customControls');
-        const centerPlayBtn = document.getElementById('centerPlayBtn');
+        const playPauseBtn = document.getElementById('videoPlayPauseBtn');
+        const playIcon = document.getElementById('videoPlayIcon');
+        const progressContainer = document.getElementById('videoProgressContainer');
+        const progressFill = document.getElementById('videoProgressFill');
+        const progressHandle = document.getElementById('videoProgressHandle');
+        const volumeSlider = document.getElementById('videoVolumeSlider');
+        const muteBtn = document.getElementById('videoMuteBtn');
+        const volumeIcon = document.getElementById('videoVolumeIcon');
+        const currentTimeEl = document.getElementById('videoCurrentTime');
+        const totalTimeEl = document.getElementById('videoTotalTime');
+        const timeDisplay = document.getElementById('videoTimeDisplay');
+        const fullscreenBtn = document.getElementById('videoFullscreenBtn');
+        const pipBtn = document.getElementById('videoPipBtn');
+        const customControls = document.getElementById('customControls');
 
-        // 清理旧的事件监听器
-        console.log('🧹 初始化Netflix风格视频控制器...');
+        // 清理旧的事件监听器 - 重新创建元素来移除所有事件监听器
+        console.log('🧹 清理旧的视频事件监听器...');
         const newVideo = video.cloneNode(true);
         video.parentNode.replaceChild(newVideo, video);
+
+        // 重新获取新的video元素
         const videoElement = document.getElementById('videoPlayer');
 
-        // Netflix风格的控制器状态
-        this.netflixState = {
-            controlsVisible: false,
-            hideTimer: null,
-            isDragging: false,
-            userActive: true,
-            lastMouseMove: Date.now()
+        // 清理覆盖层的事件监听器
+        const videoOverlay = document.getElementById('videoOverlay');
+        if (videoOverlay) {
+            const newOverlay = videoOverlay.cloneNode(true);
+            videoOverlay.parentNode.replaceChild(newOverlay, videoOverlay);
+        }
+
+        // 播放/暂停按钮 - 使用统一的切换函数
+        playPauseBtn.onclick = (e) => {
+            e.stopPropagation(); // 阻止事件冒泡
+            console.log('播放按钮点击，当前状态:', videoElement.paused ? '暂停' : '播放');
+
+            if (videoElement.paused) {
+                videoElement.play().then(() => {
+                    // play事件会自动同步UI
+                }).catch(e => console.log('播放失败:', e));
+            } else {
+                videoElement.pause();
+                // pause事件会自动同步UI
+            }
         };
 
-        // 显示/隐藏控制栏
-        this.showNetflixControls = () => {
-            if (controls) controls.classList.add('visible');
-            if (header) header.classList.add('visible');
-            container.classList.add('show-cursor');
-            this.netflixState.controlsVisible = true;
+        // 音量控制
+        volumeSlider.oninput = () => {
+            videoElement.volume = volumeSlider.value / 100;
+            this.updateVolumeIcon();
+        };
 
-            // 清除之前的隐藏定时器
-            if (this.netflixState.hideTimer) {
-                clearTimeout(this.netflixState.hideTimer);
+        // 静音按钮
+        muteBtn.onclick = () => {
+            videoElement.muted = !videoElement.muted;
+            this.updateVolumeIcon();
+        };
+
+        // 进度条控制
+        let isDragging = false;
+
+        progressContainer.onclick = (e) => {
+            if (!isDragging) {
+                const rect = progressContainer.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                videoElement.currentTime = percent * videoElement.duration;
             }
+        };
 
-            // 3秒后自动隐藏（仅在播放时）
-            this.netflixState.hideTimer = setTimeout(() => {
-                if (!videoElement.paused && this.netflixState.userActive) {
-                    this.hideNetflixControls();
+        progressContainer.onmousedown = (e) => {
+            isDragging = true;
+            const rect = progressContainer.getBoundingClientRect();
+            const percent = (e.clientX - rect.left) / rect.width;
+            videoElement.currentTime = percent * videoElement.duration;
+        };
+
+        document.onmouseup = () => {
+            isDragging = false;
+        };
+
+        document.onmousemove = (e) => {
+            if (isDragging) {
+                const rect = progressContainer.getBoundingClientRect();
+                const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                videoElement.currentTime = percent * videoElement.duration;
+            }
+        };
+
+        // 全屏控制
+        fullscreenBtn.onclick = () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                videoElement.requestFullscreen();
+            }
+        };
+
+        // 画中画
+        pipBtn.onclick = () => {
+            if (videoElement.requestPictureInPicture) {
+                videoElement.requestPictureInPicture();
+            }
+        };
+
+        // 时间更新
+        videoElement.ontimeupdate = () => {
+            if (!isDragging && videoElement.duration) {
+                const percent = (videoElement.currentTime / videoElement.duration) * 100;
+                progressFill.style.width = percent + '%';
+                progressHandle.style.left = percent + '%';
+
+                currentTimeEl.textContent = this.formatTime(videoElement.currentTime);
+                timeDisplay.textContent = `${this.formatTime(videoElement.currentTime)} / ${this.formatTime(videoElement.duration)}`;
+            }
+        };
+
+        // 视频结束
+        videoElement.onended = () => {
+            playIcon.className = 'bi bi-play-fill';
+            progressFill.style.width = '0%';
+            progressHandle.style.left = '0%';
+            currentTimeEl.textContent = '0:00';
+        };
+
+        // 鼠标移动显示控制栏
+        let hideControlsTimer;
+        const showControls = () => {
+            customControls.classList.add('visible');
+            clearTimeout(hideControlsTimer);
+            hideControlsTimer = setTimeout(() => {
+                if (!videoElement.paused) {
+                    customControls.classList.remove('visible');
                 }
             }, 3000);
         };
 
-        this.hideNetflixControls = () => {
-            if (controls) controls.classList.remove('visible');
-            if (header) header.classList.remove('visible');
-            container.classList.remove('show-cursor');
-            this.netflixState.controlsVisible = false;
+        videoElement.addEventListener('mousemove', showControls);
+
+        // 防抖变量
+        let isToggling = false;
+
+        // 统一的播放/暂停切换函数
+        const togglePlayPause = (e) => {
+            e.stopPropagation(); // 阻止事件冒泡
+            e.preventDefault(); // 阻止默认行为
+
+            // 防抖：如果正在切换状态，忽略新的点击
+            if (isToggling) {
+                console.log('正在切换状态，忽略点击');
+                return;
+            }
+
+            isToggling = true;
+            console.log('切换播放状态，当前状态:', videoElement.paused ? '暂停' : '播放');
+
+            if (videoElement.paused) {
+                videoElement.play().then(() => {
+                    console.log('播放成功');
+                    isToggling = false;
+                }).catch(e => {
+                    console.log('播放失败:', e);
+                    isToggling = false;
+                });
+            } else {
+                videoElement.pause();
+                console.log('暂停成功');
+                // 暂停是同步的，立即重置状态
+                setTimeout(() => {
+                    isToggling = false;
+                }, 100);
+            }
+            showControls();
         };
 
-        // 鼠标移动事件
-        container.addEventListener('mousemove', (e) => {
-            this.netflixState.lastMouseMove = Date.now();
-            this.netflixState.userActive = true;
-            this.showNetflixControls();
+        // 视频点击事件
+        videoElement.addEventListener('click', togglePlayPause);
+
+        // 覆盖层点击事件
+        const currentOverlay = document.getElementById('videoOverlay');
+        if (currentOverlay) {
+            currentOverlay.addEventListener('click', togglePlayPause);
+        }
+
+        // 监听播放和暂停事件，仅同步UI状态（不执行播放控制）
+        videoElement.addEventListener('play', () => {
+            console.log('视频开始播放 - 同步UI');
+            const overlayEl = document.getElementById('videoOverlay');
+            if (overlayEl) overlayEl.classList.add('hidden');
+            playIcon.className = 'bi bi-pause-fill';
         });
 
-        // 鼠标离开容器
-        container.addEventListener('mouseleave', () => {
-            this.netflixState.userActive = false;
-            if (!videoElement.paused) {
-                setTimeout(() => {
-                    if (!this.netflixState.userActive) {
-                        this.hideNetflixControls();
-                    }
-                }, 1000);
+        videoElement.addEventListener('pause', () => {
+            console.log('视频暂停 - 同步UI');
+            const overlayEl = document.getElementById('videoOverlay');
+            const overlayText = document.getElementById('videoOverlayText');
+            if (overlayEl) {
+                overlayEl.classList.remove('hidden');
+                // 更新提示文字为暂停状态
+                if (overlayText) overlayText.textContent = '点击继续播放';
             }
+            playIcon.className = 'bi bi-play-fill';
         });
-
-        // 中央播放按钮
-        if (centerPlayBtn) {
-            const centerButton = centerPlayBtn.querySelector('.center-play-button');
-            const centerIcon = centerPlayBtn.querySelector('#centerPlayIcon');
-
-            centerButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.playPauseVideo();
-            });
-        }
-
-        // 控制栏播放按钮
-        const playPauseBtn = document.getElementById('videoPlayPauseBtn');
-        const playIcon = document.getElementById('videoPlayIcon');
-
-        if (playPauseBtn) {
-            playPauseBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.playPauseVideo();
-            });
-        }
-
-        // 音量控制
-        const volumeSlider = document.getElementById('videoVolumeSlider');
-        const muteBtn = document.getElementById('videoMuteBtn');
-
-        if (volumeSlider) {
-            volumeSlider.addEventListener('input', () => {
-                videoElement.volume = volumeSlider.value / 100;
-                this.updateVolumeIcon();
-                this.updateVolumeSliderStyle(volumeSlider);
-                // 保存音量设置到localStorage
-                localStorage.setItem('netflixPlayerVolume', volumeSlider.value);
-            });
-        }
-
-        if (muteBtn) {
-            muteBtn.addEventListener('click', () => {
-                videoElement.muted = !videoElement.muted;
-                this.updateVolumeIcon();
-                // 更新滑块样式以反映静音状态
-                if (volumeSlider) {
-                    this.updateVolumeSliderStyle(volumeSlider);
-                }
-            });
-        }
-
-        // 恢复保存的音量
-        const savedVolume = localStorage.getItem('netflixPlayerVolume');
-        if (savedVolume && volumeSlider) {
-            volumeSlider.value = savedVolume;
-            videoElement.volume = savedVolume / 100;
-            this.updateVolumeSliderStyle(volumeSlider);
-        }
-
-        // 进度条控制
-        this.initNetflixProgressBar(videoElement);
-
-        // 全屏和画中画
-        const fullscreenBtn = document.getElementById('videoFullscreenBtn');
-        const pipBtn = document.getElementById('videoPipBtn');
-
-        if (fullscreenBtn) {
-            fullscreenBtn.addEventListener('click', () => {
-                this.toggleFullscreen(videoElement);
-            });
-        }
-
-        if (pipBtn) {
-            pipBtn.addEventListener('click', () => {
-                if (videoElement.requestPictureInPicture) {
-                    videoElement.requestPictureInPicture();
-                }
-            });
-        }
-
-        // 键盘快捷键
-        this.initKeyboardShortcuts(videoElement);
-
-        // 视频事件监听
-        this.initVideoEventListeners(videoElement);
 
         // 初始显示控制栏
-        this.showNetflixControls();
-    }
-
-    // Netflix风格播放/暂停控制
-    playPauseVideo() {
-        const video = document.getElementById('videoPlayer');
-        const centerPlayBtn = document.getElementById('centerPlayBtn');
-        const playIcon = document.getElementById('videoPlayIcon');
-        const centerIcon = document.getElementById('centerPlayIcon');
-
-        if (video.paused) {
-            video.play().then(() => {
-                console.log('视频开始播放');
-                if (centerPlayBtn) centerPlayBtn.classList.remove('visible');
-                if (playIcon) playIcon.className = 'bi bi-pause-fill';
-                if (centerIcon) centerIcon.className = 'bi bi-pause-fill';
-                this.showNetflixControls();
-            }).catch(e => {
-                console.error('播放失败:', e);
-                showNotification('播放失败，请重试', 'danger');
-            });
-        } else {
-            video.pause();
-            console.log('视频暂停');
-            if (centerPlayBtn) centerPlayBtn.classList.add('visible');
-            if (playIcon) playIcon.className = 'bi bi-play-fill';
-            if (centerIcon) centerIcon.className = 'bi bi-play-fill';
-            this.showNetflixControls();
-        }
-    }
-
-    // 初始化Netflix风格进度条
-    initNetflixProgressBar(video) {
-        const progressContainer = document.getElementById('videoProgressContainer');
-        const progressFill = document.getElementById('videoProgressFill');
-        const progressHandle = document.getElementById('videoProgressHandle');
-        const progressPreview = document.getElementById('progressPreview');
-        const currentTimeEl = document.getElementById('videoCurrentTime');
-        const totalTimeEl = document.getElementById('videoTotalTime');
-
-        if (!progressContainer) return;
-
-        // 进度条点击
-        progressContainer.addEventListener('click', (e) => {
-            if (!this.netflixState.isDragging && video.duration) {
-                const rect = progressContainer.getBoundingClientRect();
-                const percent = (e.clientX - rect.left) / rect.width;
-                video.currentTime = percent * video.duration;
-            }
-        });
-
-        // 进度条拖拽
-        progressContainer.addEventListener('mousedown', (e) => {
-            this.netflixState.isDragging = true;
-            const rect = progressContainer.getBoundingClientRect();
-            const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-            video.currentTime = percent * video.duration;
-        });
-
-        document.addEventListener('mouseup', () => {
-            this.netflixState.isDragging = false;
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (this.netflixState.isDragging && video.duration) {
-                const rect = progressContainer.getBoundingClientRect();
-                const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                video.currentTime = percent * video.duration;
-            }
-        });
-
-        // 进度条悬停预览
-        progressContainer.addEventListener('mousemove', (e) => {
-            if (video.duration && progressPreview) {
-                const rect = progressContainer.getBoundingClientRect();
-                const percent = (e.clientX - rect.left) / rect.width;
-                const time = percent * video.duration;
-
-                progressPreview.style.left = `${e.clientX - rect.left}px`;
-                progressPreview.querySelector('.preview-time').textContent = this.formatTime(time);
-                progressPreview.classList.add('visible');
-            }
-        });
-
-        progressContainer.addEventListener('mouseleave', () => {
-            if (progressPreview) {
-                progressPreview.classList.remove('visible');
-            }
-        });
-
-        // 时间更新
-        video.addEventListener('timeupdate', () => {
-            if (!this.netflixState.isDragging && video.duration) {
-                const percent = (video.currentTime / video.duration) * 100;
-                if (progressFill) progressFill.style.width = percent + '%';
-                if (progressHandle) progressHandle.style.left = percent + '%';
-                if (currentTimeEl) currentTimeEl.textContent = this.formatTime(video.currentTime);
-                if (totalTimeEl) totalTimeEl.textContent = this.formatTime(video.duration);
-            }
-        });
-    }
-
-    // 初始化键盘快捷键
-    initKeyboardShortcuts(video) {
-        document.addEventListener('keydown', (e) => {
-            // 只在视频模态框打开时响应快捷键
-            const videoModal = document.getElementById('videoModal');
-            if (!videoModal.classList.contains('show')) return;
-
-            // 阻止在输入框中触发快捷键
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-            switch (e.code) {
-                case 'Space':
-                    e.preventDefault();
-                    this.playPauseVideo();
-                    break;
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    video.currentTime = Math.max(0, video.currentTime - 10);
-                    this.showNetflixControls();
-                    break;
-                case 'ArrowRight':
-                    e.preventDefault();
-                    video.currentTime = Math.min(video.duration, video.currentTime + 10);
-                    this.showNetflixControls();
-                    break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    video.volume = Math.min(1, video.volume + 0.1);
-                    const volumeSlider = document.getElementById('videoVolumeSlider');
-                    if (volumeSlider) {
-                        volumeSlider.value = video.volume * 100;
-                        this.updateVolumeSliderStyle(volumeSlider);
-                    }
-                    this.updateVolumeIcon();
-                    this.showNetflixControls();
-                    break;
-                case 'ArrowDown':
-                    e.preventDefault();
-                    video.volume = Math.max(0, video.volume - 0.1);
-                    const volumeSlider2 = document.getElementById('videoVolumeSlider');
-                    if (volumeSlider2) {
-                        volumeSlider2.value = video.volume * 100;
-                        this.updateVolumeSliderStyle(volumeSlider2);
-                    }
-                    this.updateVolumeIcon();
-                    this.showNetflixControls();
-                    break;
-                case 'KeyM':
-                    e.preventDefault();
-                    video.muted = !video.muted;
-                    this.updateVolumeIcon();
-                    this.showNetflixControls();
-                    break;
-                case 'KeyF':
-                    e.preventDefault();
-                    this.toggleFullscreen(video);
-                    break;
-                case 'Escape':
-                    if (document.fullscreenElement) {
-                        document.exitFullscreen();
-                    }
-                    break;
-            }
-        });
-    }
-
-    // 初始化视频事件监听器
-    initVideoEventListeners(video) {
-        // 播放事件
-        video.addEventListener('play', () => {
-            console.log('视频开始播放');
-            const centerPlayBtn = document.getElementById('centerPlayBtn');
-            const playIcon = document.getElementById('videoPlayIcon');
-            const centerIcon = document.getElementById('centerPlayIcon');
-
-            if (centerPlayBtn) centerPlayBtn.classList.remove('visible');
-            if (playIcon) playIcon.className = 'bi bi-pause-fill';
-            if (centerIcon) centerIcon.className = 'bi bi-pause-fill';
-        });
-
-        // 暂停事件
-        video.addEventListener('pause', () => {
-            console.log('视频暂停');
-            const centerPlayBtn = document.getElementById('centerPlayBtn');
-            const playIcon = document.getElementById('videoPlayIcon');
-            const centerIcon = document.getElementById('centerPlayIcon');
-
-            if (centerPlayBtn) centerPlayBtn.classList.add('visible');
-            if (playIcon) playIcon.className = 'bi bi-play-fill';
-            if (centerIcon) centerIcon.className = 'bi bi-play-fill';
-            this.showNetflixControls();
-        });
-
-        // 视频结束
-        video.addEventListener('ended', () => {
-            console.log('视频播放结束');
-            const centerPlayBtn = document.getElementById('centerPlayBtn');
-            const playIcon = document.getElementById('videoPlayIcon');
-            const centerIcon = document.getElementById('centerPlayIcon');
-            const progressFill = document.getElementById('videoProgressFill');
-            const progressHandle = document.getElementById('videoProgressHandle');
-
-            if (centerPlayBtn) centerPlayBtn.classList.add('visible');
-            if (playIcon) playIcon.className = 'bi bi-play-fill';
-            if (centerIcon) centerIcon.className = 'bi bi-play-fill';
-            if (progressFill) progressFill.style.width = '100%';
-            if (progressHandle) progressHandle.style.left = '100%';
-            this.showNetflixControls();
-        });
-
-        // 视频点击播放/暂停
-        video.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.playPauseVideo();
-        });
-    }
-
-    // 切换全屏
-    toggleFullscreen(video) {
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
-        } else {
-            video.requestFullscreen().catch(err => {
-                console.error('无法进入全屏模式:', err);
-            });
-        }
+        showControls();
     }
 
     updateVideoInfo() {
@@ -2622,12 +1988,12 @@ class FilesApp {
         video.onloadedmetadata = () => {
             // 更新时长
             const duration = this.formatTime(video.duration);
-            if (videoDuration) videoDuration.textContent = duration;
-            if (totalTimeEl) totalTimeEl.textContent = duration;
+            videoDuration.textContent = duration;
+            totalTimeEl.textContent = duration;
 
             // 更新分辨率
             const resolution = `${video.videoWidth}x${video.videoHeight}`;
-            if (videoResolution) videoResolution.textContent = resolution;
+            videoResolution.textContent = resolution;
         };
     }
 
@@ -2635,41 +2001,12 @@ class FilesApp {
         const video = document.getElementById('videoPlayer');
         const volumeIcon = document.getElementById('videoVolumeIcon');
 
-        if (!volumeIcon) return;
-
         if (video.muted || video.volume === 0) {
             volumeIcon.className = 'bi bi-volume-mute';
         } else if (video.volume < 0.5) {
             volumeIcon.className = 'bi bi-volume-down';
         } else {
             volumeIcon.className = 'bi bi-volume-up';
-        }
-    }
-
-    // 更新音量滑块样式
-    updateVolumeSliderStyle(slider) {
-        if (!slider) return;
-
-        const video = document.getElementById('videoPlayer');
-        const value = slider.value;
-        const percentage = value + '%';
-
-        // 检查是否静音
-        const isMuted = video && video.muted;
-        const fillColor = isMuted ? 'rgba(255, 255, 255, 0.5)' : '#8B5CF6';
-
-        // 更新CSS自定义属性来控制填充效果
-        slider.style.setProperty('--volume-percent', percentage);
-
-        // 为不支持CSS自定义属性的浏览器提供备用方案
-        const gradient = `linear-gradient(to right, ${fillColor} 0%, ${fillColor} ${percentage}, rgba(255, 255, 255, 0.3) ${percentage}, rgba(255, 255, 255, 0.3) 100%)`;
-        slider.style.background = gradient;
-
-        // 添加静音时的视觉效果
-        if (isMuted) {
-            slider.style.opacity = '0.6';
-        } else {
-            slider.style.opacity = '1';
         }
     }
 
@@ -2681,12 +2018,7 @@ class FilesApp {
         document.querySelectorAll('.dropdown-item').forEach(item => {
             item.classList.remove('active');
         });
-        if (event && event.target) {
-            event.target.classList.add('active');
-        }
-
-        // 显示速度变更提示
-        showNotification(`播放速度已设置为 ${speed}x`, 'info', 2000);
+        event.target.classList.add('active');
     }
 
     playAudio(filename) {
@@ -2743,7 +2075,7 @@ class FilesApp {
         const canPlayHandler = () => {
             console.log('音频可以播放:', filename);
             fileInfo.textContent = `${this.formatSize(this.currentAudio.size)} • ${this.formatDate(this.currentAudio.modified)}`;
-            showNotification('音频加载完成！点击"获取歌词"按钮来获取歌词', 'success');
+            showNotification('音频加载完成！', 'success');
             this.updateDuration();
         };
 
@@ -2772,75 +2104,27 @@ class FilesApp {
         // 移除扩展名
         const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
 
-        console.log('🎵 解析文件名:', nameWithoutExt);
-
-        // 常见的分隔符模式
-        const patterns = [
-            // "艺术家 - 歌曲名" 格式
-            { regex: /^(.+?)\s*-\s*(.+)$/, priority: 1 },
-            // "艺术家_歌曲名" 格式
-            { regex: /^(.+?)_(.+)$/, priority: 2 },
-            // "艺术家 歌曲名" 格式（空格分隔，至少2个词）
-            { regex: /^(\S+(?:\s+\S+)*?)\s+(.+)$/, priority: 3 },
-            // "【艺术家】歌曲名" 格式
-            { regex: /^【(.+?)】(.+)$/, priority: 1 },
-            // "[艺术家]歌曲名" 格式
-            { regex: /^\[(.+?)\](.+)$/, priority: 1 },
-            // "(艺术家)歌曲名" 格式
-            { regex: /^\((.+?)\)(.+)$/, priority: 2 },
-            // "艺术家.歌曲名" 格式
-            { regex: /^(.+?)\.(.+)$/, priority: 3 },
-            // "艺术家~歌曲名" 格式
-            { regex: /^(.+?)~(.+)$/, priority: 2 },
-            // "艺术家|歌曲名" 格式
-            { regex: /^(.+?)\|(.+)$/, priority: 2 }
-        ];
-
-        // 按优先级排序并尝试匹配
-        patterns.sort((a, b) => a.priority - b.priority);
-
-        for (const pattern of patterns) {
-            const match = nameWithoutExt.match(pattern.regex);
-            if (match && match[1] && match[2]) {
-                const artist = match[1].trim();
-                const title = match[2].trim();
-
-                // 验证解析结果的合理性
-                if (artist.length > 0 && title.length > 0 &&
-                    artist.length < 50 && title.length < 100) {
-                    console.log('✅ 解析成功:', { artist, title });
-                    return { artist, title };
-                }
-            }
+        // 尝试解析 "艺术家 - 歌曲名" 格式
+        if (nameWithoutExt.includes(' - ')) {
+            const parts = nameWithoutExt.split(' - ');
+            return {
+                artist: parts[0].trim(),
+                title: parts.slice(1).join(' - ').trim()
+            };
         }
 
-        // 特殊处理：如果文件名包含常见的艺术家关键词
-        const artistKeywords = ['feat', 'ft', 'featuring', 'vs', 'with', '&'];
-        for (const keyword of artistKeywords) {
-            const regex = new RegExp(`^(.+?)\\s+${keyword}\\.?\\s+(.+)$`, 'i');
-            const match = nameWithoutExt.match(regex);
-            if (match) {
-                console.log('✅ 特殊格式解析:', { artist: match[1].trim(), title: nameWithoutExt });
+        // 尝试解析 "艺术家-歌曲名" 格式
+        if (nameWithoutExt.includes('-') && !nameWithoutExt.startsWith('-')) {
+            const parts = nameWithoutExt.split('-');
+            if (parts.length >= 2) {
                 return {
-                    artist: match[1].trim(),
-                    title: nameWithoutExt
+                    artist: parts[0].trim(),
+                    title: parts.slice(1).join('-').trim()
                 };
             }
         }
 
-        // 如果包含数字开头（可能是专辑曲目），尝试提取
-        const trackMatch = nameWithoutExt.match(/^\d+[\.\s]*(.+)$/);
-        if (trackMatch) {
-            const cleanName = trackMatch[1].trim();
-            // 递归解析清理后的名称
-            const result = this.parseSongInfo(cleanName + '.mp3');
-            if (result.artist !== '未知艺术家') {
-                return result;
-            }
-        }
-
-        // 默认情况：整个文件名作为歌曲名
-        console.log('❌ 无法解析艺术家，使用默认值');
+        // 默认情况
         return {
             artist: '未知艺术家',
             title: nameWithoutExt
@@ -3193,10 +2477,6 @@ class FilesApp {
                 line.classList.remove('current');
             });
 
-            // 8. 清理歌词数据
-            this.currentLyrics = [];
-            this.currentLyricIndex = 0;
-
             console.log('✅ 音频和歌词资源清理完成');
         }
     }
@@ -3300,414 +2580,6 @@ class FilesApp {
             return { used, total, limit, usage: used / limit };
         }
         return null;
-    }
-
-
-
-    // 选择最佳歌词匹配
-    selectBestLyricsMatch(results, searchTitle, searchArtist) {
-        if (results.length === 1) {
-            return results[0];
-        }
-
-        // 计算匹配分数
-        const scoredResults = results.map(result => {
-            let score = 0;
-
-            // 标题匹配分数
-            if (result.title) {
-                const titleSimilarity = this.calculateSimilarity(
-                    searchTitle.toLowerCase(),
-                    result.title.toLowerCase()
-                );
-                score += titleSimilarity * 0.7;
-            }
-
-            // 艺术家匹配分数
-            if (searchArtist && result.artist) {
-                const artistSimilarity = this.calculateSimilarity(
-                    searchArtist.toLowerCase(),
-                    result.artist.toLowerCase()
-                );
-                score += artistSimilarity * 0.3;
-            }
-
-            // 歌词长度加分（更长的歌词通常更完整）
-            if (result.lyrics) {
-                const lyricsLength = result.lyrics.length;
-                score += Math.min(lyricsLength / 10000, 0.1);
-            }
-
-            return { ...result, score };
-        });
-
-        // 按分数排序，返回最高分的结果
-        scoredResults.sort((a, b) => b.score - a.score);
-        console.log('歌词匹配分数:', scoredResults.map(r => ({ title: r.title, artist: r.artist, score: r.score })));
-
-        return scoredResults[0];
-    }
-
-    // 计算字符串相似度
-    calculateSimilarity(str1, str2) {
-        if (str1 === str2) return 1;
-        if (!str1 || !str2) return 0;
-
-        // 简单的相似度计算：基于公共子串
-        const longer = str1.length > str2.length ? str1 : str2;
-        const shorter = str1.length > str2.length ? str2 : str1;
-
-        if (longer.length === 0) return 1;
-
-        // 计算编辑距离
-        const editDistance = this.levenshteinDistance(str1, str2);
-        return (longer.length - editDistance) / longer.length;
-    }
-
-    // 计算编辑距离
-    levenshteinDistance(str1, str2) {
-        const matrix = [];
-
-        for (let i = 0; i <= str2.length; i++) {
-            matrix[i] = [i];
-        }
-
-        for (let j = 0; j <= str1.length; j++) {
-            matrix[0][j] = j;
-        }
-
-        for (let i = 1; i <= str2.length; i++) {
-            for (let j = 1; j <= str1.length; j++) {
-                if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-                    matrix[i][j] = matrix[i - 1][j - 1];
-                } else {
-                    matrix[i][j] = Math.min(
-                        matrix[i - 1][j - 1] + 1,
-                        matrix[i][j - 1] + 1,
-                        matrix[i - 1][j] + 1
-                    );
-                }
-            }
-        }
-
-        return matrix[str2.length][str1.length];
-    }
-
-    // 显示歌词
-    displayLyrics(lyricsText, title, artist) {
-        const lyricsContent = document.getElementById('lyricsContent');
-        if (!lyricsContent) return;
-
-        // 解析LRC格式歌词
-        const lyricsLines = this.parseLRC(lyricsText);
-
-        if (lyricsLines.length === 0) {
-            this.displayNoLyrics('歌词格式错误');
-            return;
-        }
-
-        // 创建歌词HTML
-        let lyricsHTML = `
-            <div class="lyrics-header mb-3">
-                <h6 class="text-white fw-bold mb-1">${title}</h6>
-                <small class="text-white-50">${artist}</small>
-            </div>
-            <div class="lyrics-lines">
-        `;
-
-        lyricsLines.forEach((line, index) => {
-            if (line.text.trim()) {
-                lyricsHTML += `
-                    <div class="lyric-line" data-time="${line.time}" data-index="${index}">
-                        <span class="lyric-text">${this.escapeHtml(line.text)}</span>
-                    </div>
-                `;
-            }
-        });
-
-        lyricsHTML += '</div>';
-        lyricsContent.innerHTML = lyricsHTML;
-
-        // 存储歌词数据用于同步
-        this.currentLyrics = lyricsLines;
-        this.currentLyricIndex = 0;
-
-        // 自动显示歌词面板
-        this.showLyrics();
-    }
-
-    // 显示无歌词状态
-    displayNoLyrics(message) {
-        const lyricsContent = document.getElementById('lyricsContent');
-        if (!lyricsContent) return;
-
-        lyricsContent.innerHTML = `
-            <div class="text-center py-5">
-                <i class="bi bi-music-note-list display-4 text-white-50"></i>
-                <p class="mt-3 text-white-50">${message}</p>
-                <small class="text-white-50">支持LRC格式歌词文件</small>
-            </div>
-        `;
-        this.currentLyrics = [];
-    }
-
-    // 解析LRC格式歌词
-    parseLRC(lrcText) {
-        const lines = lrcText.split('\n');
-        const lyricsLines = [];
-
-        lines.forEach(line => {
-            // 匹配时间标签 [mm:ss.xx] 或 [mm:ss]
-            const timeMatch = line.match(/\[(\d{2}):(\d{2})(?:\.(\d{2,3}))?\]/);
-            if (timeMatch) {
-                const minutes = parseInt(timeMatch[1]);
-                const seconds = parseInt(timeMatch[2]);
-                const milliseconds = timeMatch[3] ? parseInt(timeMatch[3].padEnd(3, '0')) : 0;
-                const time = minutes * 60 + seconds + milliseconds / 1000;
-
-                // 提取歌词文本（去除时间标签）
-                const text = line.replace(/\[\d{2}:\d{2}(?:\.\d{2,3})?\]/g, '').trim();
-
-                if (text) {
-                    lyricsLines.push({ time, text });
-                }
-            }
-        });
-
-        // 按时间排序
-        lyricsLines.sort((a, b) => a.time - b.time);
-        return lyricsLines;
-    }
-
-    // HTML转义
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // 显示歌词面板
-    showLyrics() {
-        const lyricsPanel = document.getElementById('lyricsPanel');
-        const toggleText = document.getElementById('lyricsToggleText');
-
-        if (lyricsPanel && toggleText) {
-            lyricsPanel.style.display = 'block';
-            toggleText.textContent = '隐藏歌词';
-        }
-    }
-
-    // 切换歌词显示
-    toggleLyrics() {
-        const lyricsPanel = document.getElementById('lyricsPanel');
-        const toggleText = document.getElementById('lyricsToggleText');
-
-        if (lyricsPanel && toggleText) {
-            if (lyricsPanel.style.display === 'none') {
-                lyricsPanel.style.display = 'block';
-                toggleText.textContent = '隐藏歌词';
-            } else {
-                lyricsPanel.style.display = 'none';
-                toggleText.textContent = '显示歌词';
-            }
-        }
-    }
-
-    // 切换手动获取歌词面板
-    toggleManualLyrics() {
-        const manualPanel = document.getElementById('manualLyricsPanel');
-
-        if (manualPanel) {
-            if (manualPanel.style.display === 'none') {
-                manualPanel.style.display = 'block';
-                // 加载默认API和当前歌曲信息
-                this.loadManualLyricsDefaults();
-            } else {
-                manualPanel.style.display = 'none';
-            }
-        }
-    }
-
-    // 加载手动获取歌词的默认值
-    loadManualLyricsDefaults() {
-        // 加载保存的API设置
-        const apiUrlInput = document.getElementById('manualApiUrl');
-        if (apiUrlInput) {
-            const savedApiUrl = localStorage.getItem('manualLyricsApiUrl');
-            if (savedApiUrl) {
-                apiUrlInput.value = savedApiUrl;
-            } else {
-                // 不设置默认值，让用户自己输入
-                apiUrlInput.placeholder = 'https://your-api.com/lrc?title={title}&artist={artist}';
-            }
-        }
-
-        // 如果有当前播放的歌曲，自动解析并填入信息
-        if (this.currentAudio) {
-            console.log('🎵 打开歌词获取面板，自动解析当前歌曲:', this.currentAudio.name);
-            this.fillCurrentSongInfo();
-        } else {
-            // 清空输入框
-            const titleInput = document.getElementById('manualSongTitle');
-            const artistInput = document.getElementById('manualArtist');
-            if (titleInput) titleInput.value = '';
-            if (artistInput) artistInput.value = '';
-        }
-    }
-
-    // 自动解析当前文件名并填入歌曲信息
-    fillCurrentSongInfo() {
-        if (!this.currentAudio) {
-            showNotification('当前没有播放的音频文件', 'warning');
-            return;
-        }
-
-        const fileName = this.currentAudio.name;
-        const songInfo = this.parseSongInfo(fileName);
-
-        const titleInput = document.getElementById('manualSongTitle');
-        const artistInput = document.getElementById('manualArtist');
-
-        console.log('🎵 自动解析文件名:', fileName);
-        console.log('📝 解析结果:', songInfo);
-
-        if (titleInput) {
-            titleInput.value = songInfo.title;
-        }
-
-        if (artistInput) {
-            artistInput.value = songInfo.artist !== '未知艺术家' ? songInfo.artist : '';
-        }
-
-        // 显示解析结果
-        if (songInfo.artist !== '未知艺术家') {
-            showNotification(`已解析：${songInfo.artist} - ${songInfo.title}`, 'success');
-        } else {
-            showNotification(`已解析歌曲名：${songInfo.title}（未识别到演唱者）`, 'info');
-        }
-    }
-
-    // 手动获取歌词
-    async fetchManualLyrics() {
-        const titleInput = document.getElementById('manualSongTitle');
-        const artistInput = document.getElementById('manualArtist');
-        const apiUrlInput = document.getElementById('manualApiUrl');
-
-        if (!titleInput || !apiUrlInput) return;
-
-        const title = titleInput.value.trim();
-        const artist = artistInput.value.trim();
-        const apiUrl = apiUrlInput.value.trim();
-
-        // 验证输入
-        if (!title) {
-            showNotification('请输入歌曲名', 'warning');
-            titleInput.focus();
-            return;
-        }
-
-        if (!apiUrl) {
-            showNotification('请先设置您的歌词API地址', 'warning');
-            apiUrlInput.focus();
-            return;
-        }
-
-        // 验证API URL格式
-        if (!apiUrl.includes('{title}')) {
-            showNotification('API地址必须包含 {title} 参数', 'warning');
-            apiUrlInput.focus();
-            return;
-        }
-
-        try {
-            showNotification('正在获取歌词...', 'info');
-
-            // 保存API地址到localStorage
-            localStorage.setItem('manualLyricsApiUrl', apiUrl);
-
-            // 构建请求URL
-            const requestUrl = apiUrl
-                .replace('{title}', encodeURIComponent(title))
-                .replace('{artist}', encodeURIComponent(artist));
-
-            console.log('手动获取歌词 API请求:', requestUrl);
-
-            const response = await fetch(requestUrl);
-            const data = await response.json();
-
-            if (data && Array.isArray(data) && data.length > 0) {
-                // 选择最佳匹配
-                const bestMatch = this.selectBestLyricsMatch(data, title, artist);
-
-                if (bestMatch && bestMatch.lyrics && bestMatch.lyrics.trim()) {
-                    console.log('✅ 手动获取歌词成功:', bestMatch.title, '-', bestMatch.artist);
-                    this.displayLyrics(bestMatch.lyrics, bestMatch.title, bestMatch.artist);
-                    showNotification(`成功获取歌词: ${bestMatch.title}`, 'success');
-
-                    // 隐藏手动获取面板
-                    this.toggleManualLyrics();
-                } else {
-                    showNotification('获取到的歌词为空', 'warning');
-                }
-            } else {
-                showNotification('未找到歌词，请检查歌曲名或API地址', 'warning');
-            }
-
-        } catch (error) {
-            console.error('手动获取歌词失败:', error);
-            showNotification('获取歌词失败: ' + error.message, 'danger');
-        }
-    }
-
-    // 清空手动输入
-    clearManualInputs() {
-        const titleInput = document.getElementById('manualSongTitle');
-        const artistInput = document.getElementById('manualArtist');
-
-        if (titleInput) titleInput.value = '';
-        if (artistInput) artistInput.value = '';
-
-        showNotification('已清空输入', 'info');
-    }
-
-    // 同步歌词高亮
-    syncLyrics(currentTime) {
-        if (!this.currentLyrics || this.currentLyrics.length === 0) return;
-
-        // 找到当前时间对应的歌词行
-        let currentIndex = -1;
-        for (let i = 0; i < this.currentLyrics.length; i++) {
-            if (currentTime >= this.currentLyrics[i].time) {
-                currentIndex = i;
-            } else {
-                break;
-            }
-        }
-
-        // 如果当前索引发生变化，更新高亮
-        if (currentIndex !== this.currentLyricIndex && currentIndex >= 0) {
-            this.currentLyricIndex = currentIndex;
-            this.highlightLyric(currentIndex);
-        }
-    }
-
-    // 高亮当前歌词行
-    highlightLyric(index) {
-        // 移除所有高亮
-        const allLines = document.querySelectorAll('.lyric-line');
-        allLines.forEach(line => line.classList.remove('current'));
-
-        // 高亮当前行
-        const currentLine = document.querySelector(`.lyric-line[data-index="${index}"]`);
-        if (currentLine) {
-            currentLine.classList.add('current');
-
-            // 滚动到当前歌词
-            currentLine.scrollIntoView({
-                behavior: 'smooth',
-                block: 'center'
-            });
-        }
     }
 
     downloadCurrentVideo() {
