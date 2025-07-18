@@ -94,7 +94,7 @@ docker-compose up -d
 ```
 
 ### 🌐 访问应用
-- **Web界面**: http://localhost:8080
+- **Web界面**: http://localhost:8090
 - **默认账号**: admin / admin123
 - **⚠️ 重要**: 首次登录后立即修改默认密码！
 
@@ -107,7 +107,7 @@ docker-compose ps
 docker-compose logs -f
 
 # 健康检查
-curl http://localhost:8080/api/health
+curl http://localhost:8090/api/health
 ```
 
 ## 📋 功能详解
@@ -127,12 +127,12 @@ curl http://localhost:8080/api/health
 ### API接口
 ```bash
 # 创建下载任务
-curl -X POST http://localhost:8080/api/download \
+curl -X POST http://localhost:8090/api/download \
   -H "Content-Type: application/json" \
   -d '{"url": "https://www.youtube.com/watch?v=VIDEO_ID"}'
 
 # 查询下载状态
-curl http://localhost:8080/api/download/TASK_ID/status
+curl http://localhost:8090/api/download/TASK_ID/status
 ```
 
 ## ⚙️ 配置说明
@@ -141,7 +141,7 @@ curl http://localhost:8080/api/download/TASK_ID/status
 ```yaml
 app:
   host: "0.0.0.0"
-  port: 8080
+  port: 8090
   debug: false
 
 downloader:
