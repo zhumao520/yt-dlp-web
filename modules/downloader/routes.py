@@ -45,10 +45,7 @@ def start_download():
             'format': data.get('format'),
             'custom_filename': data.get('custom_filename', '').strip(),
             'source': 'web_interface',
-            'client_id': data.get('client_id'),  # 🔧 传递客户端ID用于精准推送
-            # 🔧 额外文件下载选项（仅支持缩略图和字幕）
-            'download_thumbnail': data.get('download_thumbnail', False),
-            'download_subtitles': data.get('download_subtitles', False)
+            'client_id': data.get('client_id')  # 🔧 传递客户端ID用于精准推送
         }
 
         logger.info(f"🔧 处理后的options: {options}")

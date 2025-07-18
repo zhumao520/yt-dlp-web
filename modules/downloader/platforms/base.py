@@ -19,7 +19,7 @@ class BasePlatform(ABC):
         self.supported_domains = []
         
     @abstractmethod
-    def get_config(self, url: str, quality: str = 'best', user_options: Dict[str, Any] = None) -> Dict[str, Any]:
+    def get_config(self, url: str, quality: str = 'best') -> Dict[str, Any]:
         """获取平台特定的 yt-dlp 配置"""
         pass
     
@@ -82,12 +82,9 @@ class BasePlatform(ABC):
         """是否支持字幕"""
         return False
     
-    def get_subtitle_config(self, user_options: Dict[str, Any] = None) -> Dict[str, Any]:
-        """获取字幕配置 - 支持用户自定义选择"""
-        # 🔧 检查用户是否选择下载字幕
-        user_wants_subtitles = user_options and user_options.get('download_subtitles', False)
-
-        if self.supports_subtitles() and user_wants_subtitles:
+    def get_subtitle_config(self) -> Dict[str, Any]:
+        """获取字幕配置"""
+        if self.supports_subtitles():
             return {
                 'writesubtitles': True,
                 'writeautomaticsub': True,
@@ -98,8 +95,8 @@ class BasePlatform(ABC):
             'writeautomaticsub': False,
         }
     
-    def get_base_config(self, user_options: Dict[str, Any] = None) -> Dict[str, Any]:
-        """获取基础配置 - 支持用户自定义选择"""
+    def get_base_config(self) -> Dict[str, Any]:
+        """获取基础配置"""
         config = {}
         
         # HTTP 请求头
@@ -116,20 +113,9 @@ class BasePlatform(ABC):
         # 睡眠配置
         config.update(self.get_sleep_config())
         
-        # 字幕配置 - 传递用户选项
-        config.update(self.get_subtitle_config(user_options))
-
-        # 🔧 额外文件下载配置 - 根据用户选择（仅支持缩略图）
-        if user_options:
-            config.update({
-                'writethumbnail': user_options.get('download_thumbnail', False),
-            })
-        else:
-            # 默认不下载缩略图
-            config.update({
-                'writethumbnail': False,
-            })
-
+        # 字幕配置
+        config.update(self.get_subtitle_config())
+        
         return config
     
     def is_supported(self, url: str) -> bool:
